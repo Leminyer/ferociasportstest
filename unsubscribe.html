@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unsubscribe — Ferocia Sports</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="db.js"></script>
+<script src="assets.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Montserrat',sans-serif;background:#f4f6fc;color:#0d1f4a;min-height:100vh;display:flex;flex-direction:column;}
+  header{background:#174CCC;padding:0 24px;display:flex;align-items:center;height:64px;border-bottom:3px solid #C6F221;}
+  .logo{height:32px;width:auto;}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{background:white;border-radius:12px;padding:48px 36px;max-width:460px;width:100%;text-align:center;box-shadow:0 4px 20px rgba(23,76,204,0.08);}
+  .icon{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:32px;background:#fde8d8;}
+  h2{font-size:22px;font-weight:800;margin-bottom:12px;}
+  p{font-size:14px;color:#6b7a99;line-height:1.6;margin-bottom:16px;}
+  .btn{display:inline-block;padding:12px 28px;background:#F26024;color:white;border:none;border-radius:8px;font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;font-family:'Montserrat',sans-serif;}
+  .btn:disabled{opacity:.6;cursor:not-allowed;}
+  .divider{height:3px;background:linear-gradient(90deg,#174CCC,#C6F221);border-radius:99px;margin:24px 0;}
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" data-asset="ferociaLogo" alt="Ferocia">
+</header>
+<main>
+  <div class="card">
+    <div class="icon" id="icon">📧</div>
+    <h2 id="title">Unsubscribe</h2>
+    <div class="divider"></div>
+    <p id="msg">Are you sure you want to unsubscribe from Ferocia Sports updates?</p>
+    <button class="btn" id="unsub-btn" type="button">Yes, unsubscribe me</button>
+  </div>
+</main>
+<script>
+(function () {
+  'use strict';
+
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('t');
+
+  // Token format check before we do anything
+  const validToken = token && /^[A-Za-z0-9_-]+$/.test(token);
+
+  if (!validToken) {
+    document.getElementById('title').textContent = 'Invalid link';
+    document.getElementById('msg').textContent = 'This unsubscribe link is invalid.';
+    document.getElementById('unsub-btn').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('unsub-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('unsub-btn');
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+    try {
+      await api(
+        `subscribers?unsubscribe_token=eq.${encodeURIComponent(token)}`,
+        'PATCH',
+        { status: 'unsubscribed' },
+      );
+      document.getElementById('title').textContent = "You've been unsubscribed";
+      document.getElementById('msg').textContent =
+        "You have been successfully removed from our mailing list. We're sorry to see you go! If you change your mind, you can always subscribe again at ferociasports.com";
+      btn.style.display = 'none';
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Yes, unsubscribe me';
+      document.getElementById('msg').textContent =
+        'Something went wrong. Please try again or contact us at contact@ferociasports.com';
+    }
+  });
+})();
+</script>
+</body>
+</html>

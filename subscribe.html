@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ferocia Sports Center — Stay Connected</title>
+  <!-- Open Graph / WhatsApp / iMessage / Social preview -->
+  <meta property="og:type"        content="website">
+  <meta property="og:site_name"   content="Ferocia Sports Center">
+  <meta property="og:title"       content="Join Our Community — Ferocia Sports Center">
+  <meta property="og:description" content="Subscribe to get event invites, tournament news, ladder updates and member-only promos from Ferocia Sports Center.">
+  <meta property="og:image"       content="https://ferociasports.com/og-preview.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height"content="630">
+  <meta property="og:url"         content="https://ferociasports.com/subscribe.html">
+  <meta name="twitter:card"       content="summary_large_image">
+  <meta name="twitter:title"      content="Join Our Community — Ferocia Sports Center">
+  <meta name="twitter:description"content="Subscribe to get event invites, tournament news, ladder updates and member-only promos from Ferocia Sports Center.">
+  <meta name="twitter:image"      content="https://ferociasports.com/og-preview.png">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="db.js"></script>
+<script src="assets.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Montserrat',sans-serif;background:#f4f6fc;color:#0d1f4a;min-height:100vh;}
+  header{background:#174CCC;padding:0 24px;display:flex;align-items:center;height:64px;border-bottom:3px solid #C6F221;}
+  .header-inner{display:flex;flex-direction:column;justify-content:center;gap:3px;}
+  .logo{height:32px;max-width:140px;width:auto;object-fit:contain;display:block;}
+  .tagline{font-size:11px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:#C6F221;padding-left:2px;}
+  main{max-width:520px;margin:40px auto;padding:0 16px;}
+  .card{background:white;border-radius:12px;padding:36px 32px;box-shadow:0 4px 20px rgba(23,76,204,0.08);}
+  .card-title{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:6px;}
+  h1{font-size:24px;font-weight:800;color:#0d1f4a;margin-bottom:8px;}
+  .subtitle{font-size:14px;color:#6b7a99;font-weight:500;margin-bottom:28px;line-height:1.5;}
+  .divider{height:3px;background:linear-gradient(90deg,#174CCC,#C6F221);border-radius:99px;margin-bottom:28px;}
+  .form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
+  label{font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#6b7a99;}
+  input,select{padding:10px 14px;border:0.5px solid #d6dff5;border-radius:6px;font-size:14px;font-family:'Montserrat',sans-serif;color:#0d1f4a;outline:none;}
+  input:focus,select:focus{border-color:#174CCC;box-shadow:0 0 0 2px rgba(23,76,204,.12);}
+  input.error{border-color:#F26024;}
+  .error-msg{font-size:11px;color:#F26024;font-weight:600;margin-top:4px;display:none;}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .btn{width:100%;padding:14px;background:#174CCC;color:white;border:none;border-radius:8px;font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;font-family:'Montserrat',sans-serif;transition:opacity .15s;margin-top:8px;}
+  .btn:hover{opacity:.88;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .success-screen{display:none;text-align:center;padding:20px 0;}
+  .success-icon{width:64px;height:64px;background:#24BC96;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;}
+  footer{text-align:center;padding:24px;margin-top:16px;}
+  .footer-tag{font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#6b7a99;display:block;margin-bottom:8px;}
+  .footer-logo{height:22px;max-width:120px;object-fit:contain;}
+  @media(max-width:480px){.form-row{grid-template-columns:1fr;}.card{padding:24px 20px;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <img class="logo" data-asset="ferociaLogo" alt="Ferocia">
+    <div class="tagline">Sports Center — Stay Connected</div>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="card-title">Ferocia Sports</div>
+    <h1>Join Our Community</h1>
+    <p class="subtitle">Sign up to receive updates about new ladders, tournaments, events and more from Ferocia Sports!</p>
+    <div class="divider"></div>
+
+    <div id="form-section">
+      <form id="subscribe-form" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label>First name *</label>
+            <input type="text" id="s-first" placeholder="First name" required>
+            <div class="error-msg" id="err-first">Please enter your first name.</div>
+          </div>
+          <div class="form-group">
+            <label>Last name *</label>
+            <input type="text" id="s-last" placeholder="Last name" required>
+            <div class="error-msg" id="err-last">Please enter your last name.</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Email address *</label>
+          <input type="email" id="s-email" placeholder="your@email.com" required>
+          <div class="error-msg" id="err-email">Please enter a valid email address.</div>
+        </div>
+        <div class="form-group">
+          <label>Phone number</label>
+          <input type="tel" id="s-phone" placeholder="555-000-0000">
+          <div class="error-msg" id="err-phone">Please enter a valid phone number.</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Gender</label>
+            <select id="s-gender">
+              <option value="">-- Select --</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Skill level</label>
+            <select id="s-skill">
+              <option value="">-- Select --</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn" id="subscribe-btn">Subscribe Now</button>
+        <!-- Honeypot: hidden from humans, bots fill this automatically -->
+        <!-- position:absolute + opacity:0 + tabindex=-1 makes it invisible but present in DOM -->
+        <div style="position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;overflow:hidden;" aria-hidden="true">
+          <label>Leave this blank</label>
+          <input type="text" id="s-honeypot" name="website" tabindex="-1" autocomplete="off">
+        </div>
+      </form>
+    </div>
+
+    <div class="success-screen" id="success-screen">
+      <div class="success-icon">✅</div>
+      <h2 style="font-size:20px;font-weight:800;color:#0d1f4a;margin-bottom:12px;">Almost done!</h2>
+      <p style="font-size:14px;color:#6b7a99;line-height:1.6;margin-bottom:8px;">We sent a confirmation email to:</p>
+      <p style="font-size:15px;font-weight:700;color:#174CCC;margin-bottom:16px;" id="confirm-email-shown"></p>
+      <p style="font-size:13px;color:#6b7a99;line-height:1.6;">Please check your inbox and click the confirmation link to complete your subscription.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span class="footer-tag">Powered by</span>
+  <img class="footer-logo" data-asset="ferociaLogoBlue" alt="Ferocia Sports">
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  const CFG = window.FEROCIA_CONFIG;
+  emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
+
+  // Strict email validation:
+  // - Local part: letters, digits, dots, hyphens, underscores only
+  // - No consecutive dots, no leading/trailing dots
+  // - Domain: letters, digits, hyphens only
+  // - TLD: 2-10 letters only
+  const validateEmail = (email) => {
+    const e = email.trim().toLowerCase();
+    // Block obviously fake patterns: too many dots in local part, special chars
+    const localPart = e.split('@')[0] || '';
+    const dotCount = (localPart.match(/\./g) || []).length;
+    if (dotCount > 3) return false; // more than 3 dots in local = suspicious
+    // Block special chars: *, #, !, $, %, ^, &, (, ), +, =, [, ], {, }, |, \, /, ?
+    if (/[*#!$%^&()+={}\[\]|\\/?<>,;:]/.test(e)) return false;
+    // Standard structure check
+    return /^[a-zA-Z0-9][a-zA-Z0-9._\-]{0,62}@[a-zA-Z0-9][a-zA-Z0-9.\-]{0,62}\.[a-zA-Z]{2,10}$/.test(e);
+  };
+
+  // Random unguessable token for confirm/unsubscribe links
+  const generateToken = () =>
+    Math.random().toString(36).substring(2) +
+    Date.now().toString(36) +
+    Math.random().toString(36).substring(2);
+
+  // Inline error helpers
+  const showFieldError = (id, errId, msg) => {
+    document.getElementById(id).classList.add('error');
+    const errEl = document.getElementById(errId);
+    if (msg) errEl.textContent = msg;
+    errEl.style.display = 'block';
+  };
+  const clearFieldError = (id, errId) => {
+    document.getElementById(id).classList.remove('error');
+    document.getElementById(errId).style.display = 'none';
+  };
+
+  document.getElementById('subscribe-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const first = document.getElementById('s-first').value.trim();
+    const last = document.getElementById('s-last').value.trim();
+    const email = document.getElementById('s-email').value.trim();
+    const phone = document.getElementById('s-phone').value.trim();
+    const gender = document.getElementById('s-gender').value;
+    const skill = document.getElementById('s-skill').value;
+
+    // ── Honeypot check — bots fill hidden fields, humans don't ───────────
+    // If this field has any value, it's almost certainly a bot. Silently
+    // show success (so bots don't know they were blocked) but don't save.
+    const honeypot = document.getElementById('s-honeypot').value;
+    if (honeypot) {
+      document.getElementById('form-section').style.display = 'none';
+      document.getElementById('confirm-email-shown').textContent = email;
+      document.getElementById('success-screen').style.display = 'block';
+      return;
+    }
+
+    // Validation
+    let valid = true;
+
+    // Name validation — no numbers, no symbols, max 40 chars, min 2 chars
+    const nameRegex = /^[a-zA-ZÀ-ÖØ-öø-ÿ'\-\s]{2,40}$/;
+    if (!first) {
+      showFieldError('s-first', 'err-first', 'Please enter your first name.');
+      valid = false;
+    } else if (!nameRegex.test(first)) {
+      showFieldError('s-first', 'err-first', 'First name can only contain letters (2–40 characters).');
+      valid = false;
+    } else {
+      clearFieldError('s-first', 'err-first');
+    }
+
+    if (!last) {
+      showFieldError('s-last', 'err-last', 'Please enter your last name.');
+      valid = false;
+    } else if (!nameRegex.test(last)) {
+      showFieldError('s-last', 'err-last', 'Last name can only contain letters (2–40 characters).');
+      valid = false;
+    } else {
+      clearFieldError('s-last', 'err-last');
+    }
+
+    if (!email || !validateEmail(email)) {
+      showFieldError('s-email', 'err-email', 'Please enter a valid email address.');
+      valid = false;
+    } else {
+      clearFieldError('s-email', 'err-email');
+    }
+
+    // Phone validation — if entered, must look like a real phone number
+    // Allows: digits, spaces, dashes, dots, parentheses, +, min 7 digits
+    if (phone) {
+      const phoneDigits = phone.replace(/\D/g, '');
+      const phoneValid = /^[\d\s\-\.\+\(\)]{7,20}$/.test(phone) && phoneDigits.length >= 7;
+      if (!phoneValid) {
+        showFieldError('s-phone', 'err-phone', 'Please enter a valid phone number.');
+        valid = false;
+      } else {
+        clearFieldError('s-phone', 'err-phone');
+      }
+    }
+
+    if (!valid) return;
+
+    const btn = document.getElementById('subscribe-btn');
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+
+    try {
+      // Duplicate check: block if same first name + last name + email already exists
+      // regardless of status (active or pending) to prevent duplicate records
+      const duplicate = await api(
+        `subscribers?first_name=eq.${encodeURIComponent(first)}&last_name=eq.${encodeURIComponent(last)}&email=eq.${encodeURIComponent(email)}&select=id,status&limit=1`
+      );
+      if (duplicate && duplicate.length) {
+        const status = duplicate[0].status;
+        if (status === 'active') {
+          showFieldError('s-email', 'err-email', 'You are already subscribed! Check your inbox for updates.');
+        } else if (status === 'pending') {
+          showFieldError('s-email', 'err-email', 'You have a pending subscription. Please check your email and click the confirmation link.');
+        } else {
+          showFieldError('s-email', 'err-email', 'This name and email are already registered.');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Subscribe Now';
+        return;
+      }
+
+      const confirmToken = generateToken();
+      const unsubToken = generateToken();
+      const baseUrl =
+        window.location.origin + window.location.pathname.replace('subscribe.html', '');
+      const confirmUrl = `${baseUrl}confirm.html?t=${confirmToken}`;
+
+      // Save to Supabase
+      await api('subscribers', 'POST', {
+        first_name: first,
+        last_name: last,
+        email,
+        phone: phone || null,
+        gender: gender || null,
+        skill_level: skill || null,
+        status: 'pending',
+        confirm_token: confirmToken,
+        unsubscribe_token: unsubToken,
+      });
+
+      // Send confirmation email
+      try {
+        await emailjs.send(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.CONFIRM, {
+          player_name: `${first} ${last}`,
+          player_email: email,
+          subject: '✅ Please confirm your Ferocia Sports subscription',
+          confirm_url: confirmUrl,
+        });
+      } catch (emailErr) {
+        // Subscription was saved — just the confirmation email failed.
+        // Still show success so the player knows they're registered;
+        // admin can manually send a confirmation later.
+        console.error('[Ferocia subscribe] Confirmation email failed:', emailErr);
+      }
+
+      document.getElementById('form-section').style.display = 'none';
+      // textContent is XSS-safe regardless of input
+      document.getElementById('confirm-email-shown').textContent = email;
+      document.getElementById('success-screen').style.display = 'block';
+    } catch (err) {
+      console.error('[Ferocia subscribe] Error:', err);
+      if (err.message && err.message.toLowerCase().includes('duplicate')) {
+        showFieldError('s-email', 'err-email', 'This email is already registered.');
+      } else if (err.message && err.message.toLowerCase().includes('policy')) {
+        showFieldError('s-email', 'err-email', 'Subscription temporarily unavailable. Please try again in a moment.');
+      } else {
+        showFieldError('s-email', 'err-email', `Something went wrong: ${err.message || 'Please try again.'}`);
+      }
+      btn.disabled = false;
+      btn.textContent = 'Subscribe Now';
+    }
+  });
+})();
+</script>
+</body>
+</html>

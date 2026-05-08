@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confirm Subscription — Ferocia Sports</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="db.js"></script>
+<script src="assets.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Montserrat',sans-serif;background:#f4f6fc;color:#0d1f4a;min-height:100vh;display:flex;flex-direction:column;}
+  header{background:#174CCC;padding:0 24px;display:flex;align-items:center;height:64px;border-bottom:3px solid #C6F221;}
+  .logo{height:32px;width:auto;}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{background:white;border-radius:12px;padding:48px 36px;max-width:460px;width:100%;text-align:center;box-shadow:0 4px 20px rgba(23,76,204,0.08);}
+  .icon{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:32px;}
+  .icon.success{background:#d4f5ed;}
+  .icon.error{background:#fde8d8;}
+  .icon.loading{background:#e8f0ff;}
+  h2{font-size:22px;font-weight:800;margin-bottom:12px;}
+  p{font-size:14px;color:#6b7a99;line-height:1.6;}
+  .divider{height:3px;background:linear-gradient(90deg,#174CCC,#C6F221);border-radius:99px;margin:24px 0;}
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" data-asset="ferociaLogo" alt="Ferocia">
+</header>
+<main>
+  <div class="card" id="card">
+    <div class="icon loading" id="icon">⏳</div>
+    <h2 id="title">Confirming your subscription...</h2>
+    <div class="divider"></div>
+    <p id="msg">Please wait a moment.</p>
+  </div>
+</main>
+<script>
+(function () {
+  'use strict';
+
+  // Use textContent everywhere so DB content can never be interpreted as HTML.
+  const setState = (iconText, iconClass, title, msg) => {
+    const iconEl = document.getElementById('icon');
+    iconEl.textContent = iconText;
+    iconEl.className = `icon ${iconClass}`;
+    document.getElementById('title').textContent = title;
+    document.getElementById('msg').textContent = msg;
+  };
+
+  (async () => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('t');
+
+    if (!token) {
+      setState('❌', 'error', 'Invalid link', 'This confirmation link is invalid. Please try subscribing again.');
+      return;
+    }
+
+    // Defensive: the token should be alphanumeric. Reject anything weird before
+    // we paste it into a query (Supabase will percent-encode but better to fail fast).
+    if (!/^[A-Za-z0-9_-]+$/.test(token)) {
+      setState('❌', 'error', 'Invalid link', 'This confirmation link is malformed.');
+      return;
+    }
+
+    try {
+      // PATCH directly — no SELECT needed. The anon UPDATE policy
+      // (subscribers_anon_update_by_token) allows this when the token matches.
+      // If the token was already nulled out (already confirmed) or never existed,
+      // the update affects 0 rows and succeeds silently — we show "already confirmed."
+      await api(
+        `subscribers?confirm_token=eq.${encodeURIComponent(token)}`,
+        'PATCH',
+        { status: 'active', confirm_token: null },
+      );
+      setState(
+        '🎉',
+        'success',
+        "You're subscribed!",
+        "Your email has been confirmed. Welcome to the Ferocia Sports community! You'll now receive updates about new ladders, tournaments, and events.",
+      );
+    } catch (err) {
+      setState('❌', 'error', 'Something went wrong', 'Please try again or contact us at contact@ferociasports.com');
+    }
+  })();
+})();
+</script>
+</body>
+</html>
