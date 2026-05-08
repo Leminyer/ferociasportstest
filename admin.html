@@ -263,35 +263,83 @@
   .section-header h2{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--text-muted);}
 
   /* ── STATS GRID ──────────────────────────────────────── */
-  .stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
+  /* ── KPI CARDS ───────────────────────────────────────── */
+  .stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;}
   .stat{
-    background:var(--white);border-radius:var(--radius);padding:16px 16px 14px;
-    border:0.5px solid var(--border);
-    box-shadow:0 2px 8px rgba(23,76,204,0.06);
+    background:var(--white);border-radius:10px;padding:16px 18px 14px;
+    border:0.5px solid #e0e7f5;border-top:3px solid transparent;
+    box-shadow:0 1px 4px rgba(23,76,204,0.06);
   }
-  .stat-value{font-family:'Bebas Neue',sans-serif;font-size:40px;color:var(--text);line-height:1;margin-bottom:4px;}
-  .stat-label{font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;}
-  .stat-tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;}
-  .stat-tag.green{background:var(--teal-light);color:var(--teal);}
-  .stat-tag.blue{background:var(--blue-pale);color:var(--blue);}
-  .stat-tag.orange{background:var(--orange-light);color:var(--orange);}
-  .stat-tag.lime{background:rgba(198,242,33,0.2);color:var(--lime-dark);}
+  .stat.stat-green{border-top-color:#24BC96;}
+  .stat.stat-blue{border-top-color:#174CCC;}
+  .stat.stat-lime{border-top-color:#C6F221;}
+  .stat.stat-orange{border-top-color:#F26024;}
+  .stat-label{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:6px;}
+  .stat-value{font-family:'Bebas Neue',sans-serif;font-size:40px;color:#0d1f4a;line-height:1;margin-bottom:6px;}
+  .stat-ctx{font-size:11px;font-weight:600;display:flex;align-items:center;gap:5px;}
+  .stat-ctx.ctx-green{color:#24BC96;}
+  .stat-ctx.ctx-blue{color:#174CCC;}
+  .stat-ctx.ctx-lime{color:#7a9200;}
+  .stat-ctx.ctx-orange{color:#F26024;}
 
-  /* Ops card */
-  .ops-card{background:var(--white);border-radius:var(--radius);padding:20px 24px;margin-bottom:16px;border:0.5px solid var(--border);border-left:3px solid var(--lime);box-shadow:0 2px 8px rgba(23,76,204,0.06);}
-  .ops-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
-  .ops-card-title{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--text);display:flex;align-items:center;gap:8px;}
-  .ops-badge{font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;background:var(--lime);color:var(--dark);}
+  /* ── OPERATIONS CENTER ───────────────────────────────── */
+  .ops-card{background:var(--white);border-radius:10px;margin-bottom:14px;overflow:hidden;border:0.5px solid #e0e7f5;box-shadow:0 1px 4px rgba(23,76,204,0.06);}
+  .ops-card-header{background:#174CCC;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;}
+  .ops-card-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:white;}
+  .ops-badge{background:#C6F221;color:#080f2e;font-size:9px;font-weight:800;padding:3px 10px;border-radius:99px;}
+  .ops-row{display:flex;align-items:center;border-bottom:0.5px solid #f4f5f8;}
+  .ops-row:last-child{border-bottom:none;}
+  .ops-strip{width:4px;align-self:stretch;flex-shrink:0;}
+  .ops-strip.red{background:#e53935;}
+  .ops-strip.blue{background:#174CCC;}
+  .ops-row-icon{width:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ops-row-icon svg{width:17px;height:17px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .ops-row-body{flex:1;min-width:0;padding:14px 16px 14px 8px;}
+  .ops-row-title{font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:2px;}
+  .ops-row-ctx{font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:3px;}
+  .ops-row-metric{font-size:11px;font-weight:700;color:#0d1f4a;}
+  .ops-row-actions{display:flex;flex-direction:column;align-items:flex-end;gap:7px;padding:14px 20px 14px 12px;flex-shrink:0;}
+  .ops-pill{font-size:9px;font-weight:800;padding:3px 9px;border-radius:99px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;}
+  .ops-pill.red{background:#fde8d8;color:#7a2e0e;}
+  .ops-pill.blue{background:#e8f0ff;color:#0d2f8a;}
+  .ops-btn-red{font-size:10px;font-weight:800;padding:7px 14px;border-radius:7px;border:none;background:#e53935;color:white;cursor:pointer;white-space:nowrap;}
+  .ops-btn-blue{font-size:10px;font-weight:800;padding:7px 14px;border-radius:7px;border:none;background:#174CCC;color:white;cursor:pointer;white-space:nowrap;}
+  .ops-btn-orange{font-size:10px;font-weight:800;padding:7px 14px;border-radius:7px;border:none;background:#F26024;color:white;cursor:pointer;white-space:nowrap;}
+  .ops-pill.orange{background:#fff3e8;color:#7a3d00;}
 
-  /* Dashboard two-col */
-  .dash-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  /* ── DASHBOARD TWO-COL ───────────────────────────────── */
+  .dash-two-col{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;}
+
+  /* Section titles — consistent across all sections */
+  .dash-section-title{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;}
+
+  /* Progress bars */
+  .prog-row{padding:11px 0;border-bottom:0.5px solid #f4f5f8;}
+  .prog-row:last-child{border-bottom:none;padding-bottom:0;}
+  .prog-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;}
+  .prog-name{font-size:13px;font-weight:800;color:#0d1f4a;}
+  .prog-type-pill{font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;}
+  .prog-type-pill.ladder{background:#e8f0ff;color:#0c2a8a;}
+  .prog-type-pill.tournament{background:rgba(198,242,33,0.25);color:#4a5e00;}
+  .prog-meta{font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:7px;}
+  .prog-bar-row{display:flex;align-items:center;gap:10px;}
+  .prog-bar-bg{flex:1;height:4px;background:#f0f2f8;border-radius:99px;overflow:hidden;}
+  .prog-bar-fill{height:100%;border-radius:99px;}
+  .prog-count{font-size:11px;font-weight:700;white-space:nowrap;}
+
+  /* Events empty state */
+  .ev-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px 16px;text-align:center;min-height:130px;}
+  .ev-empty-ico{width:38px;height:38px;background:var(--blue-pale);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+  .ev-empty-title{font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:4px;}
+  .ev-empty-rec{font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:12px;line-height:1.5;}
+  .ev-empty-btn{font-size:10px;font-weight:700;padding:7px 16px;border-radius:99px;background:var(--blue);color:white;border:none;cursor:pointer;}
 
   /* Quick actions */
-  .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .qa-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:background .15s;}
+  .qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .qa-item{display:flex;align-items:center;gap:9px;padding:10px 12px;background:#f8f9ff;border:0.5px solid #e8edf8;border-radius:8px;cursor:pointer;transition:background .15s;}
   .qa-item:hover{background:var(--blue-pale);}
-  .qa-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .qa-label{font-size:11px;font-weight:700;color:var(--text);}
+  .qa-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .qa-label{font-size:11px;font-weight:700;color:#0d1f4a;}
 
   /* ── TABLES ──────────────────────────────────────────── */
   table{width:100%;border-collapse:collapse;font-size:13px;}
@@ -615,45 +663,49 @@
   <div id="page-home" class="page active">
 
     <!-- Dashboard header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;">
       <div>
-        <div style="font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;display:flex;align-items:center;gap:5px;">
           <span style="width:4px;height:4px;border-radius:50%;background:var(--lime);display:inline-block;"></span>Admin Portal
         </div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--text);letter-spacing:1px;line-height:1;">Dashboard</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:34px;color:#0d1f4a;letter-spacing:1px;line-height:1;">Dashboard</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span id="dash-live-badge" style="display:none;background:var(--teal-light);color:var(--teal);font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border-radius:99px;">● Live</span>
-        <button class="btn btn-primary btn-sm" data-action="showPage" data-page="events" style="font-size:10px;">+ New Event</button>
+      <div style="display:flex;gap:7px;align-items:center;">
+        <span id="dash-live-badge" style="display:none;background:rgba(36,188,150,0.15);border:0.5px solid #24BC96;color:#24BC96;font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;">● Live</span>
+        <button class="btn btn-outline btn-sm" data-action="showPage" data-page="promotions" style="font-size:10px;border-radius:99px;">Send Promo</button>
+        <button class="btn btn-primary btn-sm" data-action="showPage" data-page="events" style="font-size:10px;border-radius:99px;">+ New Event</button>
       </div>
     </div>
 
-    <!-- 5 KPI cards -->
+    <!-- 5 KPI cards — each with colored top border + single context line -->
     <div class="stats-grid" id="dash-stats">
-      <div class="stat">
-        <div class="stat-value" id="dash-active-players">—</div>
+      <div class="stat stat-green">
         <div class="stat-label">Active Players</div>
-        <span class="stat-tag green" id="dash-players-tag" style="display:none;"></span>
+        <div class="stat-value" id="dash-active-players">—</div>
+        <div class="stat-ctx ctx-green" id="dash-players-ctx">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          growing this season
+        </div>
       </div>
-      <div class="stat">
-        <div class="stat-value" id="dash-open-ladders">—</div>
+      <div class="stat stat-blue">
         <div class="stat-label">Open Ladders</div>
-        <span class="stat-tag blue" id="dash-ladders-tag" style="display:none;"></span>
+        <div class="stat-value" id="dash-open-ladders">—</div>
+        <div class="stat-ctx ctx-blue">Season active</div>
       </div>
-      <div class="stat">
-        <div class="stat-value" id="dash-open-tournaments">—</div>
+      <div class="stat stat-lime">
         <div class="stat-label">Open Tournaments</div>
-        <span class="stat-tag lime" id="dash-tournaments-tag" style="display:none;"></span>
+        <div class="stat-value" id="dash-open-tournaments">—</div>
+        <div class="stat-ctx ctx-lime">Registration open</div>
       </div>
-      <div class="stat">
-        <div class="stat-value" id="dash-pending-orders">—</div>
+      <div class="stat stat-orange">
         <div class="stat-label">Pending Orders</div>
-        <span class="stat-tag orange" id="dash-orders-tag" style="display:none;">Action needed</span>
+        <div class="stat-value" id="dash-pending-orders">—</div>
+        <div class="stat-ctx ctx-orange">Awaiting fulfillment</div>
       </div>
-      <div class="stat">
-        <div class="stat-value" id="dash-subscribers">—</div>
+      <div class="stat stat-green">
         <div class="stat-label">Subscribers</div>
-        <span class="stat-tag green" id="dash-subs-tag" style="display:none;"></span>
+        <div class="stat-value" id="dash-subscribers">—</div>
+        <div class="stat-ctx ctx-green" id="dash-subs-ctx">—</div>
       </div>
     </div>
 
@@ -661,7 +713,7 @@
     <div class="ops-card">
       <div class="ops-card-header">
         <div class="ops-card-title">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           Operations Center
         </div>
         <span class="ops-badge" id="dash-ops-badge"></span>
@@ -669,12 +721,12 @@
       <div id="dash-ops-list"><div class="loading">Loading...</div></div>
     </div>
 
-    <!-- Active Ladders & Tournaments + Upcoming Events -->
+    <!-- Active Ladders & Tournaments + Upcoming Events (70/30) -->
     <div class="dash-two-col">
 
       <div class="card">
         <div class="section-header">
-          <h2>Active Ladders &amp; Tournaments</h2>
+          <div class="dash-section-title">Active Ladders &amp; Tournaments</div>
           <button class="btn btn-outline btn-sm" data-action="showPage" data-page="ladders" style="font-size:10px;">View all →</button>
         </div>
         <div id="dash-programs-list"><div class="loading">Loading...</div></div>
@@ -682,7 +734,7 @@
 
       <div class="card">
         <div class="section-header">
-          <h2>Upcoming Events</h2>
+          <div class="dash-section-title">Upcoming Events</div>
           <button class="btn btn-outline btn-sm" data-action="showPage" data-page="events" style="font-size:10px;">View all →</button>
         </div>
         <div id="dash-events-list"><div class="loading">Loading...</div></div>
@@ -693,33 +745,33 @@
     <!-- Quick Actions -->
     <div class="card">
       <div class="section-header" style="margin-bottom:14px;">
-        <h2>Quick Actions</h2>
+        <div class="dash-section-title">Quick Actions</div>
       </div>
       <div class="qa-grid">
-        <div class="qa-item" data-action="showPage" data-page="add-player">
-          <div class="qa-icon" style="background:var(--blue-pale);">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg>
+        <button class="qa-item" data-action="showPage" data-page="add-player">
+          <div class="qa-icon" style="background:#e8f0ff;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg>
           </div>
           <span class="qa-label">Add Player</span>
-        </div>
-        <div class="qa-item" data-action="showPage" data-page="t-tournaments">
-          <div class="qa-icon" style="background:var(--teal-light);">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+        </button>
+        <button class="qa-item" data-action="showPage" data-page="t-tournaments">
+          <div class="qa-icon" style="background:#d4f5ed;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
           </div>
           <span class="qa-label">New Tournament</span>
-        </div>
-        <div class="qa-item" data-action="showPage" data-page="promotions">
-          <div class="qa-icon" style="background:var(--blue-pale);">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button class="qa-item" data-action="showPage" data-page="promotions">
+          <div class="qa-icon" style="background:#e8f0ff;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           </div>
           <span class="qa-label">Send Promo</span>
-        </div>
-        <div class="qa-item" data-action="showPage" data-page="events">
-          <div class="qa-icon" style="background:var(--orange-light);">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </button>
+        <button class="qa-item" data-action="showPage" data-page="events">
+          <div class="qa-icon" style="background:#fde8d8;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </div>
           <span class="qa-label">Create Event</span>
-        </div>
+        </button>
       </div>
     </div>
 

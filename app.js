@@ -90,116 +90,111 @@
     if (liveBadge) liveBadge.style.display = 'inline-block';
 
     try {
-      // Parallel fetch — all confirmed columns
       const [players, ladders, tournaments, ordersPaid, subs, pendingMatches, pendingSubs] = await Promise.all([
         api('players?status=eq.active&select=id&order=id.desc'),
         api('ladders?status=eq.active&select=id,name'),
-        api('tournaments?status=eq.active&select=id,name,start_date').catch(() => []),
+        api('tournaments?status=eq.active&select=id,name').catch(() => []),
         api('orders?status=eq.paid&select=id').catch(() => []),
         api('subscribers?status=eq.active&select=id').catch(() => []),
         api('matches?score_for=is.null&default_no_show=is.false&select=id').catch(() => []),
         api('subscribers?status=eq.pending&select=id').catch(() => []),
       ]);
 
-      // ── KPI cards ──────────────────────────────────────────
+      // ── KPI values ─────────────────────────────────────────
       const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-      set('dash-active-players', players.length);
-      set('dash-open-ladders',   ladders.length);
-      set('dash-open-tournaments', tournaments.length);
-      set('dash-pending-orders', ordersPaid.length);
-      set('dash-subscribers',    subs.length);
+      set('dash-active-players',    players.length);
+      set('dash-open-ladders',      ladders.length);
+      set('dash-open-tournaments',  tournaments.length);
+      set('dash-pending-orders',    ordersPaid.length);
+      set('dash-subscribers',       subs.length);
 
-      // KPI tags
-      const showTag = (id, text, show = true) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.textContent = text;
-        el.style.display = show ? 'inline-block' : 'none';
-      };
-      showTag('dash-players-tag',     `${players.length} active`);
-      showTag('dash-ladders-tag',     ladders.length ? (ladders[0].name || `${ladders.length} active`) : 'None active', !!ladders.length);
-      showTag('dash-tournaments-tag', tournaments.length ? `${tournaments.length} open` : 'None active', !!tournaments.length);
-      showTag('dash-orders-tag',      'Action needed', ordersPaid.length > 0);
-      showTag('dash-subs-tag',        `${subs.length} active`);
+      // Subscribers card dynamic context line
+      const subsCtx = document.getElementById('dash-subs-ctx');
+      if (subsCtx) {
+        subsCtx.textContent = pendingSubs.length
+          ? `${pendingSubs.length} pending confirmation`
+          : `${subs.length} active`;
+      }
 
       // ── Operations Center ──────────────────────────────────
-      const opsEl = document.getElementById('dash-ops-list');
+      const opsEl  = document.getElementById('dash-ops-list');
+      const opsBdg = document.getElementById('dash-ops-badge');
       if (opsEl) {
         const items = [];
 
-        // Tournaments almost full — show if ≥1 active tournament
-        if (tournaments.length) {
-          tournaments.forEach(t => {
-            items.push({
-              dot: 'lime',
-              text: `${esc(t.name)} is open`,
-              sub: 'Active tournament',
-              action: 'Tournaments',
-              page: 't-tournaments',
-            });
+        // Pending orders
+        if (ordersPaid.length) {
+          items.push({
+            strip: 'red',
+            icon: `<svg viewBox="0 0 24 24" style="stroke:#e53935;"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+            title: `Orders Awaiting Fulfillment`,
+            ctx:   'Paid — not yet shipped',
+            metric: `${ordersPaid.length} order${ordersPaid.length !== 1 ? 's' : ''} pending`,
+            pill:  'Action Needed',
+            pillClass: 'red',
+            btnLabel: 'Review Orders',
+            btnClass: 'ops-btn-red',
+            page: 'orders',
           });
         }
 
         // Pending score reports
         if (pendingMatches.length) {
           items.push({
-            dot: 'orange',
-            text: `${pendingMatches.length} match${pendingMatches.length !== 1 ? 'es' : ''} awaiting scores`,
-            sub: 'Scores not yet recorded',
-            action: 'Sessions',
+            strip: 'orange',
+            icon: `<svg viewBox="0 0 24 24" style="stroke:#F26024;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+            title: `Matches Awaiting Scores`,
+            ctx:   'Sessions without results recorded',
+            metric: `${pendingMatches.length} match${pendingMatches.length !== 1 ? 'es' : ''} pending`,
+            pill:  'Scores Due',
+            pillClass: 'orange',
+            btnLabel: 'View Sessions',
+            btnClass: 'ops-btn-orange',
             page: 'sessions',
-          });
-        }
-
-        // Pending orders
-        if (ordersPaid.length) {
-          items.push({
-            dot: 'red',
-            text: `${ordersPaid.length} order${ordersPaid.length !== 1 ? 's' : ''} awaiting fulfillment`,
-            sub: 'Paid — not yet shipped',
-            action: 'Orders',
-            page: 'orders',
           });
         }
 
         // Pending subscriber confirmations
         if (pendingSubs.length) {
           items.push({
-            dot: 'blue',
-            text: `${pendingSubs.length} subscriber${pendingSubs.length !== 1 ? 's' : ''} pending confirmation`,
-            sub: 'Awaiting email verification',
-            action: 'Promotions',
+            strip: 'blue',
+            icon: `<svg viewBox="0 0 24 24" style="stroke:#174CCC;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+            title: `Subscribers Pending Confirmation`,
+            ctx:   'Awaiting email verification',
+            metric: `${pendingSubs.length} subscriber${pendingSubs.length !== 1 ? 's' : ''} pending`,
+            pill:  'Pending',
+            pillClass: 'blue',
+            btnLabel: 'Send Reminder',
+            btnClass: 'ops-btn-blue',
             page: 'promotions',
           });
         }
 
         if (!items.length) {
-          opsEl.innerHTML = '<div class="empty" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;">All clear — no action needed today.</div>';
+          opsEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;">
+            All clear — no action needed today.
+          </div>`;
         } else {
-          const dotColors = { lime:'#C6F221', orange:'#F26024', red:'#e53935', blue:'#174CCC' };
           opsEl.innerHTML = items.map(item => `
-            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border);">
-              <div style="width:8px;height:8px;border-radius:50%;background:${dotColors[item.dot]};flex-shrink:0;"></div>
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:700;color:var(--text);">${item.text}</div>
-                <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;">${item.sub}</div>
+            <div class="ops-row">
+              <div class="ops-strip ${item.strip}"></div>
+              <div class="ops-row-icon">${item.icon}</div>
+              <div class="ops-row-body">
+                <div class="ops-row-title">${item.title}</div>
+                <div class="ops-row-ctx">${item.ctx}</div>
+                <div class="ops-row-metric">${item.metric}</div>
               </div>
-              <button class="btn btn-outline btn-sm" data-action="showPage" data-page="${item.page}"
-                style="font-size:10px;white-space:nowrap;">
-                ${esc(item.action)} →
-              </button>
+              <div class="ops-row-actions">
+                <span class="ops-pill ${item.pillClass}">${item.pill}</span>
+                <button class="${item.btnClass}" data-action="showPage" data-page="${item.page}">${item.btnLabel}</button>
+              </div>
             </div>`).join('');
-          // Remove border on last item
-          const lastOps = opsEl.querySelector('div[style*="border-bottom"]:last-child');
-          if (lastOps) lastOps.style.borderBottom = 'none';
         }
 
-        // Update ops badge count
-        const opsBadge = document.getElementById('dash-ops-badge');
-        if (opsBadge) {
-          opsBadge.textContent = items.length ? `${items.length} item${items.length !== 1 ? 's' : ''}` : 'All clear';
-          opsBadge.style.background = items.length ? '#C6F221' : 'var(--teal-light)';
-          opsBadge.style.color = items.length ? '#080f2e' : 'var(--teal)';
+        if (opsBdg) {
+          opsBdg.textContent = items.length
+            ? `${items.length} item${items.length !== 1 ? 's' : ''}`
+            : 'All clear';
         }
       }
 
@@ -207,22 +202,34 @@
       const programsEl = document.getElementById('dash-programs-list');
       if (programsEl) {
         const rows = [];
-        ladders.forEach(l => rows.push({ name: l.name, type: 'Ladder', color: '#174CCC' }));
-        tournaments.forEach(t => rows.push({ name: t.name, type: 'Tournament', color: '#24BC96' }));
+        ladders.forEach(l => rows.push({
+          name: l.name, type: 'Ladder',
+          typeClass: 'ladder', barColor: '#9CE3FF', countColor: '#174CCC', countLabel: 'Active',
+        }));
+        tournaments.forEach(t => rows.push({
+          name: t.name, type: 'Tournament',
+          typeClass: 'tournament', barColor: '#C6F221', countColor: '#5a6e00', countLabel: 'Open',
+        }));
+
         if (!rows.length) {
-          programsEl.innerHTML = '<div class="empty" style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;">No active ladders or tournaments.</div>';
+          programsEl.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;">
+            No active ladders or tournaments.
+          </div>`;
         } else {
-          programsEl.innerHTML = rows.slice(0, 5).map(r => `
-            <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border);">
-              <div style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;"></div>
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.name)}</div>
-                <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;">${r.type} · Active</div>
+          programsEl.innerHTML = rows.slice(0, 6).map(r => `
+            <div class="prog-row">
+              <div class="prog-top">
+                <div class="prog-name">${esc(r.name)}</div>
+                <span class="prog-type-pill ${r.typeClass}">${r.type}</span>
               </div>
-              <span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 9px;border-radius:99px;background:${r.color}22;color:${r.color};">${r.type}</span>
+              <div class="prog-meta">${r.type} · Active</div>
+              <div class="prog-bar-row">
+                <div class="prog-bar-bg">
+                  <div class="prog-bar-fill" style="width:70%;background:${r.barColor};"></div>
+                </div>
+                <div class="prog-count" style="color:${r.countColor};">${r.countLabel}</div>
+              </div>
             </div>`).join('');
-          const last = programsEl.querySelector('div[style*="border-bottom"]:last-child');
-          if (last) last.style.borderBottom = 'none';
         }
       }
 
@@ -232,12 +239,26 @@
         const today = new Date().toISOString().split('T')[0];
         let events = [];
         try { events = await api(`events?event_date=gte.${today}&select=id,title,event_date&order=event_date.asc&limit=4`); } catch(_) {}
+
         if (!events.length) {
-          eventsEl.innerHTML = '<div class="empty" style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;">No upcoming events.</div>';
+          eventsEl.innerHTML = `
+            <div class="ev-empty">
+              <div class="ev-empty-ico">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </div>
+              <div class="ev-empty-title">No upcoming events</div>
+              <div class="ev-empty-rec">Create an event to maintain player engagement.</div>
+              <button class="ev-empty-btn" data-action="showPage" data-page="events">+ Create Event</button>
+            </div>`;
         } else {
           const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
           eventsEl.innerHTML = events.map(ev => {
-            const d = new Date(ev.event_date + 'T00:00:00');
+            const d   = new Date(ev.event_date + 'T00:00:00');
             const day = d.getDate();
             const mon = months[d.getMonth()];
             return `
