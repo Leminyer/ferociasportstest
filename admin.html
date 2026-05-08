@@ -263,18 +263,35 @@
   .section-header h2{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--text-muted);}
 
   /* ── STATS GRID ──────────────────────────────────────── */
-  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+  .stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
   .stat{
-    background:var(--white);border-radius:var(--radius);padding:20px 20px 16px;
+    background:var(--white);border-radius:var(--radius);padding:16px 16px 14px;
     border:0.5px solid var(--border);
     box-shadow:0 2px 8px rgba(23,76,204,0.06);
   }
-  .stat-value{font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--text);line-height:1;margin-bottom:4px;}
-  .stat-label{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;}
+  .stat-value{font-family:'Bebas Neue',sans-serif;font-size:40px;color:var(--text);line-height:1;margin-bottom:4px;}
+  .stat-label{font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;}
   .stat-tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;}
   .stat-tag.green{background:var(--teal-light);color:var(--teal);}
   .stat-tag.blue{background:var(--blue-pale);color:var(--blue);}
   .stat-tag.orange{background:var(--orange-light);color:var(--orange);}
+  .stat-tag.lime{background:rgba(198,242,33,0.2);color:var(--lime-dark);}
+
+  /* Ops card */
+  .ops-card{background:var(--white);border-radius:var(--radius);padding:20px 24px;margin-bottom:16px;border:0.5px solid var(--border);border-left:3px solid var(--lime);box-shadow:0 2px 8px rgba(23,76,204,0.06);}
+  .ops-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .ops-card-title{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--text);display:flex;align-items:center;gap:8px;}
+  .ops-badge{font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;background:var(--lime);color:var(--dark);}
+
+  /* Dashboard two-col */
+  .dash-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+
+  /* Quick actions */
+  .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .qa-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:background .15s;}
+  .qa-item:hover{background:var(--blue-pale);}
+  .qa-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .qa-label{font-size:11px;font-weight:700;color:var(--text);}
 
   /* ── TABLES ──────────────────────────────────────────── */
   table{width:100%;border-collapse:collapse;font-size:13px;}
@@ -598,27 +615,35 @@
   <div id="page-home" class="page active">
 
     <!-- Dashboard header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
       <div>
-        <div style="font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Admin Portal</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+          <span style="width:4px;height:4px;border-radius:50%;background:var(--lime);display:inline-block;"></span>Admin Portal
+        </div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--text);letter-spacing:1px;line-height:1;">Dashboard</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         <span id="dash-live-badge" style="display:none;background:var(--teal-light);color:var(--teal);font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border-radius:99px;">● Live</span>
+        <button class="btn btn-primary btn-sm" data-action="showPage" data-page="events" style="font-size:10px;">+ New Event</button>
       </div>
     </div>
 
-    <!-- Stat cards — white, matching visual proposal -->
+    <!-- 5 KPI cards -->
     <div class="stats-grid" id="dash-stats">
       <div class="stat">
         <div class="stat-value" id="dash-active-players">—</div>
         <div class="stat-label">Active Players</div>
-        <span class="stat-tag green" id="dash-players-tag"></span>
+        <span class="stat-tag green" id="dash-players-tag" style="display:none;"></span>
       </div>
       <div class="stat">
         <div class="stat-value" id="dash-open-ladders">—</div>
         <div class="stat-label">Open Ladders</div>
-        <span class="stat-tag blue" id="dash-ladders-tag"></span>
+        <span class="stat-tag blue" id="dash-ladders-tag" style="display:none;"></span>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="dash-open-tournaments">—</div>
+        <div class="stat-label">Open Tournaments</div>
+        <span class="stat-tag lime" id="dash-tournaments-tag" style="display:none;"></span>
       </div>
       <div class="stat">
         <div class="stat-value" id="dash-pending-orders">—</div>
@@ -628,17 +653,74 @@
       <div class="stat">
         <div class="stat-value" id="dash-subscribers">—</div>
         <div class="stat-label">Subscribers</div>
-        <span class="stat-tag green" id="dash-subs-tag"></span>
+        <span class="stat-tag green" id="dash-subs-tag" style="display:none;"></span>
       </div>
     </div>
 
-    <!-- Recent Players -->
-    <div class="card">
-      <div class="section-header">
-        <h2>Recent Players</h2>
-        <button class="btn btn-outline btn-sm" data-action="showPage" data-page="players" style="font-size:10px;">View All →</button>
+    <!-- Operations Center -->
+    <div class="ops-card">
+      <div class="ops-card-header">
+        <div class="ops-card-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Operations Center
+        </div>
+        <span class="ops-badge" id="dash-ops-badge"></span>
       </div>
-      <div id="dash-recent-players"><div class="loading">Loading...</div></div>
+      <div id="dash-ops-list"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Active Ladders & Tournaments + Upcoming Events -->
+    <div class="dash-two-col">
+
+      <div class="card">
+        <div class="section-header">
+          <h2>Active Ladders &amp; Tournaments</h2>
+          <button class="btn btn-outline btn-sm" data-action="showPage" data-page="ladders" style="font-size:10px;">View all →</button>
+        </div>
+        <div id="dash-programs-list"><div class="loading">Loading...</div></div>
+      </div>
+
+      <div class="card">
+        <div class="section-header">
+          <h2>Upcoming Events</h2>
+          <button class="btn btn-outline btn-sm" data-action="showPage" data-page="events" style="font-size:10px;">View all →</button>
+        </div>
+        <div id="dash-events-list"><div class="loading">Loading...</div></div>
+      </div>
+
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <div class="section-header" style="margin-bottom:14px;">
+        <h2>Quick Actions</h2>
+      </div>
+      <div class="qa-grid">
+        <div class="qa-item" data-action="showPage" data-page="add-player">
+          <div class="qa-icon" style="background:var(--blue-pale);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg>
+          </div>
+          <span class="qa-label">Add Player</span>
+        </div>
+        <div class="qa-item" data-action="showPage" data-page="t-tournaments">
+          <div class="qa-icon" style="background:var(--teal-light);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+          </div>
+          <span class="qa-label">New Tournament</span>
+        </div>
+        <div class="qa-item" data-action="showPage" data-page="promotions">
+          <div class="qa-icon" style="background:var(--blue-pale);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </div>
+          <span class="qa-label">Send Promo</span>
+        </div>
+        <div class="qa-item" data-action="showPage" data-page="events">
+          <div class="qa-icon" style="background:var(--orange-light);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <span class="qa-label">Create Event</span>
+        </div>
+      </div>
     </div>
 
   </div>

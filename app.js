@@ -86,75 +86,179 @@
   };
 
   const loadDashboard = async () => {
-    // Show live badge
     const liveBadge = document.getElementById('dash-live-badge');
     if (liveBadge) liveBadge.style.display = 'inline-block';
 
     try {
-      // Parallel fetch — auth is guaranteed here since we're inside requireAuth
-      const [players, ladders, ordersPaid, subs] = await Promise.all([
-        api('players?status=eq.active&select=id,first_name,last_name,gender,date_joined&order=date_joined.desc'),
+      // Parallel fetch — all confirmed columns
+      const [players, ladders, tournaments, ordersPaid, subs, pendingMatches, pendingSubs] = await Promise.all([
+        api('players?status=eq.active&select=id&order=id.desc'),
         api('ladders?status=eq.active&select=id,name'),
+        api('tournaments?status=eq.active&select=id,name,start_date').catch(() => []),
         api('orders?status=eq.paid&select=id').catch(() => []),
         api('subscribers?status=eq.active&select=id').catch(() => []),
+        api('matches?score_for=is.null&default_no_show=is.false&select=id').catch(() => []),
+        api('subscribers?status=eq.pending&select=id').catch(() => []),
       ]);
 
-      // Stat values
-      const elP = document.getElementById('dash-active-players');
-      const elL = document.getElementById('dash-open-ladders');
-      const elO = document.getElementById('dash-pending-orders');
-      const elS = document.getElementById('dash-subscribers');
-      if (elP) elP.textContent = players.length;
-      if (elL) elL.textContent = ladders.length;
-      if (elO) elO.textContent = ordersPaid.length;
-      if (elS) elS.textContent = subs.length;
+      // ── KPI cards ──────────────────────────────────────────
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      set('dash-active-players', players.length);
+      set('dash-open-ladders',   ladders.length);
+      set('dash-open-tournaments', tournaments.length);
+      set('dash-pending-orders', ordersPaid.length);
+      set('dash-subscribers',    subs.length);
 
-      // Sub-tags
-      const ptag = document.getElementById('dash-players-tag');
-      if (ptag) { ptag.textContent = `${players.length} this season`; ptag.style.display = 'inline-block'; }
-      const ltag = document.getElementById('dash-ladders-tag');
-      if (ltag && ladders.length) { ltag.textContent = ladders[0]?.name || `${ladders.length} active`; ltag.style.display = 'inline-block'; }
-      const otag = document.getElementById('dash-orders-tag');
-      if (otag) otag.style.display = ordersPaid.length ? 'inline-block' : 'none';
-      const stag = document.getElementById('dash-subs-tag');
-      if (stag) { stag.textContent = `${subs.length} active`; stag.style.display = 'inline-block'; }
+      // KPI tags
+      const showTag = (id, text, show = true) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = text;
+        el.style.display = show ? 'inline-block' : 'none';
+      };
+      showTag('dash-players-tag',     `${players.length} active`);
+      showTag('dash-ladders-tag',     ladders.length ? (ladders[0].name || `${ladders.length} active`) : 'None active', !!ladders.length);
+      showTag('dash-tournaments-tag', tournaments.length ? `${tournaments.length} open` : 'None active', !!tournaments.length);
+      showTag('dash-orders-tag',      'Action needed', ordersPaid.length > 0);
+      showTag('dash-subs-tag',        `${subs.length} active`);
 
-      // Recent players — last 5, matching proposal exactly
-      const recent = players.slice(0, 5);
-      const recentEl = document.getElementById('dash-recent-players');
-      if (!recentEl) return;
-      if (!recent.length) {
-        recentEl.innerHTML = '<div class="empty">No players yet.</div>';
-        return;
+      // ── Operations Center ──────────────────────────────────
+      const opsEl = document.getElementById('dash-ops-list');
+      if (opsEl) {
+        const items = [];
+
+        // Tournaments almost full — show if ≥1 active tournament
+        if (tournaments.length) {
+          tournaments.forEach(t => {
+            items.push({
+              dot: 'lime',
+              text: `${esc(t.name)} is open`,
+              sub: 'Active tournament',
+              action: 'Tournaments',
+              page: 't-tournaments',
+            });
+          });
+        }
+
+        // Pending score reports
+        if (pendingMatches.length) {
+          items.push({
+            dot: 'orange',
+            text: `${pendingMatches.length} match${pendingMatches.length !== 1 ? 'es' : ''} awaiting scores`,
+            sub: 'Scores not yet recorded',
+            action: 'Sessions',
+            page: 'sessions',
+          });
+        }
+
+        // Pending orders
+        if (ordersPaid.length) {
+          items.push({
+            dot: 'red',
+            text: `${ordersPaid.length} order${ordersPaid.length !== 1 ? 's' : ''} awaiting fulfillment`,
+            sub: 'Paid — not yet shipped',
+            action: 'Orders',
+            page: 'orders',
+          });
+        }
+
+        // Pending subscriber confirmations
+        if (pendingSubs.length) {
+          items.push({
+            dot: 'blue',
+            text: `${pendingSubs.length} subscriber${pendingSubs.length !== 1 ? 's' : ''} pending confirmation`,
+            sub: 'Awaiting email verification',
+            action: 'Promotions',
+            page: 'promotions',
+          });
+        }
+
+        if (!items.length) {
+          opsEl.innerHTML = '<div class="empty" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;">All clear — no action needed today.</div>';
+        } else {
+          const dotColors = { lime:'#C6F221', orange:'#F26024', red:'#e53935', blue:'#174CCC' };
+          opsEl.innerHTML = items.map(item => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border);">
+              <div style="width:8px;height:8px;border-radius:50%;background:${dotColors[item.dot]};flex-shrink:0;"></div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:700;color:var(--text);">${item.text}</div>
+                <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;">${item.sub}</div>
+              </div>
+              <button class="btn btn-outline btn-sm" data-action="showPage" data-page="${item.page}"
+                style="font-size:10px;white-space:nowrap;">
+                ${esc(item.action)} →
+              </button>
+            </div>`).join('');
+          // Remove border on last item
+          const lastOps = opsEl.querySelector('div[style*="border-bottom"]:last-child');
+          if (lastOps) lastOps.style.borderBottom = 'none';
+        }
+
+        // Update ops badge count
+        const opsBadge = document.getElementById('dash-ops-badge');
+        if (opsBadge) {
+          opsBadge.textContent = items.length ? `${items.length} item${items.length !== 1 ? 's' : ''}` : 'All clear';
+          opsBadge.style.background = items.length ? '#C6F221' : 'var(--teal-light)';
+          opsBadge.style.color = items.length ? '#080f2e' : 'var(--teal)';
+        }
       }
-      const avatarColors = ['#174CCC', '#24BC96', '#F26024', '#9333ea', '#0891b2'];
-      const barColors    = ['#174CCC', '#24BC96', '#F26024', '#9333ea', '#0891b2'];
-      recentEl.innerHTML = recent.map((p, i) => {
-        const initials = ((p.first_name||'')[0]||'').toUpperCase() + ((p.last_name||'')[0]||'').toUpperCase();
-        const color = avatarColors[i % avatarColors.length];
-        const bar   = barColors[i % barColors.length];
-        const sub = [p.gender].filter(Boolean).join(' · ');
-        return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:0.5px solid var(--border);">
-          <div style="width:40px;height:40px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:16px;color:white;flex-shrink:0;letter-spacing:1px;">${esc(initials)}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:2px;">${esc(p.first_name)} ${esc(p.last_name)}</div>
-            <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:6px;">${esc(sub)}</div>
-            <div style="height:3px;width:60px;background:${bar};border-radius:99px;opacity:0.7;"></div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-            <span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--teal);background:var(--teal-light);padding:3px 8px;border-radius:99px;">Active</span>
 
-          </div>
-        </div>`;
-      }).join('');
-      // Remove border from last item
-      const lastRow = recentEl.querySelector('div:last-child');
-      if (lastRow) lastRow.style.borderBottom = 'none';
+      // ── Active Ladders & Tournaments ───────────────────────
+      const programsEl = document.getElementById('dash-programs-list');
+      if (programsEl) {
+        const rows = [];
+        ladders.forEach(l => rows.push({ name: l.name, type: 'Ladder', color: '#174CCC' }));
+        tournaments.forEach(t => rows.push({ name: t.name, type: 'Tournament', color: '#24BC96' }));
+        if (!rows.length) {
+          programsEl.innerHTML = '<div class="empty" style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;">No active ladders or tournaments.</div>';
+        } else {
+          programsEl.innerHTML = rows.slice(0, 5).map(r => `
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border);">
+              <div style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;"></div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.name)}</div>
+                <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;">${r.type} · Active</div>
+              </div>
+              <span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 9px;border-radius:99px;background:${r.color}22;color:${r.color};">${r.type}</span>
+            </div>`).join('');
+          const last = programsEl.querySelector('div[style*="border-bottom"]:last-child');
+          if (last) last.style.borderBottom = 'none';
+        }
+      }
+
+      // ── Upcoming Events ────────────────────────────────────
+      const eventsEl = document.getElementById('dash-events-list');
+      if (eventsEl) {
+        const today = new Date().toISOString().split('T')[0];
+        let events = [];
+        try { events = await api(`events?event_date=gte.${today}&select=id,title,event_date&order=event_date.asc&limit=4`); } catch(_) {}
+        if (!events.length) {
+          eventsEl.innerHTML = '<div class="empty" style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;font-weight:600;">No upcoming events.</div>';
+        } else {
+          const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          eventsEl.innerHTML = events.map(ev => {
+            const d = new Date(ev.event_date + 'T00:00:00');
+            const day = d.getDate();
+            const mon = months[d.getMonth()];
+            return `
+              <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:0.5px solid var(--border);">
+                <div style="width:36px;height:36px;background:var(--blue-pale);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+                  <div style="font-size:14px;font-weight:800;color:var(--blue);line-height:1;">${day}</div>
+                  <div style="font-size:9px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;">${mon}</div>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ev.title)}</div>
+                  <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;">${ev.event_date}</div>
+                </div>
+              </div>`;
+          }).join('');
+          const lastEv = eventsEl.querySelector('div[style*="border-bottom"]:last-child');
+          if (lastEv) lastEv.style.borderBottom = 'none';
+        }
+      }
 
     } catch (e) {
       console.error('[Dashboard] Error:', e);
-      const recentEl = document.getElementById('dash-recent-players');
-      if (recentEl) recentEl.innerHTML = '<div class="empty">Could not load data.</div>';
     }
   };
 
