@@ -93,7 +93,7 @@
     try {
       // Parallel fetch — auth is guaranteed here since we're inside requireAuth
       const [players, ladders, ordersPaid, subs] = await Promise.all([
-        api('players?status=eq.active&select=id,first_name,last_name,gender,joined_at&order=joined_at.desc'),
+        api('players?status=eq.active&select=id,first_name,last_name,gender,date_joined&order=date_joined.desc'),
         api('ladders?status=eq.active&select=id,name'),
         api('orders?status=eq.paid&select=id').catch(() => []),
         api('subscribers?status=eq.active&select=id').catch(() => []),

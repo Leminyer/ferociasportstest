@@ -69,11 +69,7 @@
     padding:0 12px;height:56px;flex-shrink:0;
     border-bottom:3px solid var(--lime);overflow:hidden;
   }
-  .sb-logo{
-    height:22px;width:auto;display:block;
-    opacity:0;transition:opacity .2s;
-  }
-  body.sidebar-open .sb-logo{opacity:1;}
+
 
   /* Section groups */
   .sb-section{padding:8px 0;}
@@ -265,7 +261,7 @@
   .section-header h2{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--text-muted);}
 
   /* ── STATS GRID ──────────────────────────────────────── */
-  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;}
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
   .stat{
     background:var(--white);border-radius:var(--radius);padding:20px 20px 16px;
     border:0.5px solid var(--border);
@@ -458,9 +454,7 @@
 
 <!-- ── SIDEBAR ──────────────────────────────────────────── -->
 <nav class="sidebar" id="sidebar">
-  <div class="sb-header">
-    <img class="sb-logo" data-asset="ferociaLogo" alt="Ferocia">
-  </div>
+  <div class="sb-header"></div>
 
   <!-- Home -->
   <div class="sb-section">
@@ -564,7 +558,9 @@
 
 <!-- ── TOP BAR ───────────────────────────────────────────── -->
 <div class="top-bar" id="top-bar">
-  <div class="top-bar-left"></div>
+  <div class="top-bar-left">
+    <img style="height:26px;width:auto;display:block;" data-asset="ferociaLogo" alt="Ferocia">
+  </div>
   <div style="display:flex;align-items:center;gap:10px;">
     <span class="date-tag" id="last-updated"></span>
   </div>
