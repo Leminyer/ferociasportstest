@@ -203,12 +203,12 @@
       if (programsEl) {
         const rows = [];
         ladders.forEach(l => rows.push({
-          name: l.name, type: 'Ladder',
-          typeClass: 'ladder', barColor: '#9CE3FF', countColor: '#174CCC', countLabel: 'Active',
+          name: l.name, type: 'Ladder', page: 'ladders',
+          btnLabel: 'View Ladder →', barColor: '#9CE3FF', countColor: '#174CCC', countLabel: 'Active',
         }));
         tournaments.forEach(t => rows.push({
-          name: t.name, type: 'Tournament',
-          typeClass: 'tournament', barColor: '#C6F221', countColor: '#5a6e00', countLabel: 'Open',
+          name: t.name, type: 'Tournament', page: 't-tournaments',
+          btnLabel: 'View Tournament →', barColor: '#C6F221', countColor: '#5a6e00', countLabel: 'Open',
         }));
 
         if (!rows.length) {
@@ -219,8 +219,9 @@
           programsEl.innerHTML = rows.slice(0, 6).map(r => `
             <div class="prog-row">
               <div class="prog-top">
-                <div class="prog-name">${esc(r.name)}</div>
-                <span class="prog-type-pill ${r.typeClass}">${r.type}</span>
+                <div class="prog-name" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.name)}</div>
+                <button class="btn btn-outline btn-sm" data-action="showPage" data-page="${r.page}"
+                  style="font-size:10px;flex-shrink:0;margin-left:12px;">${r.btnLabel}</button>
               </div>
               <div class="prog-meta">${r.type} · Active</div>
               <div class="prog-bar-row">
