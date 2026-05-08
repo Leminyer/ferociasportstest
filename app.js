@@ -1727,27 +1727,29 @@
       g4.innerHTML = `
         <div class="game-card-header-lime">
           <span class="lime-tag" style="color:var(--lime-dark);">Game 4 — Closest scores</span>
-          <label class="row gap-4 cursor-pointer text-bold text-uppercase" style="font-size:11px;color:var(--lime-dark);letter-spacing:.5px;">
-            <input type="checkbox" id="void-4" data-action="toggleVoid" data-gamenum="4"> Void
+          <label class="void-toggle-wrap">
+            <input type="checkbox" id="void-4" data-action="toggleVoid" data-gamenum="4">
+            <div class="void-toggle-track"></div>
+            <span class="void-toggle-label" style="color:var(--lime-dark);">Void</span>
           </label>
         </div>
         <div class="bg-bg text-muted-12" style="padding:10px 14px;">
           After the 3 games, match the 2 players with the closest total scores on each team.
         </div>
         <div id="game-body-4" class="game-card-body">
-          <div class="vs-grid-top">
+          <div class="vs-grid-top" style="align-items:center;">
             <div class="team-pad-blue-l">
               <div class="blue-tag mb-8">Team A</div>
               <select id="extraA1-4" class="full-width mb-6" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 1</option>${playerOpts}</select>
               <select id="extraA2-4" class="full-width mb-8" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 2</option>${playerOpts}</select>
-              <input type="number" min="0" max="11" placeholder="Enter score" value="0" id="scoreA-4" data-egame="4" data-eteam="A" class="full-width score-input">
+              <input type="text" inputmode="numeric" placeholder="Enter score" value="--" id="scoreA-4" data-egame="4" data-eteam="A" class="full-width score-input">
             </div>
-            <div class="vs-tag" style="padding-top:0;"><span>VS</span></div>
+            <div class="vs-tag"><span>VS</span></div>
             <div class="team-pad-teal-l">
               <div class="label-tag mb-8" style="color:var(--teal);">Team B</div>
               <select id="extraB1-4" class="full-width mb-6" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 1</option>${playerOpts}</select>
               <select id="extraB2-4" class="full-width mb-8" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 2</option>${playerOpts}</select>
-              <input type="number" min="0" max="11" placeholder="Enter score" value="0" id="scoreB-4" data-egame="4" data-eteam="B" class="full-width score-input">
+              <input type="text" inputmode="numeric" placeholder="Enter score" value="--" id="scoreB-4" data-egame="4" data-eteam="B" class="full-width score-input">
             </div>
           </div>
           <div id="pts-preview-4" class="points-preview"></div>
@@ -1804,13 +1806,13 @@
           <div class="team-pad-blue">
             <div class="blue-tag mb-6">Team A</div>
             <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:10px;min-height:40px;line-height:1.3;">${esc(teamANames)}</div>
-            <input type="number" min="0" max="11" placeholder="Enter score" value="0" id="scoreA-${gameNum}" data-autoscore="${gameNum}" class="score-input">
+            <input type="text" inputmode="numeric" placeholder="Enter score" value="--" id="scoreA-${gameNum}" data-autoscore="${gameNum}" class="score-input">
           </div>
           <div class="vs-tag"><span>VS</span></div>
           <div class="team-pad-teal">
             <div class="label-tag mb-6" style="color:var(--teal);">Team B</div>
             <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:10px;min-height:40px;line-height:1.3;">${esc(teamBNames)}</div>
-            <input type="number" min="0" max="11" placeholder="Enter score" value="0" id="scoreB-${gameNum}" data-autoscore="${gameNum}" class="score-input">
+            <input type="text" inputmode="numeric" placeholder="Enter score" value="--" id="scoreB-${gameNum}" data-autoscore="${gameNum}" class="score-input">
           </div>
         </div>
         <div id="pts-preview-${gameNum}" class="points-preview"></div>
@@ -1895,26 +1897,28 @@
       <div class="game-card-header">
         <span class="lime-tag">Extra game</span>
         <div class="row gap-8">
-          <label class="row gap-4 cursor-pointer text-bold text-uppercase" style="font-size:11px;color:var(--orange-light);letter-spacing:.5px;">
-            <input type="checkbox" id="void-${gameNum}" data-action="toggleVoid" data-gamenum="${gameNum}"> Void
+          <label class="void-toggle-wrap">
+            <input type="checkbox" id="void-${gameNum}" data-action="toggleVoid" data-gamenum="${gameNum}">
+            <div class="void-toggle-track"></div>
+            <span class="void-toggle-label">Void</span>
           </label>
           <button class="btn btn-danger btn-sm" data-action="removeExtraGame" data-gamenum="${gameNum}">Remove</button>
         </div>
       </div>
       <div id="game-body-${gameNum}" class="game-card-body">
-        <div class="vs-grid-top">
+        <div class="vs-grid-top" style="align-items:center;">
           <div class="team-pad-blue-l">
             <div class="blue-tag mb-8">Team A</div>
             <select id="extraA1-${gameNum}" class="full-width mb-6" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 1</option>${playerOpts}</select>
             <select id="extraA2-${gameNum}" class="full-width mb-8" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 2</option>${playerOpts}</select>
-            <input type="number" min="0" max="11" placeholder="Score" id="scoreA-${gameNum}" data-egame="${gameNum}" data-eteam="A" class="full-width score-input">
+            <input type="text" inputmode="numeric" placeholder="Enter score" value="--" id="scoreA-${gameNum}" data-egame="${gameNum}" data-eteam="A" class="full-width score-input">
           </div>
-          <div class="vs-tag" style="padding-top:36px;">VS</div>
+          <div class="vs-tag"><span>VS</span></div>
           <div class="team-pad-teal-l">
             <div class="label-tag mb-8" style="color:var(--teal);">Team B</div>
             <select id="extraB1-${gameNum}" class="full-width mb-6" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 1</option>${playerOpts}</select>
             <select id="extraB2-${gameNum}" class="full-width mb-8" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 2</option>${playerOpts}</select>
-            <input type="number" min="0" max="11" placeholder="Score" id="scoreB-${gameNum}" data-egame="${gameNum}" data-eteam="B" class="full-width score-input">
+            <input type="text" inputmode="numeric" placeholder="Enter score" value="--" id="scoreB-${gameNum}" data-egame="${gameNum}" data-eteam="B" class="full-width score-input">
           </div>
         </div>
         <div id="pts-preview-${gameNum}" class="points-preview"></div>
