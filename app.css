@@ -75,8 +75,8 @@
 .input-full       { width:100%; padding:9px 12px; border:0.5px solid var(--border); border-radius:var(--radius-sm); font-family:'Montserrat',sans-serif; font-size:13px; outline:none; }
 .input-sm         { font-size:12px; padding:5px 10px; font-family:'Montserrat',sans-serif; font-weight:600; border:0.5px solid var(--border); border-radius:var(--radius-sm); }
 .search-input     { width:100%; padding:10px 14px; font-size:13px; border:0.5px solid var(--border); border-radius:var(--radius-sm); font-family:'Montserrat',sans-serif; }
-.score-input      { width:80px; text-align:center; font-family:'Bebas Neue',sans-serif; font-size:28px; font-weight:400; border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:8px 6px; transition:border-color .15s; }
-.score-input:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(23,76,204,0.1); outline:none; }
+.score-input      { width:110px; text-align:center; font-family:'Bebas Neue',sans-serif; font-size:28px; font-weight:400; border:1px solid rgba(23,76,204,0.12); border-radius:14px; padding:10px 8px; transition:border-color .15s,box-shadow .15s; }
+.score-input:focus { border:1px solid #174CCC; box-shadow:0 0 0 4px rgba(23,76,204,0.08); outline:none; }
 
 /* ─── PILLS / BADGES ──────────────────────────────────── */
 .pill             { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; padding:3px 9px; border-radius:99px; }
@@ -93,7 +93,10 @@
 .team-pad-teal    { background:var(--teal-light); border-radius:var(--radius); padding:14px; text-align:center; }
 .team-pad-blue-l  { background:var(--blue-pale); border-radius:var(--radius); padding:14px; }
 .team-pad-teal-l  { background:var(--teal-light); border-radius:var(--radius); padding:14px; }
-.vs-tag           { font-size:16px; font-weight:800; color:var(--text-muted); }
+.vs-tag           { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--text-muted); }
+.vs-tag::before   { content:''; display:block; width:1px; height:20px; background:rgba(23,76,204,0.15); }
+.vs-tag::after    { content:''; display:block; width:1px; height:20px; background:rgba(23,76,204,0.15); }
+.vs-tag span      { font-size:10px; font-weight:800; letter-spacing:2px; color:rgba(23,76,204,0.35); }
 .vs-grid          { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; }
 .vs-grid-top      { display:grid; grid-template-columns:1fr auto 1fr; align-items:start; gap:12px; }
 .points-preview   { margin-top:10px; font-size:12px; color:var(--text-muted); text-align:center; font-weight:500; }
@@ -145,3 +148,36 @@
 .sdg-chevron-open      { transform: rotate(90deg); }
 .session-date-header   { transition: background .15s; }
 .session-date-header:hover { background: var(--blue-pale) !important; filter: brightness(0.96); }
+
+/* Void toggle switch */
+.void-toggle-wrap { display:flex; align-items:center; gap:8px; cursor:pointer; }
+.void-toggle-wrap input[type="checkbox"] { display:none; }
+.void-toggle-track {
+  width:36px; height:20px; border-radius:99px;
+  background:rgba(242,96,36,0.1); border:1.5px solid rgba(242,96,36,0.3);
+  position:relative; transition:background .2s,border-color .2s; flex-shrink:0;
+}
+.void-toggle-track::after {
+  content:''; position:absolute; top:2px; left:2px;
+  width:14px; height:14px; border-radius:50%;
+  background:rgba(242,96,36,0.4); transition:transform .2s,background .2s;
+}
+.void-toggle-wrap:hover .void-toggle-track { border-color:rgba(242,96,36,0.6); background:rgba(242,96,36,0.15); }
+.void-toggle-wrap input:checked ~ .void-toggle-track { background:rgba(242,96,36,0.2); border-color:#F26024; }
+.void-toggle-wrap input:checked ~ .void-toggle-track::after { transform:translateX(16px); background:#F26024; }
+.void-toggle-label { font-size:11px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:var(--orange-light); }
+.void-toggle-wrap input:checked ~ .void-toggle-label { color:#F26024; }
+/* Save Roster button */
+#save-session-btn {
+  background: linear-gradient(180deg,#2456d3 0%,#174CCC 100%) !important;
+  transition: transform .15s, box-shadow .15s !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+#save-session-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 20px rgba(23,76,204,0.18) !important;
+  opacity: 1 !important;
+}

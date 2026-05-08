@@ -1740,14 +1740,14 @@
               <div class="blue-tag mb-8">Team A</div>
               <select id="extraA1-4" class="full-width mb-6" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 1</option>${playerOpts}</select>
               <select id="extraA2-4" class="full-width mb-8" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 2</option>${playerOpts}</select>
-              <input type="number" min="0" max="11" placeholder="Score" id="scoreA-4" data-egame="4" data-eteam="A" class="full-width score-input">
+              <input type="number" min="0" max="11" placeholder="Enter score" value="0" id="scoreA-4" data-egame="4" data-eteam="A" class="full-width score-input">
             </div>
-            <div class="vs-tag" style="padding-top:40px;">VS</div>
+            <div class="vs-tag" style="padding-top:0;"><span>VS</span></div>
             <div class="team-pad-teal-l">
               <div class="label-tag mb-8" style="color:var(--teal);">Team B</div>
               <select id="extraB1-4" class="full-width mb-6" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 1</option>${playerOpts}</select>
               <select id="extraB2-4" class="full-width mb-8" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 2</option>${playerOpts}</select>
-              <input type="number" min="0" max="11" placeholder="Score" id="scoreB-4" data-egame="4" data-eteam="B" class="full-width score-input">
+              <input type="number" min="0" max="11" placeholder="Enter score" value="0" id="scoreB-4" data-egame="4" data-eteam="B" class="full-width score-input">
             </div>
           </div>
           <div id="pts-preview-4" class="points-preview"></div>
@@ -1791,8 +1791,10 @@
               ? `<span style="font-size:11px;color:var(--blue-light);font-weight:500;">Sitting out: <strong style="color:white;">${sitting.map((p) => esc(p.first_name + ' ' + p.last_name)).join(', ')}</strong></span>`
               : ''
           }
-          <label class="row gap-4 cursor-pointer text-bold text-uppercase" style="font-size:11px;color:var(--orange-light);letter-spacing:.5px;">
-            <input type="checkbox" id="void-${gameNum}" data-action="toggleVoid" data-gamenum="${gameNum}"> Void
+          <label class="void-toggle-wrap">
+            <input type="checkbox" id="void-${gameNum}" data-action="toggleVoid" data-gamenum="${gameNum}">
+            <div class="void-toggle-track"></div>
+            <span class="void-toggle-label">Void</span>
           </label>
           ${isExtra ? `<button class="btn btn-danger btn-sm" data-action="removeExtraGame" data-gamenum="${gameNum}">Remove</button>` : ''}
         </div>
@@ -1801,14 +1803,14 @@
         <div class="vs-grid">
           <div class="team-pad-blue">
             <div class="blue-tag mb-6">Team A</div>
-            <div class="text-bold mb-10" style="font-size:13px;min-height:36px;">${esc(teamANames)}</div>
-            <input type="number" min="0" max="11" placeholder="Score" id="scoreA-${gameNum}" data-autoscore="${gameNum}" class="score-input">
+            <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:10px;min-height:40px;line-height:1.3;">${esc(teamANames)}</div>
+            <input type="number" min="0" max="11" placeholder="Enter score" value="0" id="scoreA-${gameNum}" data-autoscore="${gameNum}" class="score-input">
           </div>
-          <div class="vs-tag">VS</div>
+          <div class="vs-tag"><span>VS</span></div>
           <div class="team-pad-teal">
             <div class="label-tag mb-6" style="color:var(--teal);">Team B</div>
-            <div class="text-bold mb-10" style="font-size:13px;min-height:36px;">${esc(teamBNames)}</div>
-            <input type="number" min="0" max="11" placeholder="Score" id="scoreB-${gameNum}" data-autoscore="${gameNum}" class="score-input">
+            <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:10px;min-height:40px;line-height:1.3;">${esc(teamBNames)}</div>
+            <input type="number" min="0" max="11" placeholder="Enter score" value="0" id="scoreB-${gameNum}" data-autoscore="${gameNum}" class="score-input">
           </div>
         </div>
         <div id="pts-preview-${gameNum}" class="points-preview"></div>
