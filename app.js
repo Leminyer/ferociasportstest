@@ -96,7 +96,7 @@
         api('tournaments?status=eq.active&select=id,name').catch(() => []),
         api('orders?status=eq.paid&select=id').catch(() => []),
         api('subscribers?status=eq.active&select=id').catch(() => []),
-        api('matches?score_for=is.null&default_no_show=is.false&select=id').catch(() => []),
+        api('matches?score_for=is.null&default_no_show=is.false&select=id,ladder_id').catch(() => []),
         api('subscribers?status=eq.pending&select=id').catch(() => []),
       ]);
 
@@ -140,6 +140,10 @@
 
         // Pending score reports
         if (pendingMatches.length) {
+          // Find the ladder with the most pending matches to pre-select
+          const pmLadderCounts = {};
+          pendingMatches.forEach(m => { if (m.ladder_id) pmLadderCounts[m.ladder_id] = (pmLadderCounts[m.ladder_id] || 0) + 1; });
+          const topLadderId = Object.keys(pmLadderCounts).sort((a,b) => pmLadderCounts[b] - pmLadderCounts[a])[0] || '';
           items.push({
             strip: 'orange',
             icon: `<svg viewBox="0 0 24 24" style="stroke:#F26024;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
@@ -151,6 +155,7 @@
             btnLabel: 'View Sessions',
             btnClass: 'ops-btn-orange',
             page: 'sessions',
+            ladderId: topLadderId,
           });
         }
 
@@ -186,7 +191,7 @@
               </div>
               <div class="ops-row-actions">
                 <span class="ops-pill ${item.pillClass}">${item.pill}</span>
-                <button class="${item.btnClass}" data-action="showPage" data-page="${item.page}">${item.btnLabel}</button>
+                <button class="${item.btnClass}" data-action="showPage" data-page="${item.page}" ${item.ladderId ? `data-ladderid="${item.ladderId}"` : ''}>${item.btnLabel}</button>
               </div>
             </div>`).join('');
         }
@@ -420,7 +425,20 @@
     sbSetActive(name);
     sbCloseMore();
     if (name === 'ladder') loadLadder();
-    if (name === 'sessions') loadSessions();
+    if (name === 'sessions') {
+      // If called with a specific ladder id (e.g. from dashboard ops center), pre-select it
+      const ladderId = btn && btn.dataset && btn.dataset.ladderid ? parseInt(btn.dataset.ladderid, 10) : null;
+      if (ladderId && allLadders.length) {
+        const found = allLadders.find(l => l.id === ladderId);
+        if (found) {
+          currentLadder = found;
+          const sel = document.getElementById('ladder-selector');
+          if (sel) sel.value = ladderId;
+          updateLadderBanner();
+        }
+      }
+      loadSessions();
+    }
     if (name === 'players') loadPlayers();
     if (name === 'entry') initEntry();
     if (name === 'ladders') loadLaddersPage();
@@ -1307,7 +1325,12 @@
 
       // Helper: group 4 match rows into 2 teams by score_for value
       const buildTeams = (players) => {
-        // Players with same score_for are on same team
+        // When scores exist: players with same score_for are on same team
+        const allPending = players.every(p => p.score_for === null && !p.default_no_show);
+        if (allPending) {
+          // No scores yet — split by roster order: first 2 = Team A, last 2 = Team B
+          return [players.slice(0, 2), players.slice(2)];
+        }
         const teamMap = {};
         players.forEach((p) => {
           const key = p.default_no_show ? `ns_${p.player_id}` : (p.score_for !== null ? String(p.score_for) : 'pending');
@@ -3065,10 +3088,10 @@
 
     const editSVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
     const sortArrow = (col) => {
-      if (_playersSorted.col !== col) return '<span style="color:#d0d5e8;margin-left:4px;">↕</span>';
+      if (_playersSorted.col !== col) return '<span style="color:#d0d5e8;margin-left:6px;font-size:14px;font-weight:700;line-height:1;">↕</span>';
       return _playersSorted.dir === 'asc'
-        ? '<span style="color:#174CCC;margin-left:4px;">↑</span>'
-        : '<span style="color:#174CCC;margin-left:4px;">↓</span>';
+        ? '<span style="color:#174CCC;margin-left:6px;font-size:14px;font-weight:700;line-height:1;">↑</span>'
+        : '<span style="color:#174CCC;margin-left:6px;font-size:14px;font-weight:700;line-height:1;">↓</span>';
     };
 
     const rows = slice.map(d => {
