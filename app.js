@@ -3055,20 +3055,17 @@
   const filterPlayers = () => {
     const q = document.getElementById('player-search').value.toLowerCase().trim();
     const statusFilter = document.getElementById('player-status-filter')?.value || 'all';
-    let lastVisible = null;
-    document.querySelectorAll('#players-table tbody tr').forEach((row) => {
-      // The inline reason rows piggy-back the visibility of the player row above them.
-      if (row.classList.contains('reason-row')) {
-        row.style.display = lastVisible === '' ? '' : 'none';
-        return;
-      }
-      const name = row.querySelector('td')?.textContent.toLowerCase() || '';
+    // Always collapse all expand rows when filter changes
+    document.querySelectorAll('#players-table tbody tr.player-expand-row').forEach(r => {
+      r.style.display = 'none';
+    });
+    document.querySelectorAll('#players-table tbody tr:not(.player-expand-row)').forEach((row) => {
+      if (row.classList.contains('reason-row')) return;
+      const name   = row.querySelector('td')?.textContent.toLowerCase() || '';
       const statusCell = row.querySelectorAll('td')[4]?.textContent.toLowerCase() || '';
-      const nameMatch = name.includes(q);
+      const nameMatch   = name.includes(q);
       const statusMatch = statusFilter === 'all' || statusCell.includes(statusFilter);
-      const display = nameMatch && statusMatch ? '' : 'none';
-      row.style.display = display;
-      lastVisible = display;
+      row.style.display = nameMatch && statusMatch ? '' : 'none';
     });
   };
 
@@ -3079,8 +3076,8 @@
         api('players?select=*&order=first_name'),
         api('player_status_history?new_status=eq.inactive&select=player_id,reason,changed_at&order=changed_at.desc'),
         api('matches?select=player_id,score_for,score_against,points_earned,session_date,default_no_show&order=session_date.desc').catch(() => []),
-        api('ladder_players?select=player_id,ladder_id&ladders(status=eq.active)').catch(() => []),
-        api('tournament_teams?select=player_id,tournament_id').catch(() => []),
+        api('ladder_players?select=player_id,ladder_id').catch(() => []),
+        api('tournament_teams?select=player_id').catch(() => []),
       ]);
       allPlayers = players;
 
@@ -3154,13 +3151,20 @@
         const isTop25pct = rankIdx >= 0 && rankIdx < Math.ceil(ranked.length * 0.25);
         const isMostActive = s.played >= 20 && s.played === Math.max(...allPlayers.map(x => matchStats[x.id]?.played || 0).filter(n => n > 0).slice(0,5));
 
-        if (s.played >= 3 && wr >= 0.75) return { cls:'ind-fire', emoji:'🔥', label:'Hot Player', tip:'Win rate above 75%' };
-        if (isTop10 && s.played >= 5) return { cls:'ind-crown', emoji:'👑', label:'Top 10', tip:'Ranked in the top 10 players' };
-        if (s.played >= 30) return { cls:'ind-bolt', emoji:'⚡', label:'Most Active', tip:'30+ games played this season' };
-        if (daysSince <= 60 && isTop25pct) return { cls:'ind-star', emoji:'⭐', label:'Rising Star', tip:'New player in top 25% by win rate' };
-        if (daysSince <= 60) return { cls:'ind-new', emoji:'✨', label:'New Player', tip:'Joined within the last 60 days' };
-        if (s.played >= 10 && wr >= 0.55 && wr < 0.75) return { cls:'ind-clock', emoji:'🎯', label:'Consistent', tip:'Stable performance over multiple sessions' };
-        if (s.played >= 5 && wr < 0.35) return { cls:'ind-slip', emoji:'📉', label:'Slipping', tip:'Win rate below 35%' };
+        const svg_fire   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+        const svg_crown  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
+        const svg_bolt   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+        const svg_star   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
+        const svg_new    = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
+        const svg_clock  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
+        const svg_slip   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`;
+        if (s.played >= 3 && wr >= 0.75) return { cls:'ind-fire',  icon:svg_fire,  label:'Hot Player',   tip:'Win rate above 75%' };
+        if (isTop10 && s.played >= 5)    return { cls:'ind-crown', icon:svg_crown, label:'Top 10',       tip:'Ranked in the top 10 players' };
+        if (s.played >= 30)              return { cls:'ind-bolt',  icon:svg_bolt,  label:'Most Active',  tip:'30+ games played this season' };
+        if (daysSince <= 60 && isTop25pct) return { cls:'ind-star', icon:svg_star, label:'Rising Star',  tip:'New player in top 25% by win rate' };
+        if (daysSince <= 60)             return { cls:'ind-new',   icon:svg_new,   label:'New Player',   tip:'Joined within the last 60 days' };
+        if (s.played >= 10 && wr >= 0.55 && wr < 0.75) return { cls:'ind-clock', icon:svg_clock, label:'Consistent', tip:'Stable performance over multiple sessions' };
+        if (s.played >= 5 && wr < 0.35) return { cls:'ind-slip',  icon:svg_slip,  label:'Slipping',     tip:'Win rate below 35%' };
         return null;
       };
 
@@ -3183,7 +3187,7 @@
         const wrColor  = wr === null ? '#6b7a99' : wr >= 70 ? '#24BC96' : wr >= 50 ? '#174CCC' : '#F26024';
         const ind      = computeIndicator(p, stats);
         const indHTML  = ind
-          ? `<div class="player-ind ${ind.cls}">${ind.emoji} ${ind.label}<div class="player-ind-tip">${ind.tip}</div></div>`
+          ? `<div class="player-ind ${ind.cls}">${ind.icon} ${ind.label}<div class="player-ind-tip">${ind.tip}</div></div>`
           : '<span style="color:#d0d5e8;font-size:11px;">—</span>';
         const expandId = `pex-${p.id}`;
 
