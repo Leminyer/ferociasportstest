@@ -4022,6 +4022,9 @@
       correctLevel: QRCode.CorrectLevel.H,
     });
 
+    // Track this share action
+    _recordShareVisit(url);
+
     // Show modal
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
@@ -4069,7 +4072,7 @@
       });
   };
 
-  // Record a visit/share event in link_visits table
+  // Record a visit/share event in link_visits table — exposed on window for inline onclick
   const _recordShareVisit = async (url) => {
     try {
       // Parse ladder_id or tournament_id from URL
@@ -4087,6 +4090,7 @@
       });
     } catch(_) { /* silent fail if table doesn't exist yet */ }
   };
+  window._recordShareVisit = _recordShareVisit; // expose for inline onclick handlers
 
   /* ─── EMAIL NOTIFICATIONS ──────────────────────────────── */
 
