@@ -1484,7 +1484,7 @@
               <span class="court-block-label">Court ${s.group}${courtPending ? ' <span style="font-size:9px;font-weight:800;color:var(--orange);background:var(--orange-light);padding:1px 6px;border-radius:99px;text-transform:uppercase;margin-left:6px;">Pending</span>' : ''}</span>
               <div style="display:flex;gap:6px;align-items:center;">
                 <button class="sess-edit-btn" data-action="editSession" data-matchids="${sessionMatchIds}" data-date="${esc(s.date)}" data-court="${s.group}" title="Edit session">${editSVG}</button>
-                <button class="btn btn-danger btn-sm" data-action="deleteSession" data-matchids="${sessionMatchIds}" data-date="${esc(s.date)}" data-court="${s.group}">Delete</button>
+                <button class="sess-edit-btn" data-action="deleteSession" data-matchids="${sessionMatchIds}" data-date="${esc(s.date)}" data-court="${s.group}" title="Delete session" style="border-color:rgba(229,57,53,0.3);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
               </div>
             </div>`;
 
@@ -1697,46 +1697,87 @@
     const rows = await api(
       `matches?id=in.(${ids.join(',')})&select=*,players(first_name,last_name)`,
     );
-    if (!rows.length) {
-      toast('Could not load game data.', true);
-      return;
-    }
+    if (!rows.length) { toast('Could not load game data.', true); return; }
     const isVoided = rows[0].score_for === null;
     const modalBody = document.getElementById('edit-game-body');
+
+    // Group rows into 2 teams by score_for (or index split if unscored)
+    const scored = rows.filter(r => r.score_for !== null);
+    let teamA = [], teamB = [];
+    if (scored.length) {
+      const scores = [...new Set(scored.map(r => r.score_for))].sort((a,b) => b-a);
+      teamA = rows.filter(r => r.score_for === scores[0] || (scores.length === 1 && rows.indexOf(r) < 2));
+      teamB = rows.filter(r => !teamA.includes(r));
+    } else {
+      teamA = rows.slice(0, 2);
+      teamB = rows.slice(2);
+    }
+    // Ensure teamA has higher score (winner on left)
+    if (teamA[0] && teamB[0] && teamA[0].score_for !== null && teamB[0].score_for !== null) {
+      if (teamA[0].score_for < teamB[0].score_for) { [teamA, teamB] = [teamB, teamA]; }
+    }
+
+    const teamANames = teamA.map(r => r.players ? `${esc(r.players.first_name)} ${esc(r.players.last_name)}` : 'Unknown').join('<br>');
+    const teamBNames = teamB.map(r => r.players ? `${esc(r.players.first_name)} ${esc(r.players.last_name)}` : 'Unknown').join('<br>');
+    const teamAScore = teamA[0] ? (teamA[0].score_for !== null ? teamA[0].score_for : '') : '';
+    const teamBScore = teamB[0] ? (teamB[0].score_for !== null ? teamB[0].score_for : '') : '';
+    const teamAAgainst = teamA[0] ? (teamA[0].score_against !== null ? teamA[0].score_against : '') : '';
+    const teamBAgainst = teamB[0] ? (teamB[0].score_against !== null ? teamB[0].score_against : '') : '';
+    const teamAIds = teamA.map(r => r.id).join(',');
+    const teamBIds = teamB.map(r => r.id).join(',');
+
     modalBody.innerHTML = `
-      <div class="text-bold text-muted-13 mb-12 text-uppercase">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:14px;">
         Game ${esc(gnum)} — ${fmtDate(date)} — Court ${esc(court)}
       </div>
-      <label class="row gap-8 cursor-pointer mb-16 bg-orange-light text-bold color-orange" style="padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;">
-        <input type="checkbox" id="eg-void-game" ${isVoided ? 'checked' : ''} data-action="toggleEditGameVoid"> Void this game (0 points for all players)
+      <label class="void-toggle-wrap" style="margin-bottom:16px;">
+        <input type="checkbox" id="eg-void-game" ${isVoided ? 'checked' : ''} data-action="toggleEditGameVoid">
+        <div class="void-toggle-track"></div>
+        <span class="void-toggle-label">Void this game (0 points for all players)</span>
       </label>
       <div id="eg-scores-section" class="${isVoided ? 'opacity-04' : ''}">
-        <div class="label-tag mb-10">Scores per player</div>
-        ${rows
-          .map(
-            (r) => `
-            <div style="padding:10px 0;border-bottom:0.5px solid var(--border);">
-              <div class="text-bold mb-8" style="font-size:13px;">${r.players ? esc(r.players.first_name + ' ' + r.players.last_name) : 'Unknown'}</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-                <div class="form-group">
-                  <label>Score for</label>
-                  <input type="number" min="0" max="11" id="eg-sf-${r.id}" value="${r.score_for !== null ? r.score_for : ''}" placeholder="0" data-egrid="${r.id}" data-egtype="sf">
-                </div>
-                <div class="form-group">
-                  <label>Score against</label>
-                  <input type="number" min="0" max="11" id="eg-sa-${r.id}" value="${r.score_against !== null ? r.score_against : ''}" placeholder="0" data-egrid="${r.id}" data-egtype="sa">
-                </div>
-                <div class="form-group">
-                  <label>Points earned <span class="color-teal" style="font-size:9px;">(auto)</span></label>
-                  <input type="number" min="-1" max="4" id="eg-pts-${r.id}" value="${r.points_earned !== null ? r.points_earned : 0}" placeholder="0" style="background:var(--bg);" readonly>
-                </div>
-              </div>
-            </div>`,
-          )
-          .join('')}
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:start;">
+          <div style="background:#e8f0ff;border-radius:8px;padding:14px;">
+            <div style="font-size:12px;font-weight:800;color:#0d1f4a;margin-bottom:8px;line-height:1.5;">${teamANames}</div>
+            <div class="form-group" style="margin-bottom:6px;">
+              <label style="font-size:10px;">Score</label>
+              <input type="number" min="0" max="11" id="eg-sf-teamA" value="${teamAScore}" placeholder="0" data-egteam="A">
+            </div>
+            <div style="font-size:10px;font-weight:600;color:var(--text-muted);">Points: <span id="eg-pts-teamA-display">auto</span></div>
+            <input type="hidden" id="eg-ids-teamA" value="${teamAIds}">
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding-top:32px;color:rgba(23,76,204,0.3);font-size:10px;font-weight:800;">
+            <div style="width:1px;height:20px;background:rgba(23,76,204,0.15);"></div>
+            VS
+            <div style="width:1px;height:20px;background:rgba(23,76,204,0.15);"></div>
+          </div>
+          <div style="background:#e8f5f1;border-radius:8px;padding:14px;">
+            <div style="font-size:12px;font-weight:800;color:#0d1f4a;margin-bottom:8px;line-height:1.5;">${teamBNames}</div>
+            <div class="form-group" style="margin-bottom:6px;">
+              <label style="font-size:10px;">Score</label>
+              <input type="number" min="0" max="11" id="eg-sf-teamB" value="${teamBScore}" placeholder="0" data-egteam="B">
+            </div>
+            <div style="font-size:10px;font-weight:600;color:var(--text-muted);">Points: <span id="eg-pts-teamB-display">auto</span></div>
+            <input type="hidden" id="eg-ids-teamB" value="${teamBIds}">
+          </div>
+        </div>
       </div>
       <input type="hidden" id="eg-ids" value="${ids.join(',')}">
     `;
+
+    // Auto-calc points preview when scores change
+    const calcDisplay = () => {
+      const sfA = parseInt(document.getElementById('eg-sf-teamA').value, 10);
+      const sfB = parseInt(document.getElementById('eg-sf-teamB').value, 10);
+      if (!isNaN(sfA) && !isNaN(sfB)) {
+        document.getElementById('eg-pts-teamA-display').textContent = '+' + calcPoints(sfA, sfB);
+        document.getElementById('eg-pts-teamB-display').textContent = '+' + calcPoints(sfB, sfA);
+      }
+    };
+    document.getElementById('eg-sf-teamA').addEventListener('input', calcDisplay);
+    document.getElementById('eg-sf-teamB').addEventListener('input', calcDisplay);
+    calcDisplay();
+
     document.getElementById('edit-game-modal').classList.add('open');
   };
 
@@ -1748,39 +1789,39 @@
 
   const saveEditGame = async (e) => {
     e.preventDefault();
-    const ids = document.getElementById('eg-ids').value.split(',').filter(Boolean);
     const isVoid = document.getElementById('eg-void-game').checked;
 
-    // Require score OR void — don't allow saving blanks when editing
+    // Read team-based inputs
+    const sfAEl = document.getElementById('eg-sf-teamA');
+    const sfBEl = document.getElementById('eg-sf-teamB');
+    const teamAIds = (document.getElementById('eg-ids-teamA')?.value || '').split(',').filter(Boolean);
+    const teamBIds = (document.getElementById('eg-ids-teamB')?.value || '').split(',').filter(Boolean);
+
     if (!isVoid) {
-      const missingScore = ids.some((id) => {
-        const sf = document.getElementById(`eg-sf-${id}`);
-        const sa = document.getElementById(`eg-sa-${id}`);
-        // Skip no-show rows (they never have scores)
-        const ptsEl = document.getElementById(`eg-pts-${id}`);
-        if (!sf) return false; // row not rendered = no-show row, skip
-        return sf.value === '' || sa.value === '';
-      });
-      if (missingScore) {
-        toast('Please enter scores for all players, or mark the game as void.', true);
+      if (!sfAEl || !sfBEl || sfAEl.value === '' || sfBEl.value === '') {
+        toast('Please enter scores for both teams, or mark the game as void.', true);
         return;
       }
     }
 
+    const sfA = sfAEl ? parseInt(sfAEl.value, 10) : null;
+    const sfB = sfBEl ? parseInt(sfBEl.value, 10) : null;
+    const ptsA = (!isVoid && !isNaN(sfA) && !isNaN(sfB)) ? calcPoints(sfA, sfB) : 0;
+    const ptsB = (!isVoid && !isNaN(sfA) && !isNaN(sfB)) ? calcPoints(sfB, sfA) : 0;
+
     try {
-      await Promise.all(
-        ids.map((id) => {
-          const sf = document.getElementById(`eg-sf-${id}`);
-          const sa = document.getElementById(`eg-sa-${id}`);
-          const pts = document.getElementById(`eg-pts-${id}`);
-          const body = {
-            score_for: isVoid ? null : sf && sf.value !== '' ? parseInt(sf.value, 10) : null,
-            score_against: isVoid ? null : sa && sa.value !== '' ? parseInt(sa.value, 10) : null,
-            points_earned: isVoid ? 0 : pts && pts.value !== '' ? parseInt(pts.value, 10) : 0,
-          };
-          return api(`matches?id=eq.${id}`, 'PATCH', body);
-        }),
-      );
+      const updates = [];
+      teamAIds.forEach(id => updates.push(api(`matches?id=eq.${id}`, 'PATCH', {
+        score_for:     isVoid ? null : sfA,
+        score_against: isVoid ? null : sfB,
+        points_earned: isVoid ? 0 : ptsA,
+      })));
+      teamBIds.forEach(id => updates.push(api(`matches?id=eq.${id}`, 'PATCH', {
+        score_for:     isVoid ? null : sfB,
+        score_against: isVoid ? null : sfA,
+        points_earned: isVoid ? 0 : ptsB,
+      })));
+      await Promise.all(updates);
       toast('Game updated successfully!');
       document.getElementById('edit-game-modal').classList.remove('open');
       loadSessions();
