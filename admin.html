@@ -1624,10 +1624,10 @@
       </div>
     </div>
 
-    <!-- Visit tracking note -->
-    <div style="margin-top:14px;padding:12px 16px;background:white;border:0.5px solid #e0e7f5;border-radius:8px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(23,76,204,0.06);">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span style="font-size:11px;font-weight:600;color:#6b7a99;"><span style="font-weight:800;color:#0d1f4a;">Visit tracking</span> — setting up analytics table now. Will activate automatically once ready.</span>
+    <!-- Visit tracking note — shown only when table is missing -->
+    <div id="share-visits-note" style="display:none;margin-top:14px;padding:12px 16px;background:white;border:0.5px solid #e0e7f5;border-radius:8px;display:none;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(23,76,204,0.06);">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span style="font-size:11px;font-weight:600;color:#6b7a99;"><span style="font-weight:800;color:#0d1f4a;">Visit tracking not active</span> — run the SQL script in Supabase to enable visit analytics.</span>
     </div>
 
   </div>
@@ -1635,6 +1635,32 @@
 </main>
 
 </div><!-- end .main-content -->
+
+  <!-- QR SHARE MODAL -->
+  <div id="share-qr-modal" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(8,15,46,.65);align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);">
+    <div style="background:white;border-radius:14px;padding:28px 28px 24px;width:100%;max-width:360px;position:relative;text-align:center;box-shadow:0 20px 60px rgba(8,15,46,.25);">
+      <!-- Close button -->
+      <button id="share-qr-modal-close" style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;"
+        onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+        onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <!-- Header -->
+      <div style="font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#6b7a99;margin-bottom:6px;">Share via QR Code</div>
+      <div id="share-qr-modal-name" style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#0d1f4a;letter-spacing:.5px;margin-bottom:18px;padding:0 24px;line-height:1.2;"></div>
+      <!-- QR code -->
+      <div style="display:flex;justify-content:center;margin-bottom:16px;">
+        <div id="share-qr-modal-code" style="background:#f8f9ff;padding:16px;border-radius:12px;border:0.5px solid #e0e7f5;display:inline-block;"></div>
+      </div>
+      <!-- URL strip -->
+      <div style="background:#f0f2f8;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <span id="share-qr-modal-url" style="font-size:10px;font-weight:600;color:#6b7a99;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;text-align:left;"></span>
+        <button id="share-qr-modal-copy" style="font-size:10px;font-weight:700;color:#174CCC;background:none;border:none;cursor:pointer;flex-shrink:0;white-space:nowrap;">Copy</button>
+      </div>
+      <!-- Hint -->
+      <div style="font-size:11px;font-weight:600;color:#b0bbd6;">Players can scan this code to view standings directly.</div>
+    </div>
+  </div>
 
 <!-- ── BOTTOM NAV (mobile) ──────────────────────────────── -->
 <nav class="bottom-nav" id="bottom-nav">

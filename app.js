@@ -3933,15 +3933,28 @@
   };
 
   const loadSharePage = async () => {
+    let _visitsTableExists = false;
     try {
-      const [ladders, tournaments, visits] = await Promise.all([
+      const [ladders, tournaments] = await Promise.all([
         api('ladders?select=*&order=id.desc'),
         api('tournaments?select=*&order=id.desc'),
-        api('link_visits?select=*').catch(() => []),
       ]);
+      // Try visits table separately so we can detect if it exists
+      let visits = [];
+      try {
+        visits = await api('link_visits?select=*&order=visited_at.desc&limit=500');
+        _visitsTableExists = true;
+      } catch(_) {
+        _visitsTableExists = false;
+      }
       _shareData = { ladders, tournaments, visits: visits || [] };
     } catch (e) {
       toast(`Error loading share data: ${e.message}`, true);
+    }
+    // Show/hide visit tracking note
+    const noteEl = document.getElementById('share-visits-note');
+    if (noteEl) {
+      noteEl.style.display = _visitsTableExists ? 'none' : 'flex';
     }
     _populateShareStats();
     _renderShareCards();
@@ -3974,29 +3987,61 @@
     // Show/hide tab content
     document.getElementById('share-tab-ladders').style.display  = tab === 'ladders'     ? '' : 'none';
     document.getElementById('share-tab-tournaments').style.display = tab === 'tournaments' ? '' : 'none';
-    document.getElementById('share-qr-panel').style.display = 'none';
+    // QR now shown in modal — nothing to hide here
     _renderShareCards();
   };
 
   const showShareQR = (btn) => {
-    const url = btn.dataset.url;
-    const panel = document.getElementById('share-qr-panel');
-    const qrEl = document.getElementById('share-qr-code');
-    const urlEl = document.getElementById('share-qr-url');
-    // Clear old QR
+    const url  = btn.dataset.url;
+    // Find the card name from closest ancestor
+    const card = btn.closest('.share-card');
+    const name = card ? (card.querySelector('.share-card-name')?.textContent || '') : '';
+
+    const modal   = document.getElementById('share-qr-modal');
+    const qrEl    = document.getElementById('share-qr-modal-code');
+    const urlEl   = document.getElementById('share-qr-modal-url');
+    const nameEl  = document.getElementById('share-qr-modal-name');
+    const copyBtn = document.getElementById('share-qr-modal-copy');
+    const closeBtn= document.getElementById('share-qr-modal-close');
+    if (!modal || !qrEl) return;
+
+    // Populate
+    if (nameEl) nameEl.textContent = name;
+    if (urlEl)  urlEl.textContent  = url;
+
+    // Clear old QR and generate fresh
     qrEl.innerHTML = '';
-    urlEl.textContent = url;
-    panel.style.display = 'block';
-    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    // Generate QR
     new QRCode(qrEl, {
       text: url,
-      width: 180,
-      height: 180,
+      width: 200,
+      height: 200,
       colorDark: '#0d1f4a',
       colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.H,
     });
+
+    // Show modal
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // Copy button inside modal
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(url).then(() => {
+          copyBtn.textContent = 'Copied!';
+          copyBtn.style.color = '#24BC96';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.style.color = '#174CCC'; }, 2000);
+        });
+      };
+    }
+
+    // Close handlers
+    const closeModal = () => {
+      modal.style.display = 'none';
+      document.body.style.overflow = '';
+    };
+    if (closeBtn) closeBtn.onclick = closeModal;
+    modal.onclick = (e) => { if (e.target === modal) closeModal(); };
   };
 
   const copyShareLink = (url, btnId) => {
