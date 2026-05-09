@@ -3415,11 +3415,108 @@
   };
 
 
+  // ── Add Player: avatar color helper ──────────────────────────────────
+  const _apColors = ['#174CCC','#24BC96','#F26024','#7c3aed','#0891b2','#d97706'];
+  const _apColor  = (str) => {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+    return _apColors[Math.abs(h) % _apColors.length];
+  };
+  const _apFmt = (d) => {
+    if (!d) return '';
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  // ── Live preview update ──────────────────────────────────────────────
+  window.apUpdatePreview = () => {
+    const fn     = (document.getElementById('p-first')?.value || '').trim();
+    const ln     = (document.getElementById('p-last')?.value || '').trim();
+    const gender = document.getElementById('p-gender')?.value || '';
+    const skill  = document.getElementById('p-skill')?.value || '';
+    const email  = (document.getElementById('p-email')?.value || '').trim();
+    const phone  = (document.getElementById('p-phone')?.value || '').trim();
+    const status = document.getElementById('p-status')?.value || 'active';
+    const joined = document.getElementById('p-joined')?.value || '';
+    const fullName = [fn, ln].filter(Boolean).join(' ');
+    const initials = [(fn[0]||''), (ln[0]||'')].join('').toUpperCase() || '?';
+    const avColor  = fullName ? _apColor(fullName) : '#d0d5e8';
+    const body = document.getElementById('ap-preview-body');
+    if (!body) return;
+    if (!fn && !ln) {
+      body.innerHTML = `<div style="text-align:center;padding:20px 0;">
+        <div style="width:64px;height:64px;border-radius:50%;background:#f0f2f8;border:2px dashed #d0d5e8;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d5e8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        </div>
+        <div style="font-size:12px;font-weight:600;color:#d0d5e8;">Fill in the form to see<br>the player preview</div>
+      </div>`;
+      return;
+    }
+    const statusPill = status === 'active'
+      ? `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 10px;border-radius:99px;background:#d4f5ed;color:#085041;">Active Player</span>`
+      : `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 10px;border-radius:99px;background:#f4f5f8;color:#6b7a99;">Inactive</span>`;
+    const skillPill = skill
+      ? `<span style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:3px 10px;border-radius:99px;background:#e8f0ff;color:#174CCC;">${esc(skill)}</span>`
+      : '';
+    const row = (iconSVG, label, val, emptyText) => `
+      <div class="ap-preview-row">
+        <div class="ap-preview-icon">${iconSVG}</div>
+        <div class="ap-preview-lbl">${label}</div>
+        ${val ? `<div class="ap-preview-val">${val}</div>` : `<div class="ap-preview-empty">${emptyText}</div>`}
+      </div>`;
+    const calI   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const mailI  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`;
+    const phoneI = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.06 1.21l3 .01a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.02z"/></svg>`;
+    const genI   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;
+    const gameI  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
+    body.innerHTML = `
+      <div class="ap-preview-avatar" style="background:${avColor};">${esc(initials)}</div>
+      <div class="ap-preview-name">${esc(fullName)}</div>
+      <div class="ap-preview-pills">${statusPill}${skillPill}</div>
+      <div class="ap-preview-divider"></div>
+      ${row(genI,   'Gender',  gender ? esc(gender) : '', 'Not set')}
+      ${row(mailI,  'Email',   email  ? esc(email)  : '', 'Not provided')}
+      ${row(phoneI, 'Phone',   phone  ? esc(phone)  : '', 'Not provided')}
+      ${row(calI,   'Joined',  joined ? _apFmt(joined) : '', 'Not set')}
+      ${row(gameI,  'Games',   '0', '')}
+      <div class="ap-preview-divider"></div>
+      <div style="text-align:center;font-size:10px;font-weight:600;color:#d0d5e8;">Profile not yet saved</div>`;
+  };
+
+  // ── Duplicate check (fires as user types) ────────────────────────────
+  let _apDupTimer = null;
+  window.apCheckDuplicate = () => {
+    clearTimeout(_apDupTimer);
+    _apDupTimer = setTimeout(async () => {
+      const fn = (document.getElementById('p-first')?.value || '').trim();
+      const ln = (document.getElementById('p-last')?.value || '').trim();
+      const warn    = document.getElementById('p-dup-warn');
+      const dupName = document.getElementById('p-dup-name');
+      if (!warn) return;
+      if (fn.length < 2 || ln.length < 2) { warn.style.display = 'none'; return; }
+      try {
+        const dupes = await api(
+          `players?first_name=ilike.${encodeURIComponent(fn)}&last_name=ilike.${encodeURIComponent(ln)}&select=id,first_name,last_name&limit=1`
+        );
+        if (dupes.length) {
+          warn.style.display = 'flex';
+          if (dupName) dupName.textContent = `${esc(dupes[0].first_name)} ${esc(dupes[0].last_name)}`;
+        } else {
+          warn.style.display = 'none';
+        }
+      } catch(_) { warn.style.display = 'none'; }
+    }, 600);
+  };
+
   const initAddPlayer = () => {
-    // Reset the entire form every time the tab is opened
-    const form = document.querySelector('#page-add-player form');
+    const form = document.getElementById('add-player-form');
     if (form) form.reset();
     document.getElementById('p-joined').value = todayISO();
+    // Hide dup warning on reset
+    const warn = document.getElementById('p-dup-warn');
+    if (warn) warn.style.display = 'none';
+    // Reset preview to empty state
+    apUpdatePreview();
   };
 
   const addPlayer = async (e) => {
@@ -3428,49 +3525,51 @@
     const lastName  = document.getElementById('p-last').value.trim();
     const email     = document.getElementById('p-email').value.trim();
 
-    // Email is required
-    if (!email) {
-      toast('Email address is required.', true);
-      document.getElementById('p-email').focus();
+    if (!firstName || !lastName) {
+      toast('First name and last name are required.', true);
       return;
     }
 
-    // Disable button immediately to prevent double-click
     const saveBtn = document.getElementById('add-player-btn');
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = 'Saving...'; }
 
     try {
-      // ── Duplicate check: block if same first name + last name + email already exists ──
-      const duplicate = await api(
-        `players?first_name=eq.${encodeURIComponent(firstName)}&last_name=eq.${encodeURIComponent(lastName)}&email=eq.${encodeURIComponent(email)}&select=id&limit=1`
-      );
+      // Hard duplicate check on submit (by name + email if provided)
+      let dupQuery = `players?first_name=ilike.${encodeURIComponent(firstName)}&last_name=ilike.${encodeURIComponent(lastName)}&select=id&limit=1`;
+      const duplicate = await api(dupQuery);
       if (duplicate.length) {
-        toast(`A player named ${firstName} ${lastName} with this email already exists in the system.`, true);
+        toast(`A player named ${firstName} ${lastName} already exists in the system.`, true);
         return;
       }
 
-      // ── All clear — save the player ───────────────────────────────────────
       const body = {
         first_name: firstName,
-        last_name: lastName,
-        email,
-        phone: document.getElementById('p-phone').value.trim() || null,
-        gender: document.getElementById('p-gender').value || null,
-        status: document.getElementById('p-status').value,
-        date_joined: document.getElementById('p-joined').value || null,
+        last_name:  lastName,
+        email:      email || null,
+        phone:      document.getElementById('p-phone').value.trim() || null,
+        gender:     document.getElementById('p-gender').value || null,
+        skill_level:document.getElementById('p-skill').value || null,
+        status:     document.getElementById('p-status').value,
+        date_joined:document.getElementById('p-joined').value || null,
         current_rank: 999,
       };
 
       await api('players', 'POST', body);
       toast(`${body.first_name} ${body.last_name} added successfully!`);
-      e.target.reset();
+      const form = document.getElementById('add-player-form');
+      if (form) form.reset();
       document.getElementById('p-joined').value = todayISO();
+      const warn = document.getElementById('p-dup-warn');
+      if (warn) warn.style.display = 'none';
+      apUpdatePreview();
       allPlayers = [];
     } catch (err) {
       toast(`Error: ${err.message}`, true);
     } finally {
-      // Always re-enable the button regardless of outcome
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Add player'; }
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Create Player Profile';
+      }
     }
   };
 
@@ -4826,7 +4925,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   document.getElementById('player-search')?.addEventListener('input', filterPlayers);
   document.querySelector('#edit-ladder-modal form')?.addEventListener('submit', saveEditLadder);
   document.querySelector('#edit-modal form')?.addEventListener('submit', saveEditPlayer);
-  document.querySelector('#page-add-player form')?.addEventListener('submit', addPlayer);
+  document.getElementById('add-player-form')?.addEventListener('submit', addPlayer);
 
   // Expose helpers that tournament.js (loaded right after this file) needs.
   // Done BEFORE requireAuth so tournament.js can read it synchronously.

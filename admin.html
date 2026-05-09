@@ -276,6 +276,33 @@
   .stat.stat-lime{border-top-color:#C6F221;}
   .stat.stat-gold{border-top-color:#FFD700;}
 
+  /* Add Player page */
+  .ap-section-title{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#174CCC;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .ap-section-title::after{content:'';flex:1;height:1px;background:#e8f0ff;}
+  .ap-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .ap-group{display:flex;flex-direction:column;gap:5px;}
+  .ap-label{font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#6b7a99;}
+  .ap-input{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;padding:9px 12px;border:1px solid #e0e7f5;border-radius:8px;color:#0d1f4a;background:white;outline:none;transition:border-color .15s,background .15s,box-shadow .15s;width:100%;}
+  .ap-input:hover{background:rgba(23,76,204,0.015);border-color:#c5d6f5;}
+  .ap-input:focus{border-color:#174CCC;box-shadow:0 0 0 4px rgba(23,76,204,0.08);background:white;}
+  .ap-input::placeholder{color:#b0bbd6;font-weight:500;}
+  .ap-select-wrap{position:relative;}
+  .ap-select-wrap::after{content:'';position:absolute;right:12px;top:50%;transform:translateY(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid #6b7a99;pointer-events:none;}
+  .ap-select{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;padding:9px 32px 9px 12px;border:1px solid #e0e7f5;border-radius:8px;color:#0d1f4a;background:white;outline:none;appearance:none;width:100%;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s;}
+  .ap-select:hover{background:rgba(23,76,204,0.015);border-color:#c5d6f5;}
+  .ap-select:focus{border-color:#174CCC;box-shadow:0 0 0 4px rgba(23,76,204,0.08);}
+  .ap-submit-btn{width:100%;padding:12px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:20px;transition:transform .15s,box-shadow .15s;}
+  .ap-submit-btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(23,76,204,0.18);}
+  .ap-preview-avatar{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:24px;color:white;margin:0 auto 14px;letter-spacing:1px;}
+  .ap-preview-name{font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;text-align:center;letter-spacing:.5px;line-height:1.2;margin-bottom:4px;}
+  .ap-preview-pills{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+  .ap-preview-divider{height:0.5px;background:#e0e7f5;margin:14px 0;}
+  .ap-preview-row{display:flex;align-items:center;gap:10px;padding:5px 0;}
+  .ap-preview-icon{width:26px;height:26px;border-radius:6px;background:#f0f2f8;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ap-preview-lbl{font-size:10px;font-weight:700;color:#6b7a99;text-transform:uppercase;letter-spacing:.3px;flex:1;}
+  .ap-preview-val{font-size:12px;font-weight:700;color:#0d1f4a;text-align:right;}
+  .ap-preview-empty{font-size:12px;font-weight:600;color:#d0d5e8;font-style:italic;text-align:right;}
+
   /* Players table */
   .player-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;color:white;}
   .player-cell{display:flex;align-items:center;gap:10px;}
@@ -1057,6 +1084,8 @@
 
   <!-- ADD PLAYER -->
   <div id="page-add-player" class="page">
+
+    <!-- Success banner -->
     <div class="success-banner" id="player-success">
       <div class="success-icon">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1066,37 +1095,127 @@
         <div style="font-size:12px;color:var(--teal);margin-top:2px;font-weight:500;">Player added successfully.</div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-title">Add New Player</div>
-      <form>
-        <div class="form-row">
-          <div class="form-group"><label>First name</label><input type="text" id="p-first" required placeholder="First name"></div>
-          <div class="form-group"><label>Last name</label><input type="text" id="p-last" required placeholder="Last name"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Email *</label><input type="email" id="p-email" placeholder="email@example.com" required></div>
-          <div class="form-group"><label>Phone</label><input type="text" id="p-phone" placeholder="555-000-0000"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Gender</label>
-            <select id="p-gender">
-              <option value="">-- Select --</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
+
+    <!-- Page title -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:4px;">Add New Player</div>
+    <div style="font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:24px;">Create a new player profile for ladders, tournaments, and events.</div>
+
+    <!-- Layout: form + preview -->
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start;max-width:1100px;">
+
+      <!-- FORM CARD -->
+      <div class="card" style="padding:24px;">
+        <form id="add-player-form">
+
+          <!-- Duplicate warning -->
+          <div id="p-dup-warn" style="display:none;align-items:center;gap:8px;padding:10px 14px;background:rgba(242,96,36,0.06);border:0.5px solid rgba(242,96,36,0.3);border-radius:8px;margin-bottom:16px;font-size:12px;font-weight:700;color:#c04a0e;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c04a0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            A player named <span id="p-dup-name" style="font-style:italic;margin:0 3px;"></span> may already exist. Please verify before creating.
           </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select id="p-status">
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+
+          <!-- SECTION: Basic Info -->
+          <div style="margin-bottom:24px;">
+            <div class="ap-section-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              Basic Info
+            </div>
+            <div class="ap-grid">
+              <div class="ap-group">
+                <label class="ap-label">First Name</label>
+                <input type="text" id="p-first" class="ap-input" required placeholder="First Name" oninput="apUpdatePreview();apCheckDuplicate();">
+              </div>
+              <div class="ap-group">
+                <label class="ap-label">Last Name</label>
+                <input type="text" id="p-last" class="ap-input" required placeholder="Last Name" oninput="apUpdatePreview();apCheckDuplicate();">
+              </div>
+              <div class="ap-group">
+                <label class="ap-label">Gender</label>
+                <div class="ap-select-wrap">
+                  <select id="p-gender" class="ap-select" onchange="apUpdatePreview()">
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+              </div>
+              <div class="ap-group">
+                <label class="ap-label">Skill Level</label>
+                <div class="ap-select-wrap">
+                  <select id="p-skill" class="ap-select" onchange="apUpdatePreview()">
+                    <option value="">Select level</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION: Contact Info -->
+          <div style="margin-bottom:24px;">
+            <div class="ap-section-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Contact Info
+            </div>
+            <div class="ap-grid">
+              <div class="ap-group">
+                <label class="ap-label">Email</label>
+                <input type="email" id="p-email" class="ap-input" placeholder="email@example.com" oninput="apUpdatePreview()">
+              </div>
+              <div class="ap-group">
+                <label class="ap-label">Phone</label>
+                <input type="text" id="p-phone" class="ap-input" placeholder="+1 (561) 555-0100" oninput="apUpdatePreview()">
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION: Player Status -->
+          <div style="margin-bottom:8px;">
+            <div class="ap-section-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Player Status
+            </div>
+            <div class="ap-grid">
+              <div class="ap-group">
+                <label class="ap-label">Status</label>
+                <div class="ap-select-wrap">
+                  <select id="p-status" class="ap-select" onchange="apUpdatePreview()">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+              <div class="ap-group">
+                <label class="ap-label">Date Joined</label>
+                <input type="date" id="p-joined" class="ap-input" oninput="apUpdatePreview()">
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="ap-submit-btn" id="add-player-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Create Player Profile
+          </button>
+        </form>
+      </div>
+
+      <!-- PREVIEW CARD -->
+      <div class="card" id="ap-preview-card" style="padding:24px;position:sticky;top:80px;">
+        <div style="font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#6b7a99;margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#24BC96;display:inline-block;"></span>
+          Live Preview
+        </div>
+        <div id="ap-preview-body">
+          <div style="text-align:center;padding:20px 0;">
+            <div style="width:64px;height:64px;border-radius:50%;background:#f0f2f8;border:2px dashed #d0d5e8;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d5e8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:#d0d5e8;">Fill in the form to see<br>the player preview</div>
           </div>
         </div>
-        <div class="form-group"><label>Date joined</label><input type="date" id="p-joined"></div>
-        <button type="submit" class="btn btn-primary" id="add-player-btn">Add player</button>
-      </form>
+      </div>
+
     </div>
   </div>
 
