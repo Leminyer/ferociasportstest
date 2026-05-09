@@ -1851,12 +1851,13 @@
     const sA = document.getElementById(`scoreA-${gameNum}`);
     const sB = document.getElementById(`scoreB-${gameNum}`);
     const preview = document.getElementById(`pts-preview-${gameNum}`);
-    if (!sA || !sB || sA.value === '' || sB.value === '') {
-      preview.textContent = '';
+    if (!sA || !sB || sA.value === '' || sB.value === '' || sA.value === '--' || sB.value === '--') {
+      if (preview) preview.textContent = '';
       return;
     }
     const a = parseInt(sA.value, 10);
     const b = parseInt(sB.value, 10);
+    if (isNaN(a) || isNaN(b)) { if (preview) preview.textContent = ''; return; }
     const ptA = calcPoints(a, b);
     const ptB = calcPoints(b, a);
     const tAIds = document.getElementById(`teamA-ids-${gameNum}`).value.split(',').filter(Boolean);
@@ -1880,12 +1881,13 @@
     const sA = document.getElementById(`scoreA-${gameNum}`);
     const sB = document.getElementById(`scoreB-${gameNum}`);
     const preview = document.getElementById(`pts-preview-${gameNum}`);
-    if (!sA || !sB || sA.value === '' || sB.value === '') {
-      preview.textContent = '';
+    if (!sA || !sB || sA.value === '' || sB.value === '' || sA.value === '--' || sB.value === '--') {
+      if (preview) preview.textContent = '';
       return;
     }
     const a = parseInt(sA.value, 10);
     const b = parseInt(sB.value, 10);
+    if (isNaN(a) || isNaN(b)) { if (preview) preview.textContent = ''; return; }
     const ptA = calcPoints(a, b);
     const ptB = calcPoints(b, a);
     const aColor = ptA > ptB ? 'var(--teal)' : 'var(--orange)';
