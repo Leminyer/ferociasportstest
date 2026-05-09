@@ -3811,9 +3811,10 @@
       lastSharedTime = _relTime(sorted[0].updated_at || sorted[0].start_date);
     }
 
-    // Total Visits this week
+    // Total Visits — all time, plus this week for context
     const weekAgo = Date.now() - 7 * 86400000;
     const weekVisits = visits.filter(v => new Date(v.visited_at) > weekAgo).length;
+    const totalVisits = visits.length;
 
     // Active links
     const activeLadders = ladders.filter(l => l.status === 'active').length;
@@ -3823,7 +3824,7 @@
     setEl('share-stat-most-viewed',       mostViewedName);
     setEl('share-stat-last-shared',       lastSharedName);
     setEl('share-stat-last-shared-time',  lastSharedTime);
-    setEl('share-stat-visits',            weekVisits || '—');
+    setEl('share-stat-visits',            totalVisits || '—');
     setEl('share-stat-links',             activeLadders + activeTourneys);
     setEl('share-stat-links-sub',         `${activeLadders} ladder${activeLadders !== 1 ? 's' : ''} · ${activeTourneys} tournament${activeTourneys !== 1 ? 's' : ''}`);
   };
@@ -3841,13 +3842,14 @@
 
     const visitsByItem = {};
     visits.forEach(v => {
-      const key = v.ladder_id || v.tournament_id;
+      // Coerce to number to avoid string vs int mismatch from JSON
+      const key = v.ladder_id ? Number(v.ladder_id) : v.tournament_id ? Number(v.tournament_id) : null;
       if (key) visitsByItem[key] = (visitsByItem[key] || 0) + 1;
     });
     const weekAgo = Date.now() - 7 * 86400000;
     const recentByItem = {};
     visits.filter(v => new Date(v.visited_at) > weekAgo).forEach(v => {
-      const key = v.ladder_id || v.tournament_id;
+      const key = v.ladder_id ? Number(v.ladder_id) : v.tournament_id ? Number(v.tournament_id) : null;
       if (key) recentByItem[key] = (recentByItem[key] || 0) + 1;
     });
     const maxVisits = Math.max(...Object.values(visitsByItem), 0);
@@ -3891,7 +3893,7 @@
       const btnId   = `copy-${tab}-${item.id}`;
       const isActive = item.status === 'active';
       const isClosed = !isActive;
-      const visitCount = visitsByItem[item.id] || 0;
+      const visitCount = visitsByItem[Number(item.id)] || 0;
       const isHot   = visitCount > 0 && visitCount === maxVisits && maxVisits > 0;
       const dateStr = item.end_date || item.start_date || '';
       const updatedStr = dateStr ? _relTime(dateStr) : '—';
@@ -3923,7 +3925,7 @@
             <button class="share-card-btn primary" data-action="copyShareLink"
               data-url="${esc(url)}" data-btnid="${btnId}" id="${btnId}">${copyIcon} Copy Link</button>
             <a href="${esc(url)}" target="_blank" rel="noopener" class="share-card-btn preview"
-              style="text-decoration:none;">${eyeIcon} Preview Page</a>
+              style="text-decoration:none;" onclick="_recordShareVisit('${esc(url)}')">${eyeIcon} Preview Page</a>
             <button class="share-card-btn" data-action="showShareQR" data-url="${esc(url)}">${shareIcon} Share</button>
           </div>
         </div>
@@ -3942,7 +3944,7 @@
       // Try visits table separately so we can detect if it exists
       let visits = [];
       try {
-        visits = await api('link_visits?select=*&order=visited_at.desc&limit=500');
+        visits = await api('link_visits?select=ladder_id,tournament_id,visited_at&order=visited_at.desc');
         _visitsTableExists = true;
       } catch(_) {
         _visitsTableExists = false;
