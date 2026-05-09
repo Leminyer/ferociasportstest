@@ -4394,6 +4394,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 data-evdesc="${esc(ev.description || '')}"
                 data-evreg="${esc(ev.registration_url || '')}"
                 data-evflyer="${esc(ev.flyer_url || '')}"
+                data-evtime="${esc(ev.event_time || '')}"
                 title="Edit event">${editSVG}</button>
               <button class="sess-edit-btn" data-action="deleteEvent"
                 data-evid="${ev.id}"
@@ -4506,6 +4507,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     document.getElementById('edit-event-id').value        = btn.dataset.evid;
     document.getElementById('edit-event-title').value     = btn.dataset.evtitle;
     document.getElementById('edit-event-date').value      = btn.dataset.evdate;
+    const timeEl = document.getElementById('edit-event-time');
+    if (timeEl) timeEl.value = btn.dataset.evtime || '';
     document.getElementById('edit-event-description').value = btn.dataset.evdesc;
     document.getElementById('edit-event-reg-url').value   = btn.dataset.evreg;
     document.getElementById('edit-event-old-flyer').value = btn.dataset.evflyer;
