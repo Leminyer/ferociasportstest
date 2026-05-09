@@ -3840,16 +3840,17 @@
     const baseLadderUrl = window.location.origin + window.location.pathname.replace('admin.html', '') + 'players.html';
     const baseTourneyUrl= window.location.origin + window.location.pathname.replace('admin.html', '') + 'tournament-results.html';
 
+    // Build visit maps with namespaced keys to avoid ladder/tournament ID collisions
+    // e.g. ladder 5 → "l_5", tournament 5 → "t_5"
     const visitsByItem = {};
     visits.forEach(v => {
-      // Coerce to number to avoid string vs int mismatch from JSON
-      const key = v.ladder_id ? Number(v.ladder_id) : v.tournament_id ? Number(v.tournament_id) : null;
+      const key = v.ladder_id ? `l_${Number(v.ladder_id)}` : v.tournament_id ? `t_${Number(v.tournament_id)}` : null;
       if (key) visitsByItem[key] = (visitsByItem[key] || 0) + 1;
     });
     const weekAgo = Date.now() - 7 * 86400000;
     const recentByItem = {};
     visits.filter(v => new Date(v.visited_at) > weekAgo).forEach(v => {
-      const key = v.ladder_id ? Number(v.ladder_id) : v.tournament_id ? Number(v.tournament_id) : null;
+      const key = v.ladder_id ? `l_${Number(v.ladder_id)}` : v.tournament_id ? `t_${Number(v.tournament_id)}` : null;
       if (key) recentByItem[key] = (recentByItem[key] || 0) + 1;
     });
     const maxVisits = Math.max(...Object.values(visitsByItem), 0);
@@ -3893,8 +3894,8 @@
       const btnId   = `copy-${tab}-${item.id}`;
       const isActive = item.status === 'active';
       const isClosed = !isActive;
-      const visitCount = visitsByItem[Number(item.id)] || 0;
-      const isHot   = visitCount > 0 && visitCount === maxVisits && maxVisits > 0;
+      const visitCount = visitsByItem[tab === 'ladders' ? `l_${Number(item.id)}` : `t_${Number(item.id)}`] || 0;
+      const isHot   = visitCount > 0 && visitCount === maxVisits && maxVisits > 0 && Object.keys(visitsByItem).length > 0;
       const dateStr = item.end_date || item.start_date || '';
       const updatedStr = dateStr ? _relTime(dateStr) : '—';
 
