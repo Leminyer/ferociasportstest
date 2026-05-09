@@ -428,6 +428,29 @@
   .share-card-btn.primary{background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;border:none;}
   .share-card-btn.preview{background:#f0f2f8;color:#0d1f4a;border-color:#e0e7f5;}
   .share-tab.active{color:#174CCC !important;border-bottom-color:#C6F221 !important;}
+
+  /* Launch Campaign modal */
+  .promo-comp-label{font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:5px;}
+  .promo-type-pill{font-size:10px;font-weight:700;padding:5px 14px;border-radius:99px;cursor:pointer;border:0.5px solid #e0e7f5;background:white;color:#6b7a99;font-family:'Montserrat',sans-serif;transition:all .15s;}
+  .promo-type-pill.active{background:#174CCC;color:white;border-color:#174CCC;}
+  .promo-type-pill:hover:not(.active){background:#e8f0ff;border-color:#c5d6f5;color:#174CCC;}
+  .promo-subject-wrap{background:white;border:1px solid #e0e7f5;border-radius:8px;overflow:hidden;transition:border-color .15s,box-shadow .15s;}
+  .promo-subject-wrap:focus-within{border-color:#174CCC;box-shadow:0 0 0 4px rgba(23,76,204,0.08);}
+  .promo-subject-input{width:100%;padding:10px 14px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;color:#0d1f4a;border:none;outline:none;background:transparent;}
+  .promo-subject-input::placeholder{color:#b0bbd6;font-weight:500;}
+  .promo-message-card{background:white;border:1px solid #e0e7f5;border-radius:8px;overflow:hidden;flex:1;display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s;}
+  .promo-message-card:focus-within{border-color:#174CCC;box-shadow:0 0 0 4px rgba(23,76,204,0.08);}
+  .promo-fmt-toolbar{display:flex;align-items:center;gap:2px;padding:6px 10px;background:#f4f6fb;border-bottom:0.5px solid #e8edf8;}
+  .promo-fmt-btn{width:26px;height:26px;border-radius:5px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7a99;transition:background .12s;}
+  .promo-fmt-btn:hover{background:#e8f0ff;color:#174CCC;}
+  .promo-fmt-sep{width:1px;height:16px;background:#e0e7f5;margin:0 4px;flex-shrink:0;}
+  .promo-message-editor{flex:1;min-height:180px;padding:12px 14px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:500;color:#0d1f4a;border:none;outline:none;line-height:1.6;overflow-y:auto;white-space:pre-wrap;}
+  .promo-message-editor:empty::before{content:attr(data-placeholder);color:#b0bbd6;white-space:pre;}
+  .promo-intel-card{background:#f8f9ff;border:0.5px solid #e8edf8;border-radius:10px;padding:14px;position:relative;overflow:hidden;}
+  .promo-intel-label{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:6px;}
+  .promo-intel-val{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;line-height:1;margin-bottom:3px;}
+  .promo-intel-val-text{font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:3px;}
+  .promo-intel-sub{font-size:10px;font-weight:600;color:#6b7a99;}
   .stat-label{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:6px;}
   .stat-value{font-family:'Bebas Neue',sans-serif;font-size:40px;color:#0d1f4a;line-height:1;margin-bottom:6px;}
   .stat-ctx{font-size:11px;font-weight:600;display:flex;align-items:center;gap:5px;}
@@ -1998,23 +2021,118 @@
   </div>
 </div>
 
-<!-- Send Promo Modal -->
-<div class="modal-bg" id="promo-modal">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-title">✉️ Send Promotional Email</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;font-weight:500;" id="promo-recipient-count"></div>
+<!-- Launch Campaign Modal -->
+<div id="promo-modal" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(8,15,46,.65);align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);">
+  <div style="background:white;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(8,15,46,.18);width:100%;max-width:900px;max-height:90vh;overflow-y:auto;">
+
+    <!-- Modal header -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:22px 28px 18px;border-bottom:0.5px solid #e8edf8;background:linear-gradient(180deg,#fafbff 0%,white 100%);">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:3px;">Launch Campaign</div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a99;max-width:480px;line-height:1.5;">Reach your pickleball community with announcements, tournaments, ladders, and event updates.</div>
+      </div>
+      <button data-action="closePromoModal"
+        style="width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"
+        onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+        onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Two-column body -->
     <form id="promo-form">
-      <div class="form-group">
-        <label>Subject</label>
-        <input type="text" id="promo-subject" placeholder="e.g. New Ladder Starting Soon!" style="width:100%;">
-      </div>
-      <div class="form-group">
-        <label>Message</label>
-        <textarea id="promo-message" style="width:100%;min-height:160px;resize:vertical;font-family:Montserrat,sans-serif;font-size:13px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius-sm);outline:none;" placeholder="Write your promotional message here..."></textarea>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-outline btn-sm" data-action="closePromoModal">Cancel</button>
-        <button type="submit" class="btn btn-primary btn-sm" id="promo-send-btn">Send emails</button>
+      <div style="display:grid;grid-template-columns:1fr 260px;min-height:460px;">
+
+        <!-- LEFT: Composer -->
+        <div style="padding:22px 24px;border-right:0.5px solid #e8edf8;display:flex;flex-direction:column;gap:16px;background:#fafbff;">
+
+          <!-- Campaign type pills -->
+          <div>
+            <div class="promo-comp-label">Campaign Type</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;" id="promo-type-pills">
+              <button type="button" class="promo-type-pill active" data-type="Tournament">Tournament</button>
+              <button type="button" class="promo-type-pill" data-type="Ladder">Ladder</button>
+              <button type="button" class="promo-type-pill" data-type="Event">Event</button>
+              <button type="button" class="promo-type-pill" data-type="General">General</button>
+            </div>
+            <input type="hidden" id="promo-campaign-type" value="Tournament">
+          </div>
+
+          <!-- Subject -->
+          <div>
+            <div class="promo-comp-label">Subject Line</div>
+            <div class="promo-subject-wrap">
+              <input type="text" id="promo-subject" class="promo-subject-input" placeholder="e.g. Spring Tournament 2026 — Registration Now Open">
+            </div>
+          </div>
+
+          <!-- Message -->
+          <div style="flex:1;display:flex;flex-direction:column;">
+            <div class="promo-comp-label">Message</div>
+            <div class="promo-message-card">
+              <!-- Formatting toolbar -->
+              <div class="promo-fmt-toolbar">
+                <button type="button" class="promo-fmt-btn" onclick="document.execCommand('bold')" title="Bold"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg></button>
+                <button type="button" class="promo-fmt-btn" onclick="document.execCommand('italic')" title="Italic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
+                <button type="button" class="promo-fmt-btn" onclick="document.execCommand('underline')" title="Underline"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg></button>
+                <div class="promo-fmt-sep"></div>
+                <button type="button" class="promo-fmt-btn" onclick="document.execCommand('insertUnorderedList')" title="Bullet list"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></button>
+                <button type="button" class="promo-fmt-btn" onclick="promptInsertLink()" title="Link"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+                <div class="promo-fmt-sep"></div>
+                <button type="button" class="promo-fmt-btn" onclick="insertEmoji()" title="Emoji">😊</button>
+                <div style="flex:1;"></div>
+                <span id="promo-char-count" style="font-size:9px;font-weight:700;color:#b0bbd6;">0 / 2000</span>
+              </div>
+              <div id="promo-message" contenteditable="true" class="promo-message-editor" data-placeholder="Write your campaign message here...
+&#10;&#10;Use {first_name} to personalize greetings"></div>
+              <div style="padding:7px 12px;background:#f8f9ff;border-top:0.5px solid #e8edf8;display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:10px;font-weight:600;color:#b0bbd6;">Use {first_name} to personalize greetings</span>
+                <span id="promo-char-count2" style="font-size:10px;font-weight:700;color:#b0bbd6;"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Launch button -->
+          <button type="submit" id="promo-send-btn" style="width:100%;padding:12px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Launch Campaign
+          </button>
+        </div>
+
+        <!-- RIGHT: Intelligence Panel -->
+        <div style="padding:22px 20px;background:white;display:flex;flex-direction:column;gap:14px;">
+          <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#0d1f4a;display:flex;align-items:center;gap:6px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#24BC96;display:inline-block;"></span>
+            Campaign Intelligence
+          </div>
+
+          <!-- Audience card -->
+          <div class="promo-intel-card" style="border-left:3px solid #24BC96;">
+            <div class="promo-intel-label">Audience</div>
+            <div class="promo-intel-val" id="promo-audience-count">—</div>
+            <div class="promo-intel-sub">Active subscribers will receive this</div>
+          </div>
+
+          <!-- Last campaign card -->
+          <div class="promo-intel-card" style="border-left:3px solid #174CCC;">
+            <div class="promo-intel-label">Last Campaign</div>
+            <div class="promo-intel-val-text" id="promo-last-sent">—</div>
+            <div class="promo-intel-sub" id="promo-last-type">No campaigns yet</div>
+          </div>
+
+          <!-- Selected type card -->
+          <div class="promo-intel-card" style="border-left:3px solid #F26024;">
+            <div class="promo-intel-label">Selected Type</div>
+            <div class="promo-intel-val-text" id="promo-selected-type">Tournament</div>
+            <div class="promo-intel-sub">Best open rate: Tues–Thurs 9–11am</div>
+          </div>
+
+          <!-- Recipient count hint -->
+          <div style="font-size:11px;font-weight:600;color:#6b7a99;padding:10px 12px;background:#f8f9ff;border-radius:8px;border:0.5px solid #e0e7f5;line-height:1.5;" id="promo-recipient-count">
+            Loading audience...
+          </div>
+        </div>
+
       </div>
     </form>
   </div>

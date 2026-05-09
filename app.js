@@ -5008,29 +5008,107 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     /* eslint-enable */
   };
 
+  // ── Helper: relative time ───────────────────────────────────────────────
+  const _relTimePromo = (iso) => {
+    if (!iso) return '—';
+    const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (diff < 60)    return 'Just now';
+    if (diff < 3600)  return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    if (diff < 172800) return 'Yesterday';
+    return `${Math.floor(diff/86400)} days ago`;
+  };
+
   const openSendPromo = async () => {
-    let subs = [];
-    try {
-      subs = await api('subscribers?status=eq.active&select=id');
-    } catch (e) {
-      toast(`Error: ${e.message}`, true);
-      return;
+    const modal = document.getElementById('promo-modal');
+    if (!modal) return;
+
+    // Reset composer
+    const editor = document.getElementById('promo-message');
+    if (editor) editor.innerHTML = '';
+    const subjectEl = document.getElementById('promo-subject');
+    if (subjectEl) subjectEl.value = '';
+
+    // Reset type pills to Tournament
+    document.querySelectorAll('.promo-type-pill').forEach(p => p.classList.remove('active'));
+    const firstPill = document.querySelector('.promo-type-pill');
+    if (firstPill) firstPill.classList.add('active');
+    const typeInput = document.getElementById('promo-campaign-type');
+    if (typeInput) typeInput.value = 'Tournament';
+    const selTypeEl = document.getElementById('promo-selected-type');
+    if (selTypeEl) selTypeEl.textContent = 'Tournament';
+
+    // Wire type pill clicks
+    document.querySelectorAll('.promo-type-pill').forEach(pill => {
+      pill.onclick = () => {
+        document.querySelectorAll('.promo-type-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        if (typeInput) typeInput.value = pill.dataset.type;
+        if (selTypeEl) selTypeEl.textContent = pill.dataset.type;
+      };
+    });
+
+    // Wire character counter
+    if (editor) {
+      editor.addEventListener('input', () => {
+        const len = editor.innerText.length;
+        const el1 = document.getElementById('promo-char-count');
+        const el2 = document.getElementById('promo-char-count2');
+        if (el1) el1.textContent = `${len} / 2000`;
+        if (el2) el2.textContent = `${len} / 2000`;
+      });
     }
-    document.getElementById('promo-recipient-count').innerHTML =
-      `<span class="text-bold color-teal">${subs.length} active subscribers</span> will receive this email.`;
-    document.getElementById('promo-subject').value = '';
-    document.getElementById('promo-message').value = '';
-    document.getElementById('promo-modal').classList.add('open');
+
+    // Wire link button
+    window.promptInsertLink = () => {
+      const url = prompt('Enter URL:');
+      if (url) document.execCommand('createLink', false, url);
+    };
+    window.insertEmoji = () => {
+      const emojis = ['👋','📅','📍','🎾','🏆','⚡','🔥','✅','🎉','👑'];
+      const e = emojis[Math.floor(Math.random() * emojis.length)];
+      document.execCommand('insertText', false, e);
+    };
+
+    // Load audience + last campaign in parallel
+    try {
+      const [subs, campaigns] = await Promise.all([
+        api('subscribers?status=eq.active&select=id'),
+        api('campaigns?select=*&order=sent_at.desc&limit=1').catch(() => []),
+      ]);
+
+      const count = subs.length;
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setEl('promo-audience-count', count);
+
+      const recipEl = document.getElementById('promo-recipient-count');
+      if (recipEl) recipEl.innerHTML = `<span style="font-weight:800;color:#24BC96;">${count} active subscriber${count !== 1 ? 's' : ''}</span> will receive this campaign.`;
+
+      const last = campaigns?.[0] || null;
+      setEl('promo-last-sent', last ? _relTimePromo(last.sent_at) : 'No campaigns yet');
+      setEl('promo-last-type', last ? last.campaign_type || 'General' : '');
+
+    } catch (e) {
+      const recipEl = document.getElementById('promo-recipient-count');
+      if (recipEl) recipEl.textContent = 'Could not load audience data.';
+    }
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
   };
 
   const sendPromoEmail = async (e) => {
     e.preventDefault();
     const subject = document.getElementById('promo-subject').value.trim();
-    const message = document.getElementById('promo-message').value.trim();
+    const editor  = document.getElementById('promo-message');
+    const message = editor ? editor.innerText.trim() : '';
+    const campaignType = document.getElementById('promo-campaign-type')?.value || 'General';
+
     if (!subject || !message) {
-      toast('Please fill in subject and message.', true);
+      toast('Please fill in the subject and message.', true);
       return;
     }
+
     let subs = [];
     try {
       subs = await api('subscribers?status=eq.active&select=*');
@@ -5045,7 +5123,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     const sendBtn = document.getElementById('promo-send-btn');
     sendBtn.disabled = true;
-    sendBtn.textContent = 'Sending...';
+    sendBtn.innerHTML = 'Sending...';
     _emailInFlight = true;
 
     emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
@@ -5053,7 +5131,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     let sent = 0;
     const failedRecipients = [];
 
-    // Add admin as last recipient to receive a copy and verify delivery
+    // Admin copy always last
     const allPromoRecipients = [
       ...subs,
       { first_name: 'Ferocia', last_name: 'Admin', email: CFG.ADMIN_EMAIL, unsubscribe_token: null },
@@ -5063,27 +5141,45 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       const unsubUrl = sub.unsubscribe_token
         ? `${baseUrl}unsubscribe.html?t=${sub.unsubscribe_token}`
         : `${baseUrl}unsubscribe.html`;
+      // Replace {first_name} with real name
+      const personalizedMsg = message.replace(/\{first_name\}/g, sub.first_name || 'Player');
       const ok = await sendOneEmail(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.PROMO, {
-        player_name: `${sub.first_name} ${sub.last_name}`,
-        player_email: sub.email,
+        player_name:    `${sub.first_name} ${sub.last_name}`,
+        player_email:   sub.email,
         subject,
-        message,
+        message:        personalizedMsg,
         unsubscribe_url: unsubUrl,
       });
       if (ok) sent++;
       else failedRecipients.push(sub.email);
-      sendBtn.textContent = `Sending... ${sent + failedRecipients.length}/${allPromoRecipients.length}`;
+      sendBtn.innerHTML = `Sending... ${sent + failedRecipients.length}/${allPromoRecipients.length}`;
       if (sent + failedRecipients.length < allPromoRecipients.length) {
         await sleep(CFG.EMAIL_THROTTLE_MS);
       }
     }
 
+    // Record campaign in DB
+    try {
+      await api('campaigns', 'POST', {
+        subject,
+        message,
+        campaign_type: campaignType,
+        sent_at:       new Date().toISOString(),
+        sent_count:    sent,
+        failed_count:  failedRecipients.length,
+      });
+    } catch(_) { /* non-critical — don't block on this */ }
+
     _emailInFlight = false;
     sendBtn.disabled = false;
-    sendBtn.textContent = 'Send emails';
-    document.getElementById('promo-modal').classList.remove('open');
+    sendBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Launch Campaign';
+
+    // Close modal
+    const modal = document.getElementById('promo-modal');
+    if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+
     if (!failedRecipients.length) {
-      toast(`✅ ${sent} promotional emails sent!`);
+      toast(`✅ Campaign launched! ${sent} emails sent.`);
     } else {
       const failedList = failedRecipients.slice(0, 3).join(', ');
       const more = failedRecipients.length > 3 ? ` (+${failedRecipients.length - 3} more)` : '';
@@ -5139,7 +5235,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     closeEditGameModal: () =>
       document.getElementById('edit-game-modal').classList.remove('open'),
     closeNotifyModal: () => document.getElementById('notify-modal').classList.remove('open'),
-    closePromoModal: () => document.getElementById('promo-modal').classList.remove('open'),
+    closePromoModal: () => {
+      const modal = document.getElementById('promo-modal');
+      if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+    },
     closeEditSessionModal: () =>
       document.getElementById('edit-session-modal').classList.remove('open'),
     // Notify / promo
