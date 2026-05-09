@@ -3074,73 +3074,201 @@
 
   const loadPlayers = async () => {
     try {
-      // Fetch players + status history in parallel.
-      // History query: only inactivation events (new_status='inactive') so we
-      // can build "latest reason per player". Sorted desc so the first entry
-      // we encounter for each player_id is the most recent.
-      const [players, history] = await Promise.all([
+      // Fetch players, status history, matches, ladder_players, tournament_teams in parallel
+      const [players, history, matches, ladderPlayers, tournamentTeams] = await Promise.all([
         api('players?select=*&order=first_name'),
-        api(
-          'player_status_history?new_status=eq.inactive&select=player_id,reason,changed_at&order=changed_at.desc',
-        ),
+        api('player_status_history?new_status=eq.inactive&select=player_id,reason,changed_at&order=changed_at.desc'),
+        api('matches?select=player_id,score_for,score_against,points_earned,session_date,default_no_show&order=session_date.desc').catch(() => []),
+        api('ladder_players?select=player_id,ladder_id&ladders(status=eq.active)').catch(() => []),
+        api('tournament_teams?select=player_id,tournament_id').catch(() => []),
       ]);
       allPlayers = players;
 
-      // Build "latest reason per player" map and "history count per player" map
+      // Build inactivation reason map
       latestInactivationReasons = {};
       historyCountByPlayer = {};
       (history || []).forEach((h) => {
         if (!latestInactivationReasons[h.player_id]) {
-          latestInactivationReasons[h.player_id] = {
-            reason: h.reason,
-            changed_at: h.changed_at,
-          };
+          latestInactivationReasons[h.player_id] = { reason: h.reason, changed_at: h.changed_at };
         }
         historyCountByPlayer[h.player_id] = (historyCountByPlayer[h.player_id] || 0) + 1;
       });
 
+      // Build per-player match stats: games played, wins, win rate
+      const matchStats = {};
+      (matches || []).forEach(m => {
+        if (m.default_no_show) return;
+        if (!matchStats[m.player_id]) matchStats[m.player_id] = { played: 0, wins: 0 };
+        if (m.score_for !== null && m.score_against !== null) {
+          matchStats[m.player_id].played++;
+          if (m.score_for > m.score_against) matchStats[m.player_id].wins++;
+        }
+      });
+
+      // Build sets of player_ids in active ladders / tournaments
+      const inLadder = new Set((ladderPlayers || []).map(lp => lp.player_id));
+      const inTournament = new Set((tournamentTeams || []).map(tt => tt.player_id));
+
+      // Stat cards
+      const total    = players.length;
+      const active   = players.filter(p => p.status === 'active').length;
+      const inactive = players.filter(p => p.status === 'inactive').length;
+      const male     = players.filter(p => p.gender === 'Male').length;
+      const female   = players.filter(p => p.gender === 'Female').length;
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setEl('players-total',   total);
+      setEl('players-active',  active);
+      setEl('players-inactive',inactive);
+      setEl('players-male',    male);
+      setEl('players-female',  female);
+      setEl('players-male-pct',   total ? `${Math.round(male/total*100)}% of roster` : '');
+      setEl('players-female-pct', total ? `${Math.round(female/total*100)}% of roster` : '');
+      setEl('players-count',  `${total} player${total !== 1 ? 's' : ''}`);
+
       if (!allPlayers.length) {
-        document.getElementById('players-table').innerHTML =
-          '<div class="empty">No players yet.</div>';
+        document.getElementById('players-table').innerHTML = '<div class="empty" style="padding:20px;">No players yet.</div>';
         return;
       }
 
-      const rows = allPlayers
-        .map((p) => {
-          const isInactive = p.status === 'inactive';
-          const recent = latestInactivationReasons[p.id];
-          // Inline reason preview — only for inactive players that have a reason recorded
-          const reasonRow =
-            isInactive && recent && recent.reason
-              ? `<tr class="reason-row">
-                  <td colspan="7" style="padding:4px 12px 12px;border-bottom:0.5px solid var(--border);">
-                    <div style="font-size:11px;color:var(--orange);font-weight:600;">
-                      <span class="text-uppercase" style="letter-spacing:.5px;">Reason:</span>
-                      <span style="font-style:italic;font-weight:500;color:var(--text-muted);">${esc(recent.reason)}</span>
-                    </div>
-                  </td>
-                </tr>`
-              : '';
-          return `
-            <tr>
-              <td class="text-bold">${esc(p.first_name)} ${esc(p.last_name)}</td>
-              <td class="text-muted-12">${esc(p.gender || '-')}</td>
-              <td class="text-muted-12">${esc(p.email || '-')}</td>
-              <td class="text-muted-12">${esc(p.phone || '-')}</td>
-              <td><span class="badge badge-${esc(p.status)}">${esc(p.status)}</span></td>
-              <td class="text-muted-12">${fmtDate(p.date_joined) || '-'}</td>
-              <td><button class="btn btn-outline btn-sm" data-action="openEdit" data-pid="${p.id}">Edit</button></td>
-            </tr>${reasonRow}`;
-        })
-        .join('');
+      // Avatar color palette — consistent per player
+      const avColors = ['#174CCC','#24BC96','#F26024','#7c3aed','#0891b2','#d97706','#16a34a','#dc2626','#7c3aed','#0e7490'];
+      const getAvColor = (id) => avColors[id % avColors.length];
 
-      document.getElementById('players-count').textContent =
-        `${allPlayers.length} player${allPlayers.length !== 1 ? 's' : ''}`;
+      // Compute indicator for each player
+      const computeIndicator = (p, stats) => {
+        const s = stats || { played: 0, wins: 0 };
+        const wr = s.played > 0 ? s.wins / s.played : 0;
+        // Join date check for "New Player" (within 60 days)
+        const joined = p.date_joined ? new Date(p.date_joined) : null;
+        const daysSince = joined ? Math.floor((Date.now() - joined) / 86400000) : 999;
+        // Rank among all players by win rate
+        const ranked = allPlayers
+          .filter(x => (matchStats[x.id]?.played || 0) >= 5)
+          .sort((a,b) => {
+            const wa = matchStats[a.id] ? matchStats[a.id].wins/matchStats[a.id].played : 0;
+            const wb = matchStats[b.id] ? matchStats[b.id].wins/matchStats[b.id].played : 0;
+            return wb - wa;
+          });
+        const rankIdx = ranked.findIndex(x => x.id === p.id);
+        const isTop10 = rankIdx >= 0 && rankIdx < 10;
+        const isTop25pct = rankIdx >= 0 && rankIdx < Math.ceil(ranked.length * 0.25);
+        const isMostActive = s.played >= 20 && s.played === Math.max(...allPlayers.map(x => matchStats[x.id]?.played || 0).filter(n => n > 0).slice(0,5));
+
+        if (s.played >= 3 && wr >= 0.75) return { cls:'ind-fire', emoji:'🔥', label:'Hot Player', tip:'Win rate above 75%' };
+        if (isTop10 && s.played >= 5) return { cls:'ind-crown', emoji:'👑', label:'Top 10', tip:'Ranked in the top 10 players' };
+        if (s.played >= 30) return { cls:'ind-bolt', emoji:'⚡', label:'Most Active', tip:'30+ games played this season' };
+        if (daysSince <= 60 && isTop25pct) return { cls:'ind-star', emoji:'⭐', label:'Rising Star', tip:'New player in top 25% by win rate' };
+        if (daysSince <= 60) return { cls:'ind-new', emoji:'✨', label:'New Player', tip:'Joined within the last 60 days' };
+        if (s.played >= 10 && wr >= 0.55 && wr < 0.75) return { cls:'ind-clock', emoji:'🎯', label:'Consistent', tip:'Stable performance over multiple sessions' };
+        if (s.played >= 5 && wr < 0.35) return { cls:'ind-slip', emoji:'📉', label:'Slipping', tip:'Win rate below 35%' };
+        return null;
+      };
+
+      // Intelligent status
+      const getStatus = (p) => {
+        if (inLadder.has(p.id)) return '<span class="pill pill-ladder">In Ladder</span>';
+        if (inTournament.has(p.id)) return '<span class="pill pill-tourney">Tournament</span>';
+        if (p.status === 'active')   return '<span class="pill pill-active">Active</span>';
+        return '<span class="pill pill-inactive">Inactive</span>';
+      };
+
+      // Edit SVG icon
+      const editSVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+
+      const rows = allPlayers.map((p, idx) => {
+        const initials = `${p.first_name?.[0]||''}${p.last_name?.[0]||''}`.toUpperCase();
+        const avColor  = getAvColor(p.id || idx);
+        const stats    = matchStats[p.id] || { played: 0, wins: 0 };
+        const wr       = stats.played > 0 ? Math.round(stats.wins / stats.played * 100) : null;
+        const wrColor  = wr === null ? '#6b7a99' : wr >= 70 ? '#24BC96' : wr >= 50 ? '#174CCC' : '#F26024';
+        const ind      = computeIndicator(p, stats);
+        const indHTML  = ind
+          ? `<div class="player-ind ${ind.cls}">${ind.emoji} ${ind.label}<div class="player-ind-tip">${ind.tip}</div></div>`
+          : '<span style="color:#d0d5e8;font-size:11px;">—</span>';
+        const expandId = `pex-${p.id}`;
+
+        return `<tr class="player-row" onclick="
+          var ex = document.getElementById('${expandId}');
+          if(ex){ ex.style.display = ex.style.display==='none'?'table-row':'none'; }
+        ">
+          <td class="players-td">
+            <div class="player-cell">
+              <div class="player-av" style="background:${avColor};">${esc(initials)}</div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#0d1f4a;">${esc(p.first_name)} ${esc(p.last_name)}</div>
+                <div style="font-size:11px;color:#6b7a99;font-weight:600;">${esc(p.gender || '')}${p.date_joined ? ' · Joined ' + fmtDate(p.date_joined) : ''}</div>
+              </div>
+            </div>
+          </td>
+          <td class="players-td" style="text-align:center;">
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#0d1f4a;line-height:1;display:block;">${stats.played}</span>
+            <span style="font-size:10px;font-weight:600;color:#6b7a99;display:block;">games</span>
+          </td>
+          <td class="players-td" style="text-align:center;">
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${wrColor};line-height:1;display:block;">${wr !== null ? wr + '%' : '—'}</span>
+            <span style="font-size:10px;font-weight:600;color:#6b7a99;display:block;">${stats.wins}W · ${stats.played - stats.wins}L</span>
+          </td>
+          <td class="players-td" style="text-align:center;">${indHTML}</td>
+          <td class="players-td" style="text-align:center;">${getStatus(p)}</td>
+          <td class="players-td" style="text-align:center;">
+            <button class="sess-edit-btn" data-action="openEdit" data-pid="${p.id}" onclick="event.stopPropagation();" title="Edit player">${editSVG}</button>
+          </td>
+        </tr>
+        <tr id="${expandId}" class="player-expand-row" style="display:none;">
+          <td colspan="6">
+            <div class="player-expand-panel">
+              <div class="player-expand-field">
+                <div class="player-expand-label">Email</div>
+                ${p.email
+                  ? `<div class="player-expand-value">${esc(p.email)}</div>`
+                  : `<div class="player-expand-empty">Not registered</div>`}
+              </div>
+              <div class="player-expand-div"></div>
+              <div class="player-expand-field">
+                <div class="player-expand-label">Phone</div>
+                ${p.phone
+                  ? `<div class="player-expand-value">${esc(p.phone)}</div>`
+                  : `<div class="player-expand-empty">Not registered</div>`}
+              </div>
+              <div class="player-expand-div"></div>
+              <div class="player-expand-field">
+                <div class="player-expand-label">Date Joined</div>
+                <div class="player-expand-value">${fmtDate(p.date_joined) || '—'}</div>
+              </div>
+              <div class="player-expand-div"></div>
+              <div class="player-expand-field">
+                <div class="player-expand-label">Games Played</div>
+                <div class="player-expand-value" style="color:#174CCC;">${stats.played}</div>
+              </div>
+              ${latestInactivationReasons[p.id] ? `
+              <div class="player-expand-div"></div>
+              <div class="player-expand-field">
+                <div class="player-expand-label">Inactivation Reason</div>
+                <div class="player-expand-value" style="color:#F26024;font-style:italic;">${esc(latestInactivationReasons[p.id].reason || '—')}</div>
+              </div>` : ''}
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
       document.getElementById('players-table').innerHTML = `
-        <table><thead><tr><th>Name</th><th>Gender</th><th>Email</th><th>Phone</th><th>Status</th><th>Joined</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th class="players-th">Player</th>
+              <th class="players-th" style="text-align:center;">Games Played</th>
+              <th class="players-th" style="text-align:center;">Win Rate</th>
+              <th class="players-th" style="text-align:center;">Indicator</th>
+              <th class="players-th" style="text-align:center;">Status</th>
+              <th class="players-th" style="text-align:center;width:44px;"></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+
     } catch (e) {
       document.getElementById('players-table').innerHTML =
-        `<div class="empty">Error: ${esc(e.message)}</div>`;
+        `<div class="empty" style="padding:20px;">Error: ${esc(e.message)}</div>`;
     }
   };
 

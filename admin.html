@@ -276,6 +276,37 @@
   .stat.stat-lime{border-top-color:#C6F221;}
   .stat.stat-gold{border-top-color:#FFD700;}
 
+  /* Players table */
+  .player-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;color:white;}
+  .player-cell{display:flex;align-items:center;gap:10px;}
+  .player-row{cursor:pointer;}
+  .player-row:hover td{background:rgba(23,76,204,0.025);}
+  .player-expand-row td{background:#f8f9ff;padding:0;}
+  .player-expand-panel{padding:12px 20px 12px 58px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;border-top:0.5px solid #e0e7f5;}
+  .player-expand-field{display:flex;flex-direction:column;gap:2px;}
+  .player-expand-label{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;}
+  .player-expand-value{font-size:12px;font-weight:700;color:#0d1f4a;}
+  .player-expand-empty{font-size:12px;font-weight:600;color:#d0d5e8;font-style:italic;}
+  .player-expand-div{width:1px;height:28px;background:#e0e7f5;flex-shrink:0;}
+  .player-ind{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap;position:relative;cursor:default;}
+  .player-ind-tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#0d1f4a;color:white;font-size:10px;font-weight:600;padding:5px 9px;border-radius:6px;white-space:nowrap;z-index:99;pointer-events:none;}
+  .player-ind-tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:#0d1f4a;}
+  .player-ind:hover .player-ind-tip{display:block;}
+  .pill{font-size:9px;font-weight:800;padding:3px 9px;border-radius:99px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;}
+  .pill-ladder{background:#e8f0ff;color:#174CCC;}
+  .pill-tourney{background:rgba(198,242,33,0.25);color:#4a5e00;}
+  .pill-active{background:#d4f5ed;color:#085041;}
+  .pill-inactive{background:#f4f5f8;color:#6b7a99;}
+  .ind-fire{background:#fde8d8;color:#c04a0e;}
+  .ind-crown{background:rgba(255,215,0,0.2);color:#7a5a00;}
+  .ind-bolt{background:#e8f0ff;color:#174CCC;}
+  .ind-new{background:#d4f5ed;color:#085041;}
+  .ind-slip{background:#fff0f0;color:#c62828;}
+  .ind-clock{background:#f0e8ff;color:#5b21b6;}
+  .ind-star{background:#fff8e0;color:#8a6000;}
+  .players-th{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d1f4a;padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;}
+  .players-td{padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:13px;vertical-align:middle;}
+
   /* Session summary cards */
   .sess-summary-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;}
   .sess-sum-card{background:var(--white);border:0.5px solid #e0e7f5;border-radius:10px;padding:16px 18px 14px;border-top:3px solid transparent;box-shadow:0 1px 4px rgba(23,76,204,0.06);display:flex;flex-direction:column;}
@@ -949,22 +980,55 @@
 
   <!-- PLAYERS -->
   <div id="page-players" class="page">
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-        <div class="card-title" style="margin:0;">All Players</div>
-        <span id="players-count" style="font-size:11px;font-weight:800;color:var(--text-muted);background:var(--gray);padding:4px 12px;border-radius:99px;"></span>
+    <!-- Page title — Bebas Neue 28px same as other pages -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;margin-bottom:16px;line-height:1;">All Players</div>
+
+    <!-- Stat cards row — same style as dashboard/standings -->
+    <div class="stats-grid" id="players-stats" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px;">
+      <div class="stat stat-blue">
+        <div class="stat-label">Total Players</div>
+        <div class="stat-value" id="players-total">—</div>
+        <div class="stat-ctx ctx-blue">All registered</div>
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-        <input type="text" id="player-search" placeholder="Search by name..."
-          style="flex:1;min-width:180px;padding:10px 14px;font-size:13px;border:0.5px solid var(--border);border-radius:var(--radius-sm);font-family:'Montserrat',sans-serif;">
+      <div class="stat stat-green">
+        <div class="stat-label">Active</div>
+        <div class="stat-value" id="players-active">—</div>
+        <div class="stat-ctx ctx-green">Currently active</div>
+      </div>
+      <div class="stat stat-orange">
+        <div class="stat-label">Inactive</div>
+        <div class="stat-value" id="players-inactive">—</div>
+        <div class="stat-ctx" style="color:#6b7a99;">Not participating</div>
+      </div>
+      <div class="stat stat-blue">
+        <div class="stat-label">Male</div>
+        <div class="stat-value" id="players-male">—</div>
+        <div class="stat-ctx ctx-blue" id="players-male-pct"></div>
+      </div>
+      <div class="stat stat-orange">
+        <div class="stat-label">Female</div>
+        <div class="stat-value" id="players-female">—</div>
+        <div class="stat-ctx ctx-orange" id="players-female-pct"></div>
+      </div>
+    </div>
+
+    <!-- Main table card -->
+    <div class="card" style="padding:0;overflow:hidden;">
+      <!-- Toolbar: search + status filter + add player -->
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:0.5px solid #e0e7f5;">
+        <div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--bg);border:0.5px solid #e0e7f5;border-radius:8px;padding:8px 14px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="player-search" placeholder="Search players, email, phone..."
+            style="border:none;background:transparent;outline:none;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;color:#0d1f4a;width:100%;">
+        </div>
         <select id="player-status-filter"
-          style="font-size:12px;padding:10px 14px;font-family:'Montserrat',sans-serif;font-weight:700;border:0.5px solid var(--border);border-radius:99px;outline:none;">
+          style="font-size:12px;padding:8px 14px;font-family:'Montserrat',sans-serif;font-weight:700;border:0.5px solid var(--border);border-radius:99px;outline:none;flex-shrink:0;">
           <option value="all">All status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
       </div>
-      <div id="players-table"><div class="loading">Loading players...</div></div>
+      <span id="players-count" style="display:none;"></span><div id="players-table"><div class="loading" style="padding:20px;">Loading players...</div></div>
     </div>
   </div>
 
