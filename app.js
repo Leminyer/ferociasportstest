@@ -4905,6 +4905,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
   const loadPromotionsPage = async () => {
     await loadSubscribers();
+    // Auto-generate QR code on page load
+    generateQR();
   };
 
   const loadSubscribers = async () => {
@@ -4940,7 +4942,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const ctxActive = document.getElementById('promo-ctx-active');
     if (ctxActive) ctxActive.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> +${newThisMonth} this month`;
     const ctxPending = document.getElementById('promo-ctx-pending');
-    if (ctxPending) ctxPending.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Awaiting confirmation`;
+    if (ctxPending) ctxPending.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Awaiting email verification`;
     const ctxTotal = document.getElementById('promo-ctx-total');
     if (ctxTotal) ctxTotal.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> +${growthPct}% growth`;
 
@@ -5138,10 +5140,58 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     openSendPromo: () => openSendPromo(),
     sendPendingReminder: async () => {
       try {
-        const pending = await api('subscribers?status=eq.pending&select=id');
-        if (!pending.length) { toast('No pending subscribers to remind.', true); return; }
-        toast(`Reminder sent to ${pending.length} pending subscriber${pending.length !== 1 ? 's' : ''}!`);
-      } catch(e) { toast(`Error: ${e.message}`, true); }
+        const pending = await api(
+          'subscribers?status=eq.pending&select=first_name,last_name,email,confirm_token'
+        );
+        if (!pending.length) {
+          toast('No pending subscribers to remind.', true);
+          return;
+        }
+
+        // Confirm with admin before sending
+        const confirmed = await confirmModal({
+          title: 'Send Confirmation Reminders',
+          message: `Send a confirmation email reminder to ${pending.length} pending subscriber${pending.length !== 1 ? 's' : ''}? Each will receive a link to confirm their subscription.`,
+          okLabel: 'Send Reminders',
+        });
+        if (!confirmed) return;
+
+        const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
+        emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
+
+        let sent = 0;
+        const failed = [];
+
+        for (const sub of pending) {
+          const confirmUrl = sub.confirm_token
+            ? `${baseUrl}confirm.html?t=${sub.confirm_token}`
+            : `${baseUrl}confirm.html`;
+
+          const ok = await sendOneEmail(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.CONFIRM, {
+            player_name:  `${sub.first_name} ${sub.last_name}`,
+            player_email: sub.email,
+            subject:      '⏰ Reminder: Please confirm your Ferocia Sports subscription',
+            confirm_url:  confirmUrl,
+          });
+
+          if (ok) sent++;
+          else failed.push(sub.email);
+
+          if (sent + failed.length < pending.length) {
+            await sleep(CFG.EMAIL_THROTTLE_MS);
+          }
+        }
+
+        if (!failed.length) {
+          toast(`✅ Confirmation reminder sent to ${sent} subscriber${sent !== 1 ? 's' : ''}!`);
+        } else {
+          toast(`Sent ${sent} reminders. ${failed.length} failed: ${failed.join(', ')}`, true);
+        }
+        // Refresh page data
+        await loadSubscribers();
+      } catch(e) {
+        toast(`Error: ${e.message}`, true);
+      }
     },
     generateQR: () => generateQR(),
     // Share
