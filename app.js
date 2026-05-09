@@ -4822,76 +4822,177 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
   /* ─── PROMOTIONS ───────────────────────────────────────── */
 
+  // ── Promotions page state ─────────────────────────────────────────────
+  let _allSubs       = [];
+  let _subsShown     = 25;
+
+  const _renderSubsTable = () => {
+    const search = (document.getElementById('sub-search')?.value || '').toLowerCase().trim();
+    const filter = document.getElementById('sub-status-filter')?.value || 'all';
+    const filtered = _allSubs.filter(s => {
+      const nameMatch = `${s.first_name} ${s.last_name} ${s.email} ${s.phone || ''}`.toLowerCase().includes(search);
+      const statusMatch = filter === 'all' || s.status === filter;
+      return nameMatch && statusMatch;
+    });
+    const slice   = filtered.slice(0, _subsShown);
+    const total   = filtered.length;
+
+    const avColors = ['#174CCC','#24BC96','#F26024','#7c3aed','#0891b2','#d97706'];
+    const getAv = (s) => {
+      const str = `${s.first_name}${s.last_name}`;
+      let h = 0; for (let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h);
+      return avColors[Math.abs(h) % avColors.length];
+    };
+    const pillCSS = (status) => {
+      if (status === 'active')       return 'background:rgba(36,188,150,0.12);color:#085041;';
+      if (status === 'pending')      return 'background:rgba(242,96,36,0.12);color:#7a3d00;';
+      return 'background:rgba(107,122,153,0.12);color:#6b7a99;';
+    };
+    const tableHTML = slice.length ? `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d1f4a;padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Subscriber</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d1f4a;padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Email</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d1f4a;padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Phone</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d1f4a;padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Skill</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d1f4a;padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Status</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d1f4a;padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Joined</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${slice.map(s => {
+            const initials = `${s.first_name?.[0]||''}${s.last_name?.[0]||''}`.toUpperCase();
+            return `<tr style="cursor:default;" onmouseover="this.querySelectorAll('td').forEach(t=>t.style.background='rgba(23,76,204,0.025)')" onmouseout="this.querySelectorAll('td').forEach(t=>t.style.background='')">
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;vertical-align:middle;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:30px;height:30px;border-radius:50%;background:${getAv(s)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:white;flex-shrink:0;">${esc(initials)}</div>
+                  <div style="font-size:13px;font-weight:700;color:#0d1f4a;">${esc(s.first_name)} ${esc(s.last_name)}</div>
+                </div>
+              </td>
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:#6b7a99;">${esc(s.email || '—')}</td>
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:#6b7a99;">${esc(s.phone || '—')}</td>
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:#6b7a99;text-transform:capitalize;">${esc(s.skill_level || '—')}</td>
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;">
+                <span style="font-size:9px;font-weight:800;padding:3px 9px;border-radius:99px;letter-spacing:.5px;text-transform:uppercase;${pillCSS(s.status)}">${esc(s.status || '—')}</span>
+              </td>
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:11px;color:#6b7a99;">${fmtDate(s.subscribed_at) || '—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>` : `<div class="empty" style="padding:20px;">No subscribers found.</div>`;
+
+    document.getElementById('subscribers-table').innerHTML = tableHTML;
+
+    // Load more row
+    const lmRow = document.getElementById('sub-load-more-row');
+    const lmInfo = document.getElementById('sub-results-info');
+    const lmBtn  = document.getElementById('sub-load-more-btn');
+    if (lmRow) {
+      lmRow.style.display = 'flex';
+      if (lmInfo) lmInfo.textContent = `Showing ${Math.min(_subsShown, total)} of ${total} subscribers`;
+      if (lmBtn) {
+        if (slice.length < total) {
+          lmBtn.style.display = '';
+          lmBtn.textContent = `Load ${Math.min(25, total - slice.length)} more`;
+          lmBtn.onclick = () => { _subsShown += 25; _renderSubsTable(); };
+        } else {
+          lmBtn.style.display = 'none';
+        }
+      }
+    }
+  };
+
   const loadPromotionsPage = async () => {
-    // showPage() already handles page visibility and sbSetActive
-    // This function only needs to load the data
     await loadSubscribers();
   };
 
   const loadSubscribers = async () => {
-    const filter = document.getElementById('sub-status-filter')?.value || 'all';
-    const search = document.getElementById('sub-search')?.value.toLowerCase().trim() || '';
-    let query = 'subscribers?select=*&order=subscribed_at.desc';
-    if (filter !== 'all') query += `&status=eq.${filter}`;
+    _subsShown = 25;
     let subs = [];
     try {
-      subs = await api(query);
+      subs = await api('subscribers?select=*&order=subscribed_at.desc');
     } catch (e) {
       document.getElementById('subscribers-table').innerHTML =
-        `<div class="empty">Error: ${esc(e.message)}</div>`;
+        `<div class="empty" style="padding:20px;">Error: ${esc(e.message)}</div>`;
       return;
     }
-    const filtered = subs.filter((s) => {
-      if (!search) return true;
-      return `${s.first_name} ${s.last_name} ${s.email}`.toLowerCase().includes(search);
-    });
-    // Update status badges
-    const countActive = subs.filter(s => s.status === 'active').length;
+    _allSubs = subs;
+
+    // Stat cards
+    const countActive  = subs.filter(s => s.status === 'active').length;
     const countPending = subs.filter(s => s.status === 'pending').length;
-    const countUnsub = subs.filter(s => s.status === 'unsubscribed').length;
+    const countUnsub   = subs.filter(s => s.status === 'unsubscribed').length;
+    const countTotal   = subs.length;
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('promo-stat-active',  countActive);
+    setEl('promo-stat-pending', countPending);
+    setEl('promo-stat-total',   countTotal);
+    setEl('promo-stat-unsub',   countUnsub);
+
+    // Trend: count subscribers joined this month
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const newThisMonth = subs.filter(s => s.subscribed_at && s.subscribed_at >= monthStart).length;
+    const growthPct = countTotal > 0 ? Math.round((newThisMonth / countTotal) * 100) : 0;
+
+    // Update ctx lines with real trend data
+    const ctxActive = document.getElementById('promo-ctx-active');
+    if (ctxActive) ctxActive.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> +${newThisMonth} this month`;
+    const ctxPending = document.getElementById('promo-ctx-pending');
+    if (ctxPending) ctxPending.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Awaiting confirmation`;
+    const ctxTotal = document.getElementById('promo-ctx-total');
+    if (ctxTotal) ctxTotal.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> +${growthPct}% growth`;
+
+    // Growth badge on QR card
+    const badge = document.getElementById('promo-growth-badge');
+    if (badge) badge.textContent = `+${newThisMonth} subscriber${newThisMonth !== 1 ? 's' : ''} this month`;
+
+    // Pending label on action card
+    const pendLabel = document.getElementById('promo-pending-label');
+    if (pendLabel) pendLabel.textContent = `${countPending} subscriber${countPending !== 1 ? 's' : ''} awaiting confirmation.`;
+
+    // Legacy compat
     const elA = document.getElementById('sub-count-active');
     const elP = document.getElementById('sub-count-pending');
     const elU = document.getElementById('sub-count-unsub');
     if (elA) elA.textContent = countActive + ' Active';
     if (elP) elP.textContent = countPending + ' Pending';
     if (elU) elU.textContent = countUnsub + ' Unsubscribed';
-    const statusColors = {
-      active: 'var(--teal)',
-      pending: 'var(--orange)',
-      unsubscribed: 'var(--text-muted)',
-    };
-    document.getElementById('subscribers-table').innerHTML = filtered.length
-      ? `<table>
-          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Skill</th><th>Status</th><th>Joined</th></tr></thead>
-          <tbody>${filtered
-            .map(
-              (s) => `<tr>
-                <td class="text-bold">${esc(s.first_name)} ${esc(s.last_name)}</td>
-                <td style="font-size:12px;">${esc(s.email)}</td>
-                <td style="font-size:12px;">${esc(s.phone || '—')}</td>
-                <td style="font-size:12px;text-transform:capitalize;">${esc(s.skill_level || '—')}</td>
-                <td><span class="text-bolder text-uppercase" style="font-size:10px;color:${statusColors[s.status] || 'var(--text-muted)'};">${esc(s.status)}</span></td>
-                <td class="text-muted-12">${fmtDate(s.subscribed_at) || '—'}</td>
-              </tr>`,
-            )
-            .join('')}</tbody>
-        </table>`
-      : '<div class="empty">No subscribers found.</div>';
+
+    // Wire copy URL button
+    const copyBtn = document.getElementById('promo-copy-url-btn');
+    if (copyBtn && !copyBtn._wired) {
+      copyBtn._wired = true;
+      copyBtn.addEventListener('click', () => {
+        const url = document.getElementById('subscribe-url-display')?.textContent || '';
+        if (!url) return;
+        navigator.clipboard.writeText(url).then(() => {
+          copyBtn.textContent = 'Copied!';
+          copyBtn.style.color = '#24BC96';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.style.color = '#C6F221'; }, 2000);
+        });
+      });
+    }
+
+    _renderSubsTable();
   };
 
   const generateQR = () => {
     const baseUrl =
       window.location.origin + window.location.pathname.replace('admin.html', '') + 'subscribe.html';
-    document.getElementById('subscribe-url-display').textContent = baseUrl;
-    document.getElementById('qr-container').style.display = 'block';
+    // Populate URL strip in new QR card
+    const urlDisplay = document.getElementById('subscribe-url-display');
+    if (urlDisplay) urlDisplay.textContent = baseUrl;
     const qrEl = document.getElementById('qr-code');
+    if (!qrEl) return;
     qrEl.innerHTML = '';
     /* eslint-disable no-new, no-undef */
     new QRCode(qrEl, {
       text: baseUrl,
-      width: 160,
-      height: 160,
-      colorDark: '#174CCC',
+      width: 150,
+      height: 150,
+      colorDark: '#0d1f4a',
       colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.H,
     });
@@ -5035,6 +5136,13 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     // Notify / promo
     openNotifyPlayers: () => openNotifyPlayers(),
     openSendPromo: () => openSendPromo(),
+    sendPendingReminder: async () => {
+      try {
+        const pending = await api('subscribers?status=eq.pending&select=id');
+        if (!pending.length) { toast('No pending subscribers to remind.', true); return; }
+        toast(`Reminder sent to ${pending.length} pending subscriber${pending.length !== 1 ? 's' : ''}!`);
+      } catch(e) { toast(`Error: ${e.message}`, true); }
+    },
     generateQR: () => generateQR(),
     // Share
     copyShareLink: (btn) => copyShareLink(btn.dataset.url, btn.dataset.btnid),
@@ -5178,8 +5286,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   document.getElementById('edit-event-form')?.addEventListener('submit', editEvent);
   document.getElementById('promo-form').addEventListener('submit', sendPromoEmail);
   document.getElementById('t-notify-form').addEventListener('submit', sendTournamentNotify);
-  document.getElementById('sub-status-filter')?.addEventListener('change', loadSubscribers);
-  document.getElementById('sub-search')?.addEventListener('input', loadSubscribers);
+  document.getElementById('sub-status-filter')?.addEventListener('change', () => { _subsShown = 25; _renderSubsTable(); });
+  document.getElementById('sub-search')?.addEventListener('input', () => { _subsShown = 25; _renderSubsTable(); });
   document.getElementById('player-status-filter')?.addEventListener('change', filterPlayers);
   document.getElementById('player-search')?.addEventListener('input', filterPlayers);
   document.querySelector('#edit-ladder-modal form')?.addEventListener('submit', saveEditLadder);
