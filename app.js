@@ -1272,6 +1272,11 @@
         '<div class="empty">Please select a ladder first.</div>';
       return;
     }
+
+    // Set ladder title
+    const titleEl = document.getElementById('sessions-ladder-title');
+    if (titleEl) { titleEl.textContent = currentLadder.name; titleEl.style.display = 'block'; }
+
     try {
       const matches = await api(
         `matches?select=*,players(first_name,last_name)&ladder_id=eq.${currentLadder.id}&order=session_date.desc,court_group,game_number`,
@@ -1300,96 +1305,255 @@
 
       const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
 
+      // Helper: group 4 match rows into 2 teams by score_for value
+      const buildTeams = (players) => {
+        // Players with same score_for are on same team
+        const teamMap = {};
+        players.forEach((p) => {
+          const key = p.default_no_show ? `ns_${p.player_id}` : (p.score_for !== null ? String(p.score_for) : 'pending');
+          if (!teamMap[key]) teamMap[key] = [];
+          teamMap[key].push(p);
+        });
+        const keys = Object.keys(teamMap);
+        // Sort: higher score first = team A (winner)
+        const sorted = keys.sort((a, b) => {
+          const na = parseFloat(a), nb = parseFloat(b);
+          if (isNaN(na) || isNaN(nb)) return 0;
+          return nb - na;
+        });
+        return [teamMap[sorted[0]] || [], teamMap[sorted[1]] || []];
+      };
+
+      // Helper: compute per-date session summary
+      const computeSummary = (courts, allMatches) => {
+        const dateMatches = allMatches.filter(m =>
+          courts.some(c => c.date === m.session_date && c.group === m.court_group)
+        );
+        // Total games
+        const gameKeys = new Set(dateMatches.map(m => `${m.session_date}__${m.court_group}__${m.game_number}`));
+        const totalGames = gameKeys.size;
+        const totalCourts = courts.length;
+        // MVP — player with most points_earned this session
+        const ptsByPlayer = {};
+        const nameByPlayer = {};
+        dateMatches.forEach(m => {
+          if (m.score_for !== null && !m.default_no_show) {
+            ptsByPlayer[m.player_id] = (ptsByPlayer[m.player_id] || 0) + (m.points_earned || 0);
+            if (m.players) nameByPlayer[m.player_id] = `${m.players.first_name} ${m.players.last_name}`;
+          }
+        });
+        const mvpId = Object.keys(ptsByPlayer).sort((a,b) => ptsByPlayer[b] - ptsByPlayer[a])[0];
+        const mvpName = mvpId ? (nameByPlayer[mvpId] || 'Unknown') : '—';
+        const mvpPts  = mvpId ? ptsByPlayer[mvpId] : 0;
+        // Closest match — smallest score diff
+        const scoredGames = [];
+        gameKeys.forEach(key => {
+          const gMatches = dateMatches.filter(m =>
+            `${m.session_date}__${m.court_group}__${m.game_number}` === key && m.score_for !== null
+          );
+          if (gMatches.length >= 2) {
+            const scores = [...new Set(gMatches.map(m => m.score_for))].sort((a,b) => b-a);
+            if (scores.length === 2) {
+              const diff = scores[0] - scores[1];
+              const parts = key.split('__');
+              scoredGames.push({ diff, score: `${scores[0]}–${scores[1]}`, court: parts[1], game: parts[2] });
+            }
+          }
+        });
+        scoredGames.sort((a,b) => a.diff - b.diff);
+        const closest  = scoredGames[0]  || null;
+        const biggest  = scoredGames[scoredGames.length - 1] || null;
+        // Court highlight — court with smallest avg score diff (most competitive)
+        const courtDiffs = {};
+        const courtCounts = {};
+        scoredGames.forEach(g => {
+          courtDiffs[g.court]  = (courtDiffs[g.court]  || 0) + g.diff;
+          courtCounts[g.court] = (courtCounts[g.court] || 0) + 1;
+        });
+        const bestCourt = Object.keys(courtDiffs).sort((a,b) =>
+          (courtDiffs[a]/courtCounts[a]) - (courtDiffs[b]/courtCounts[b])
+        )[0];
+        return { totalGames, totalCourts, mvpName, mvpPts, closest, biggest, bestCourt };
+      };
+
+      // SVG icons (inline, match sidebar style)
+      const calSVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+      const calSm   = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+      const plrSm   = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;
+      const subSm   = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+      const gameSm  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.56 13.9l-1.56 6.1 5-3 5 3-1.56-6.1"/></svg>`;
+      const editSVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+      const dnlSVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+
       let html = '';
 
       sortedDates.forEach((date, dateIdx) => {
         const courts = byDate[date];
-        const dateLabel = fmtDate(date, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-        const isFirst = dateIdx === 0; // most recent — auto-expanded
+        const isFirst = dateIdx === 0;
         const groupId = `sdg-${date.replace(/-/g, '')}`;
 
-        // Count pending games (not courts) for the collapsed header indicator
-        const pendingGames = courts.reduce((total, s) => {
-          const gameNums = Object.keys(s.games);
-          return total + gameNums.filter((gnum) =>
-            s.games[gnum].some((m) => !m.default_no_show && m.score_for === null)
-          ).length;
-        }, 0);
-        const courtCount = courts.length;
+        // Date label: "Saturday Session — May 2, 2026"
+        const d = new Date(date + 'T00:00:00');
+        const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+        const dateFormatted = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        const dateLabel = `${weekday} Session — ${dateFormatted}`;
 
-        // Header row — always visible, clickable to toggle
+        // Per-date stats
+        const allDateMatches = courts.flatMap(c => Object.values(c.games).flat());
+        const courtCount   = courts.length;
+        const totalGames   = new Set(allDateMatches.map(m => `${m.court_group}__${m.game_number}`)).size;
+        const uniquePlayers = new Set(allDateMatches.map(m => m.player_id)).size;
+        const subCount     = allDateMatches.filter(m => m.is_sub).length;
+        const pendingGames = courts.reduce((total, s) =>
+          total + Object.keys(s.games).filter(gnum =>
+            s.games[gnum].some(m => !m.default_no_show && m.score_for === null)
+          ).length, 0);
+
+        // Session summary
+        const sum = computeSummary(courts, matches);
+
         html += `<div class="session-date-group" id="${groupId}">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <div class="session-date-header ${isFirst ? 'open' : ''}"
                  data-action="toggleSessionGroup" data-groupid="${groupId}"
-                 style="display:flex;align-items:center;gap:10px;flex:1;
-                        padding:10px 12px;border-radius:8px;cursor:pointer;
-                        background:var(--blue-pale);
-                        border:1.5px solid var(--border);user-select:none;">
-              <span style="font-size:14px;font-weight:800;color:var(--blue);transition:transform .2s;
-                           display:inline-block;" class="sdg-chevron ${isFirst ? 'sdg-chevron-open' : ''}">▶</span>
+                 style="display:flex;align-items:center;gap:12px;flex:1;
+                        padding:12px 16px;border-radius:8px;cursor:pointer;
+                        background:#e8f0ff;border:0.5px solid #c5d6f5;user-select:none;">
+              <span class="sdg-chevron ${isFirst ? 'sdg-chevron-open' : ''}"
+                    style="font-size:11px;font-weight:800;color:#174CCC;">▼</span>
               <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:800;color:var(--blue);">📅 ${dateLabel}</div>
-                <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:2px;">
-                  ${courtCount} court${courtCount !== 1 ? 's' : ''}
-                  ${pendingGames ? `<span style="color:var(--orange);margin-left:8px;">⏳ ${pendingGames} game${pendingGames !== 1 ? 's' : ''} pending scores</span>` : ''}
+                <div style="font-size:13px;font-weight:800;color:#174CCC;display:flex;align-items:center;gap:8px;">
+                  ${calSVG} ${esc(dateLabel)}
+                  ${pendingGames ? `<span style="font-size:9px;font-weight:800;color:var(--orange);background:var(--orange-light);padding:2px 7px;border-radius:99px;text-transform:uppercase;letter-spacing:.5px;">⏳ ${pendingGames} pending</span>` : ''}
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
+                  <span style="font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:4px;">${calSm} ${courtCount} Court${courtCount !== 1 ? 's' : ''}</span>
+                  <span style="font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:4px;">${gameSm} ${totalGames} Games</span>
+                  <span style="font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:4px;">${plrSm} ${uniquePlayers} Players</span>
+                  <span style="font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:4px;">${subSm} ${subCount} Subs</span>
                 </div>
               </div>
             </div>
             <button class="btn btn-primary btn-sm" data-action="printRoster"
                     data-date="${esc(date)}" data-ladderid="${currentLadder.id}"
-                    style="font-size:11px;font-weight:800;flex-shrink:0;white-space:nowrap;">
-              📄 PRINT ROSTER
+                    style="font-size:10px;font-weight:700;flex-shrink:0;white-space:nowrap;display:flex;align-items:center;gap:6px;border-radius:99px;">
+              ${dnlSVG} Export Roster
             </button>
           </div>`;
 
-        // Collapsible content — hidden unless this is the most recent date
+        // Collapsible content
         html += `<div class="session-date-body" style="display:${isFirst ? 'block' : 'none'};margin-bottom:8px;">`;
 
-        courts.forEach((s) => {
-          const courtGames = Object.values(s.games).flat();
-          const courtPending = courtGames.some((m) => !m.default_no_show && m.score_for === null);
-          const sessionMatchIds = courtGames.map((m) => m.id).join(',');
+        // Session summary cards
+        html += `<div class="sess-summary-row">
+          <div class="sess-sum-card sc-blue">
+            <div class="sess-sum-label">Total Games</div>
+            <div class="sess-sum-val">${sum.totalGames}</div>
+            <div class="sess-sum-ctx scc-blue">${sum.totalCourts} court${sum.totalCourts !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="sess-sum-card sc-gold">
+            <div class="sess-sum-label">MVP</div>
+            <div class="sess-sum-val-text">${esc(sum.mvpName)}</div>
+            <div class="sess-sum-ctx scc-gold">+${sum.mvpPts} pts this session</div>
+          </div>
+          <div class="sess-sum-card sc-teal">
+            <div class="sess-sum-label">Closest Match</div>
+            <div class="sess-sum-val">${sum.closest ? sum.closest.score : '—'}</div>
+            <div class="sess-sum-ctx scc-green">${sum.closest ? `Court ${sum.closest.court}, Game ${sum.closest.game}` : 'No scores yet'}</div>
+          </div>
+          <div class="sess-sum-card sc-orange">
+            <div class="sess-sum-label">Biggest Win</div>
+            <div class="sess-sum-val">${sum.biggest ? sum.biggest.score : '—'}</div>
+            <div class="sess-sum-ctx scc-orange">${sum.biggest ? `Court ${sum.biggest.court}, Game ${sum.biggest.game}` : 'No scores yet'}</div>
+          </div>
+          <div class="sess-sum-card sc-blue">
+            <div class="sess-sum-label">Court Highlight</div>
+            <div class="sess-sum-val-text">${sum.bestCourt ? `Court ${sum.bestCourt}` : '—'}</div>
+            <div class="sess-sum-ctx scc-blue">Most competitive</div>
+          </div>
+        </div>`;
 
-          html += `<div class="session-block">
-            <div class="row-between mb-8">
-              <div class="row gap-6 align-center">
-                <div class="blue-tag">Court ${s.group}</div>
-                ${courtPending ? '<span style="font-size:10px;font-weight:800;color:var(--orange);text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;background:var(--orange-light);border-radius:99px;">⏳ Scores pending</span>' : ''}
-              </div>
-              <div class="row gap-6">
-                <button class="btn btn-outline btn-sm" data-action="editSession" data-matchids="${sessionMatchIds}" data-date="${esc(s.date)}" data-court="${s.group}">Edit session</button>
-                <button class="btn btn-danger btn-sm" data-action="deleteSession" data-matchids="${sessionMatchIds}" data-date="${esc(s.date)}" data-court="${s.group}">Delete session</button>
+        // Court blocks
+        courts.forEach((s) => {
+          const courtGames   = Object.values(s.games).flat();
+          const courtPending = courtGames.some(m => !m.default_no_show && m.score_for === null);
+          const sessionMatchIds = courtGames.map(m => m.id).join(',');
+
+          html += `<div class="court-block">
+            <div class="court-block-hdr">
+              <span class="court-block-label">Court ${s.group}${courtPending ? ' <span style="font-size:9px;font-weight:800;color:var(--orange);background:var(--orange-light);padding:1px 6px;border-radius:99px;text-transform:uppercase;margin-left:6px;">Pending</span>' : ''}</span>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <button class="sess-edit-btn" data-action="editSession" data-matchids="${sessionMatchIds}" data-date="${esc(s.date)}" data-court="${s.group}" title="Edit session">${editSVG}</button>
+                <button class="btn btn-danger btn-sm" data-action="deleteSession" data-matchids="${sessionMatchIds}" data-date="${esc(s.date)}" data-court="${s.group}">Delete</button>
               </div>
             </div>`;
 
+          // Game rows — team-based layout
           Object.entries(s.games).forEach(([gnum, players]) => {
-            const gameIds = players.map((p) => p.id).join(',');
-            html += `<div class="game-row">
-              <div class="row-between gap-6">
-                <div class="row-wrap gap-6">
-                  <span class="label-tag" style="margin-right:4px;">Game ${gnum}</span>`;
-            players.forEach((p) => {
-              const name = p.players ? `${p.players.first_name} ${p.players.last_name}` : 'Unknown';
-              const score = p.score_for !== null ? `${p.score_for}-${p.score_against}` : '—';
-              const pts = p.default_no_show ? '-1' : p.score_for !== null ? `+${p.points_earned}` : '—';
-              const color = p.default_no_show
-                ? 'var(--orange)'
-                : p.score_for !== null
-                  ? (p.is_sub ? 'var(--text-muted)' : 'var(--teal)')
-                  : 'var(--text-muted)';
-              const subTag = p.is_sub ? '<span class="sub-pill">SUB</span>' : '';
-              html += `<span style="margin-right:10px;font-weight:500">${esc(name)}${subTag} <span style="color:${color};font-weight:700">${score}${p.score_for !== null || p.default_no_show ? '/' + pts + 'pts' : ''}</span></span>`;
-            });
-            html += `</div>
-                <div class="row gap-6 flex-shrink-0">
-                  <button class="btn btn-outline btn-sm" data-action="editGame" data-gameids="${gameIds}" data-gnum="${gnum}" data-date="${esc(s.date)}" data-court="${s.group}">Edit</button>
+            const gameIds = players.map(p => p.id).join(',');
+            const [teamA, teamB] = buildTeams(players);
+            const isPending = players.some(p => p.score_for === null && !p.default_no_show);
+
+            const renderTeam = (team, isWinner) => {
+              if (!team || !team.length) return '';
+              const p0 = team[0];
+              const score = p0.default_no_show ? '-1' : p0.score_for !== null ? String(p0.score_for) : '—';
+              const pts   = p0.default_no_show ? '-1 pt' : p0.score_for !== null ? `+${p0.points_earned} pts` : 'pending';
+              const isPend = p0.score_for === null && !p0.default_no_show;
+
+              let blockClass = 'sess-team-block ';
+              let scoreClass = 'sess-score-num ';
+              let ptsClass   = 'sess-score-pts ';
+              let nameClass  = 'sess-team-names';
+              if (isPend) {
+                blockClass += 'sess-team-pending';
+                scoreClass += 'sess-score-pending';
+                ptsClass   += 'sess-pts-pending';
+                nameClass  += ' pending';
+              } else if (isWinner) {
+                blockClass += 'sess-team-win';
+                scoreClass += 'sess-score-win';
+                ptsClass   += 'sess-pts-win';
+              } else {
+                blockClass += 'sess-team-lose';
+                scoreClass += 'sess-score-lose';
+                ptsClass   += 'sess-pts-lose';
+                nameClass  += ' lose';
+              }
+
+              const names = team.map(p => {
+                const name = p.players ? `${esc(p.players.first_name)} ${esc(p.players.last_name)}` : 'Unknown';
+                const sub  = p.is_sub ? '<span class="sub-pill-blue">SUB</span>' : '';
+                return name + sub;
+              }).join('<br>');
+
+              return `<div class="${blockClass}">
+                <div class="${nameClass}">${names}</div>
+                <div class="sess-team-score">
+                  <span class="${scoreClass}">${score}</span>
+                  <span class="${ptsClass}">${pts}</span>
                 </div>
+              </div>`;
+            };
+
+            // Determine winner (higher score_for)
+            const scoreA = teamA[0] ? teamA[0].score_for : null;
+            const scoreB = teamB[0] ? teamB[0].score_for : null;
+            const aWins  = scoreA !== null && scoreB !== null && scoreA > scoreB;
+            const bWins  = scoreA !== null && scoreB !== null && scoreB > scoreA;
+
+            html += `<div class="sess-game-row">
+              <span class="sess-game-label">Game ${gnum}</span>
+              <div class="sess-game-body">
+                ${renderTeam(teamA, aWins)}
+                <div class="sess-vs"><div class="sess-vs-line"></div><span>VS</span><div class="sess-vs-line"></div></div>
+                ${renderTeam(teamB, bWins)}
               </div>
+              <button class="sess-edit-btn" data-action="editGame" data-gameids="${gameIds}" data-gnum="${gnum}" data-date="${esc(s.date)}" data-court="${s.group}" title="Edit game">${editSVG}</button>
             </div>`;
           });
 
-          html += '</div>'; // session-block
+          html += '</div>'; // court-block
         });
 
         html += '</div>'; // session-date-body
