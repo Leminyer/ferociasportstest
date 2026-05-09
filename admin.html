@@ -451,6 +451,8 @@
   .promo-intel-val{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;line-height:1;margin-bottom:3px;}
   .promo-intel-val-text{font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:3px;}
   .promo-intel-sub{font-size:10px;font-weight:600;color:#6b7a99;}
+  .promo-emoji-item{width:26px;height:26px;border:none;background:transparent;cursor:pointer;font-size:16px;border-radius:4px;display:flex;align-items:center;justify-content:center;}
+  .promo-emoji-item:hover{background:#f0f2f8;}
   .stat-label{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:6px;}
   .stat-value{font-family:'Bebas Neue',sans-serif;font-size:40px;color:#0d1f4a;line-height:1;margin-bottom:6px;}
   .stat-ctx{font-size:11px;font-weight:600;display:flex;align-items:center;gap:5px;}
@@ -2079,14 +2081,28 @@
                 <button type="button" class="promo-fmt-btn" onclick="document.execCommand('insertUnorderedList')" title="Bullet list"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></button>
                 <button type="button" class="promo-fmt-btn" onclick="promptInsertLink()" title="Link"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
                 <div class="promo-fmt-sep"></div>
-                <button type="button" class="promo-fmt-btn" onclick="insertEmoji()" title="Emoji">😊</button>
+                <div style="position:relative;display:inline-block;">
+                  <button type="button" class="promo-fmt-btn" onclick="toggleEmojiPicker(event)" title="Emoji" id="emoji-picker-btn">😊</button>
+                  <div id="emoji-picker" style="display:none;position:absolute;top:32px;left:0;background:white;border:0.5px solid #e0e7f5;border-radius:8px;padding:8px;box-shadow:0 4px 16px rgba(8,15,46,.12);z-index:999;display:none;grid-template-columns:repeat(6,1fr);gap:2px;width:180px;">
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('👋')">👋</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('📅')">📅</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('📍')">📍</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('🎾')">🎾</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('🏆')">🏆</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('⚡')">⚡</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('🔥')">🔥</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('✅')">✅</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('🎉')">🎉</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('👑')">👑</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('⭐')">⭐</button>
+                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('📢')">📢</button>
+                  </div>
+                </div>
                 <div style="flex:1;"></div>
                 <span id="promo-char-count" style="font-size:9px;font-weight:700;color:#b0bbd6;">0 / 2000</span>
               </div>
-              <div id="promo-message" contenteditable="true" class="promo-message-editor" data-placeholder="Write your campaign message here...
-&#10;&#10;Use {first_name} to personalize greetings"></div>
-              <div style="padding:7px 12px;background:#f8f9ff;border-top:0.5px solid #e8edf8;display:flex;align-items:center;justify-content:space-between;">
-                <span style="font-size:10px;font-weight:600;color:#b0bbd6;">Use {first_name} to personalize greetings</span>
+              <div id="promo-message" contenteditable="true" class="promo-message-editor" data-placeholder="Write your campaign message here..."></div>
+              <div style="padding:6px 12px;background:#f8f9ff;border-top:0.5px solid #e8edf8;display:flex;justify-content:flex-end;">
                 <span id="promo-char-count2" style="font-size:10px;font-weight:700;color:#b0bbd6;"></span>
               </div>
             </div>
@@ -2127,10 +2143,8 @@
             <div class="promo-intel-sub">Best open rate: Tues–Thurs 9–11am</div>
           </div>
 
-          <!-- Recipient count hint -->
-          <div style="font-size:11px;font-weight:600;color:#6b7a99;padding:10px 12px;background:#f8f9ff;border-radius:8px;border:0.5px solid #e0e7f5;line-height:1.5;" id="promo-recipient-count">
-            Loading audience...
-          </div>
+          <!-- Recipient count kept hidden for JS compat -->
+          <span id="promo-recipient-count" style="display:none;"></span>
         </div>
 
       </div>

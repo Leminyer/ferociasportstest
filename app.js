@@ -5064,10 +5064,31 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       const url = prompt('Enter URL:');
       if (url) document.execCommand('createLink', false, url);
     };
-    window.insertEmoji = () => {
-      const emojis = ['👋','📅','📍','🎾','🏆','⚡','🔥','✅','🎉','👑'];
-      const e = emojis[Math.floor(Math.random() * emojis.length)];
-      document.execCommand('insertText', false, e);
+    window.toggleEmojiPicker = (e) => {
+      e.stopPropagation();
+      const picker = document.getElementById('emoji-picker');
+      if (!picker) return;
+      const isOpen = picker.style.display === 'grid';
+      picker.style.display = isOpen ? 'none' : 'grid';
+      if (!isOpen) {
+        // Close when clicking outside
+        const close = (ev) => {
+          if (!picker.contains(ev.target) && ev.target.id !== 'emoji-picker-btn') {
+            picker.style.display = 'none';
+            document.removeEventListener('click', close);
+          }
+        };
+        setTimeout(() => document.addEventListener('click', close), 0);
+      }
+    };
+    window.insertFixedEmoji = (emoji) => {
+      const editor = document.getElementById('promo-message');
+      if (!editor) return;
+      editor.focus();
+      document.execCommand('insertText', false, emoji);
+      // Close picker after selection
+      const picker = document.getElementById('emoji-picker');
+      if (picker) picker.style.display = 'none';
     };
 
     // Load audience + last campaign in parallel
