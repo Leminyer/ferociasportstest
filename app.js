@@ -4305,19 +4305,25 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   const STORAGE_URL = `${CFG.SUPABASE_URL}/storage/v1/object/public/event-flyers`;
 
   const loadEventsPage = async () => {
-    // Wire flyer preview
+    // Wire file input to styled label + preview
     const flyerInput = document.getElementById('event-flyer');
     if (flyerInput && !flyerInput._wired) {
       flyerInput._wired = true;
+      // Click on label triggers file input
+      const label = document.getElementById('ev-flyer-label');
+      if (label) label.addEventListener('click', (e) => { e.preventDefault(); flyerInput.click(); });
       flyerInput.addEventListener('change', () => {
-        const file = flyerInput.files[0];
+        const file    = flyerInput.files[0];
         const preview = document.getElementById('event-flyer-preview');
-        const img = document.getElementById('event-flyer-img');
+        const img     = document.getElementById('event-flyer-img');
+        const labelTxt= document.getElementById('ev-flyer-label-text');
         if (file) {
           img.src = URL.createObjectURL(file);
           preview.style.display = '';
+          if (labelTxt) labelTxt.textContent = file.name;
         } else {
           preview.style.display = 'none';
+          if (labelTxt) labelTxt.textContent = 'Click to upload flyer — 800×1000px recommended, max 5MB';
         }
       });
     }
@@ -4329,36 +4335,72 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     if (!el) return;
     try {
       const events = await api('events?select=*&order=event_date.asc');
+      // Update count badge
+      const badge = document.getElementById('events-count-badge');
+      if (badge) badge.textContent = events.length || '';
+
       if (!events.length) {
-        el.innerHTML = '<div class="empty">No events yet. Create your first one above.</div>';
+        el.innerHTML = `<div style="text-align:center;padding:24px 16px;">
+          <div style="width:38px;height:38px;border-radius:50%;background:#e8f0ff;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:#0d1f4a;margin-bottom:4px;">No upcoming events</div>
+          <div style="font-size:11px;font-weight:600;color:#6b7a99;">Create your first event using the form.</div>
+        </div>`;
         return;
       }
+
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const editSVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+      const delSVG   = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+      const linkSVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+
       el.innerHTML = events.map((ev) => {
-        const dateLabel = fmtDate(ev.event_date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-        const isPast = new Date(ev.event_date) < new Date(new Date().toDateString());
-        return `<div class="list-row" style="display:flex;align-items:flex-start;gap:16px;">
-          ${ev.flyer_url
-            ? `<img src="${esc(ev.flyer_url)}" style="width:60px;height:75px;object-fit:cover;border-radius:6px;border:0.5px solid var(--border);flex-shrink:0;">`
-            : `<div style="width:60px;height:75px;background:var(--gray);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📋</div>`}
-          <div style="flex:1;min-width:0;">
-            <div class="text-bold text-14">${esc(ev.title)}</div>
-            <div style="font-size:12px;font-weight:700;color:${isPast ? 'var(--text-muted)' : 'var(--teal)'};margin-top:2px;">
-              ${isPast ? '⏰ Past — ' : '📅 '}${dateLabel}
+        const d      = new Date(ev.event_date + 'T00:00:00');
+        const day    = d.getDate();
+        const mon    = months[d.getMonth()];
+        const isPast = d < new Date(new Date().toDateString());
+        const pillClass = isPast ? 'ev-pill-past' : 'ev-pill-upcoming';
+        const pillLabel = isPast ? 'Past' : 'Upcoming';
+
+        const flyerHTML = ev.flyer_url
+          ? `<img src="${esc(ev.flyer_url)}" class="ev-card-flyer" alt="${esc(ev.title)} flyer">`
+          : `<div class="ev-card-flyer-placeholder">
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c5d6f5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+             </div>`;
+
+        const linkBtn = ev.registration_url
+          ? `<a href="${esc(ev.registration_url)}" target="_blank" rel="noopener" class="sess-edit-btn" style="background:#e8f0ff;border-color:#c5d6f5;display:flex;align-items:center;justify-content:center;" title="Registration link">${linkSVG}</a>`
+          : '';
+
+        return `<div class="ev-card">
+          ${flyerHTML}
+          <div class="ev-card-body">
+            <div class="ev-date-block">
+              <div class="ev-date-badge">
+                <div class="ev-date-day">${day}</div>
+                <div class="ev-date-mon">${mon}</div>
+              </div>
+              <div class="ev-card-title">${esc(ev.title)}</div>
             </div>
-            ${ev.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-weight:500;">${esc(ev.description)}</div>` : ''}
-            ${ev.registration_url ? `<div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:4px;">🔗 <a href="${esc(ev.registration_url)}" target="_blank" rel="noopener" style="color:var(--blue);">${esc(ev.registration_url)}</a></div>` : ''}
-          </div>
-          <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-            <button class="btn btn-outline btn-sm" data-action="openEditEventModal"
-              data-evid="${ev.id}"
-              data-evtitle="${esc(ev.title)}"
-              data-evdate="${esc(ev.event_date)}"
-              data-evdesc="${esc(ev.description || '')}"
-              data-evreg="${esc(ev.registration_url || '')}"
-              data-evflyer="${esc(ev.flyer_url || '')}">Edit</button>
-            <button class="btn btn-danger btn-sm" data-action="deleteEvent"
-              data-evid="${ev.id}"
-              data-evflyer="${esc(ev.flyer_url || '')}">Delete</button>
+            ${ev.description ? `<div class="ev-card-desc">${esc(ev.description)}</div>` : ''}
+            <div class="ev-card-actions">
+              <span class="ev-status-pill ${pillClass}">${pillLabel}</span>
+              ${linkBtn}
+              <button class="sess-edit-btn" data-action="openEditEventModal"
+                data-evid="${ev.id}"
+                data-evtitle="${esc(ev.title)}"
+                data-evdate="${esc(ev.event_date)}"
+                data-evdesc="${esc(ev.description || '')}"
+                data-evreg="${esc(ev.registration_url || '')}"
+                data-evflyer="${esc(ev.flyer_url || '')}"
+                title="Edit event">${editSVG}</button>
+              <button class="sess-edit-btn" data-action="deleteEvent"
+                data-evid="${ev.id}"
+                data-evflyer="${esc(ev.flyer_url || '')}"
+                title="Delete event"
+                style="border-color:rgba(229,57,53,0.3);">${delSVG}</button>
+            </div>
           </div>
         </div>`;
       }).join('');
@@ -4417,12 +4459,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       toast(`Event "${title}" created!`);
       document.getElementById('create-event-form').reset();
       document.getElementById('event-flyer-preview').style.display = 'none';
+      const lbl = document.getElementById('ev-flyer-label-text');
+      if (lbl) lbl.textContent = 'Click to upload flyer — 800×1000px recommended, max 5MB';
       await renderEventsList();
     } catch (err) {
       toast(`Error: ${err.message}`, true);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Create Event';
+      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Create Event';
     }
   };
 
