@@ -273,6 +273,11 @@
   .stat.stat-green{border-top-color:#24BC96;}
   .stat.stat-blue{border-top-color:#174CCC;}
   .stat.stat-lime{border-top-color:#C6F221;}
+  .stat.stat-gold{border-top-color:#FFD700;}
+  .stat-leader-name{font-family:'Bebas Neue',sans-serif;font-size:24px;color:#0d1f4a;line-height:1.1;margin-bottom:4px;}
+  .stat-leader-pts{font-family:'Bebas Neue',sans-serif;font-size:30px;color:#174CCC;line-height:1;margin-bottom:3px;}
+  .stat-leader-week{font-size:11px;font-weight:700;color:#24BC96;margin-bottom:2px;}
+  .stat-leader-streak{font-size:11px;font-weight:600;color:#F26024;display:flex;align-items:center;gap:4px;}
   .stat.stat-orange{border-top-color:#F26024;}
   .stat-label{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:6px;}
   .stat-value{font-family:'Bebas Neue',sans-serif;font-size:40px;color:#0d1f4a;line-height:1;margin-bottom:6px;}
@@ -482,37 +487,53 @@
 
   /* ── PODIUM (ladder standings — matches players.html exactly) ─ */
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
-  .podium-section { margin-bottom:24px; background:var(--white); border:0.5px solid var(--border); border-radius:var(--radius); padding:24px 20px 0; box-shadow:0 2px 12px rgba(23,76,204,0.05); }
-  .section-eyebrow { font-size:10px; font-weight:800; letter-spacing:3px; text-transform:uppercase; color:var(--text-muted); margin-bottom:20px; display:flex; align-items:center; gap:12px; }
-  .section-eyebrow::after { content:''; flex:1; height:1px; background:var(--border); }
-  .podium { display:flex; justify-content:center; align-items:flex-end; gap:16px; margin-bottom:16px; }
-  .podium-slot { display:flex; flex-direction:column; align-items:center; gap:8px; flex:1; max-width:180px; }
-  .podium-avatar { width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:24px; color:white; position:relative; letter-spacing:1px; }
-  .podium-avatar.gold   { background:linear-gradient(135deg,#FFD700,#FFA500); box-shadow:0 8px 24px rgba(255,180,0,0.4); }
-  .podium-avatar.silver { background:linear-gradient(135deg,#C0C0C0,#A8A8A8); box-shadow:0 8px 24px rgba(192,192,192,0.35); }
-  .podium-avatar.bronze { background:linear-gradient(135deg,#CD7F32,#A0522D); box-shadow:0 8px 24px rgba(180,100,30,0.35); }
-  .podium-crown { position:absolute; top:-16px; font-size:20px; }
-  .podium-name  { font-size:13px; font-weight:800; text-align:center; line-height:1.3; color:var(--text); }
-  .podium-pts   { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--blue); }
-  .podium-bar   { width:100%; border-radius:10px 10px 0 0; display:flex; align-items:center; justify-content:center; }
-  .podium-bar.gold   { background:rgba(255,215,0,0.12); border:1.5px solid rgba(255,215,0,0.35); border-bottom:none; height:88px; }
-  .podium-bar.silver { background:rgba(192,192,192,0.12); border:1.5px solid rgba(192,192,192,0.35); border-bottom:none; height:64px; }
-  .podium-bar.bronze { background:rgba(205,127,50,0.12); border:1.5px solid rgba(205,127,50,0.3); border-bottom:none; height:48px; }
-  .podium-bar .medal { font-size:26px; }
+  /* Podium: two side by side when all, full width when filtered */
+  .podium-row { display:grid; grid-template-columns:1fr 1fr; gap:0; border-bottom:0.5px solid #e0e7f5; }
+  .podium-row.single { grid-template-columns:1fr; }
+  .podium-half { padding:20px 20px 0; }
+  .podium-half:first-child:not(:only-child) { border-right:0.5px solid #e0e7f5; }
+  .podium-eyebrow { font-size:11px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#0d1f4a; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .podium-eyebrow::after { content:''; flex:1; height:1px; background:#e0e7f5; }
+  .podium-eyebrow svg { flex-shrink:0; }
+  .podium { display:flex; justify-content:center; align-items:flex-end; gap:10px; margin-bottom:0; }
+  .podium-slot { display:flex; flex-direction:column; align-items:center; gap:5px; flex:1; max-width:140px; }
+  .podium-avatar { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:18px; color:white; position:relative; letter-spacing:1px; }
+  .podium-avatar.gold-first { width:62px; height:62px; font-size:20px; }
+  .podium-avatar.gold   { background:#FFD700; color:#7a5a00; }
+  .podium-avatar.silver { background:#C0C0C0; color:#444; }
+  .podium-avatar.bronze { background:#CD7F32; color:#fff; }
+  .podium-crown { position:absolute; top:-13px; font-size:14px; }
+  .podium-name  { font-size:12px; font-weight:800; text-align:center; line-height:1.3; color:#0d1f4a; white-space:nowrap; }
+  .podium-pts   { font-family:'Bebas Neue',sans-serif; font-size:18px; font-weight:800; color:#174CCC; }
+  .podium-bar   { width:100%; border-radius:7px 7px 0 0; display:flex; align-items:center; justify-content:center; font-size:20px; }
+  .podium-bar.gold   { background:rgba(255,215,0,0.1); border:1.5px solid rgba(255,215,0,0.3); border-bottom:none; height:64px; }
+  .podium-bar.silver { background:rgba(192,192,192,0.1); border:1.5px solid rgba(192,192,192,0.3); border-bottom:none; height:46px; }
+  .podium-bar.bronze { background:rgba(205,127,50,0.1); border:1.5px solid rgba(205,127,50,0.25); border-bottom:none; height:34px; }
 
   /* ── STANDINGS TABLE (matches players.html exactly) ──── */
-  .rank-num { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--text-muted); min-width:32px; display:inline-block; text-align:center; }
+  .rank-num { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--text-muted); min-width:32px; display:inline-block; text-align:center; }
   .rank-num.top1 { color:#c8920a; }
   .rank-num.top2 { color:#888; }
   .rank-num.top3 { color:#9e6229; }
-  .player-cell { display:flex; align-items:center; gap:12px; }
-  .player-initials { width:36px; height:36px; border-radius:50%; background:var(--blue-pale); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
+  .player-cell { display:flex; align-items:center; gap:10px; }
+  .player-initials { width:32px; height:32px; border-radius:50%; background:var(--blue-pale); color:var(--blue); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex-shrink:0; }
   .player-initials.top1 { background:rgba(255,215,0,0.15); color:#9a6e00; }
   .player-initials.top2 { background:rgba(192,192,192,0.2); color:#555; }
   .player-initials.top3 { background:rgba(205,127,50,0.15); color:#7a3d00; }
   .player-name { font-size:13px; font-weight:700; color:var(--text); }
   .player-sub  { font-size:11px; font-weight:600; color:var(--text-muted); margin-top:1px; }
-  .points-display { font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--blue); }
+  .points-display { font-family:'Bebas Neue',sans-serif; font-size:24px; font-weight:800; color:var(--blue); }
+  /* Trend column */
+  .trend-up   { display:flex; align-items:center; gap:4px; color:#24BC96; font-size:11px; font-weight:700; justify-content:center; }
+  .trend-dn   { display:flex; align-items:center; gap:4px; color:#F26024; font-size:11px; font-weight:700; justify-content:center; }
+  .trend-fire { display:flex; align-items:center; gap:4px; color:#F26024; font-size:11px; font-weight:700; justify-content:center; }
+  .trend-neu  { color:var(--text-muted); font-size:11px; font-weight:600; text-align:center; }
+  /* Momentum watch */
+  .mom-item   { display:flex; align-items:center; gap:8px; }
+  .mom-icon   { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .mom-text   { font-size:12px; font-weight:700; color:#0d1f4a; }
+  .mom-sub    { font-size:11px; font-weight:600; color:var(--text-muted); }
+  .mom-divider{ width:1px; height:28px; background:#e0e7f5; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -778,13 +799,18 @@
 
   <!-- STANDINGS -->
   <div id="page-ladder" class="page active">
+    <div id="ladder-title" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;margin-bottom:14px;display:none;"></div>
     <div class="stats-grid" id="ladder-stats"></div>
+    <div id="momentum-watch" style="display:none;background:var(--white);border:0.5px solid #e0e7f5;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:none;box-shadow:0 1px 4px rgba(23,76,204,0.06);"></div>
     <div class="card">
       <div class="section-header">
-        <h2>Season Standings</h2>
+        <div class="dash-section-title">Season Standings</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <button type="button" class="btn btn-teal btn-sm" data-action="openNotifyPlayers">Notify Players</button>
-          <button type="button" class="btn btn-primary btn-sm" data-action="printStandings">📄 Print</button>
+          <button type="button" class="btn btn-primary btn-sm" data-action="printStandings" style="display:flex;align-items:center;gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Standings
+          </button>
           <select id="gender-filter" style="font-size:12px;padding:6px 12px;width:auto;font-family:'Montserrat',sans-serif;font-weight:700;border:0.5px solid var(--border);border-radius:99px;outline:none;">
             <option value="all">All players</option>
             <option value="Male">Men</option>

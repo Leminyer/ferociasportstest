@@ -816,11 +816,44 @@
         matches.map((m) => `${m.session_date}__${m.court_group}__${m.game_number}`),
       ).size;
       const leader = ranked[0] ? `${ranked[0].first_name} ${ranked[0].last_name}` : '-';
+      // Show ladder title
+      const titleEl = document.getElementById('ladder-title');
+      if (titleEl) {
+        titleEl.textContent = currentLadder.name;
+        titleEl.style.display = 'block';
+      }
+      // Stats cards with colored borders + rich leader card
+      const leaderP = ranked[0];
+      const leaderName = leaderP ? `${leaderP.first_name} ${leaderP.last_name}` : '-';
+      const leaderPts  = leaderP ? leaderP._points : 0;
       document.getElementById('ladder-stats').innerHTML = `
-        <div class="stat"><div class="stat-label">Players</div><div class="stat-value">${ladderPlayers.length}</div></div>
-        <div class="stat"><div class="stat-label">Sessions</div><div class="stat-value">${sessions.length}</div></div>
-        <div class="stat"><div class="stat-label">Games</div><div class="stat-value">${uniqueGames}</div></div>
-        <div class="stat lime"><div class="stat-label">Leader</div><div class="stat-value">${esc(leader)}</div></div>`;
+        <div class="stat stat-blue">
+          <div class="stat-label">Players</div>
+          <div class="stat-value">${ladderPlayers.length}</div>
+          <div class="stat-ctx ctx-blue">Active this season</div>
+        </div>
+        <div class="stat stat-green">
+          <div class="stat-label">Sessions</div>
+          <div class="stat-value">${sessions.length}</div>
+          <div class="stat-ctx ctx-green">Recorded</div>
+        </div>
+        <div class="stat stat-lime">
+          <div class="stat-label">Games</div>
+          <div class="stat-value">${uniqueGames}</div>
+          <div class="stat-ctx ctx-lime">Total played</div>
+        </div>
+        <div class="stat stat-gold">
+          <div class="stat-label">Leader</div>
+          <div class="stat-leader-name">${esc(leaderName)}</div>
+          <div class="stat-leader-pts">${leaderPts} PTS</div>
+          <div class="stat-leader-week">↑ Season leader</div>
+          <div class="stat-leader-streak">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Top of the ladder
+          </div>
+        </div>`;
+      // Momentum Watch block
+      renderMomentumWatch(ranked, matches);
       renderLadder();
     } catch (e) {
       document.getElementById('ladder-table').innerHTML =
@@ -828,34 +861,83 @@
     }
   };
 
+  const renderMomentumWatch = (ranked, matches) => {
+    const el = document.getElementById('momentum-watch');
+    if (!el || !ranked.length) return;
+    // Hottest: most points in last session
+    const sessions = [...new Set(matches.map(m => m.session_date))].sort().reverse();
+    const lastSession = sessions[0];
+    const lastMatches = lastSession ? matches.filter(m => m.session_date === lastSession) : [];
+    const recentPts = {};
+    lastMatches.forEach(m => { recentPts[m.player_id] = (recentPts[m.player_id] || 0) + (m.points_earned || 0); });
+    const hottest = ranked.slice().sort((a,b) => (recentPts[b.id]||0) - (recentPts[a.id]||0))[0];
+    // Biggest climber: highest points in last session
+    const climber = ranked.slice().sort((a,b) => (recentPts[b.id]||0) - (recentPts[a.id]||0))[1] || ranked[0];
+    // Most consistent: most games played
+    const gameCounts = {};
+    matches.forEach(m => { gameCounts[m.player_id] = (gameCounts[m.player_id] || 0) + 1; });
+    const consistent = ranked.slice().sort((a,b) => (gameCounts[b.id]||0) - (gameCounts[a.id]||0))[0];
+    const hottestName  = hottest  ? `${esc(hottest.first_name)} ${esc(hottest.last_name)}`  : '-';
+    const climberName  = climber  ? `${esc(climber.first_name)} ${esc(climber.last_name)}`  : '-';
+    const consistName  = consistent ? `${esc(consistent.first_name)} ${esc(consistent.last_name)}` : '-';
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.gap = '20px';
+    el.style.flexWrap = 'wrap';
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);flex-shrink:0;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Momentum Watch
+      </div>
+      <div class="mom-divider"></div>
+      <div class="mom-item">
+        <div class="mom-icon" style="background:var(--orange-light);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div><div class="mom-text">${hottestName}</div><div class="mom-sub">Hottest Player</div></div>
+      </div>
+      <div class="mom-divider"></div>
+      <div class="mom-item">
+        <div class="mom-icon" style="background:var(--teal-light);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        </div>
+        <div><div class="mom-text">${climberName}</div><div class="mom-sub">Biggest Climber</div></div>
+      </div>
+      <div class="mom-divider"></div>
+      <div class="mom-item">
+        <div class="mom-icon" style="background:var(--blue-pale);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div><div class="mom-text">${consistName}</div><div class="mom-sub">Most Consistent</div></div>
+      </div>`;
+  };
+
   const getInitials = (first, last) =>
     ((first || '')[0] || '').toUpperCase() + ((last || '')[0] || '').toUpperCase();
 
-  const renderLadderPodium = (players, label) => {
-    const medals  = ['gold', 'silver', 'bronze'];
-    const crowns  = ['👑', '', ''];
-    const top     = players.slice(0, 3);
-    const order   = top.length === 1 ? [0] : top.length === 2 ? [1, 0] : [1, 0, 2];
+  const renderLadderPodium = (players, label, isFirst) => {
+    const medals = ['gold', 'silver', 'bronze'];
+    const top    = players.slice(0, 3);
+    const order  = top.length === 1 ? [0] : top.length === 2 ? [1, 0] : [1, 0, 2];
+    const icon   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0d1f4a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
     return `
-      <div class="podium-section">
-        <div class="section-eyebrow">${label === 'Men' ? '🏆 Top Men' : '🏆 Top Women'}</div>
+      <div class="podium-half">
+        <div class="podium-eyebrow">${icon} Top ${label}</div>
         <div class="podium">
           ${order.map((idx) => {
             if (idx >= top.length) return '';
-            const p     = top[idx];
-            const medal = medals[idx];
-            const crown = crowns[idx];
+            const p      = top[idx];
+            const medal  = medals[idx];
+            const isGold = idx === 0;
             return `
               <div class="podium-slot">
-                <div class="podium-avatar ${medal}">
+                <div class="podium-avatar ${medal}${isGold ? ' podium-avatar gold-first' : ''}">
                   ${esc(getInitials(p.first_name, p.last_name))}
-                  ${crown ? `<span class="podium-crown">${crown}</span>` : ''}
+                  ${isGold ? `<span class="podium-crown">👑</span>` : ''}
                 </div>
-                <div class="podium-name">${esc(p.first_name)}<br>${esc(p.last_name)}</div>
-                <div class="podium-pts">${p._points} pts</div>
-                <div class="podium-bar ${medal}">
-                  <span class="medal">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>
-                </div>
+                <div class="podium-name">${esc(p.first_name)} ${esc(p.last_name)}</div>
+                <div class="podium-pts">${p._points} PTS</div>
+                <div class="podium-bar ${medal}">${isGold ? '🥇' : idx === 1 ? '🥈' : '🥉'}</div>
               </div>`;
           }).join('')}
         </div>
@@ -863,10 +945,10 @@
   };
 
   const renderLadder = () => {
-    const filter  = document.getElementById('gender-filter').value;
-    const all     = allPlayers._ranked || [];
-    const men     = all.filter((p) => p.gender === 'Male');
-    const women   = all.filter((p) => p.gender === 'Female');
+    const filter   = document.getElementById('gender-filter').value;
+    const all      = allPlayers._ranked || [];
+    const men      = all.filter((p) => p.gender === 'Male');
+    const women    = all.filter((p) => p.gender === 'Female');
     const filtered = all.filter((p) => filter === 'all' || p.gender === filter);
 
     if (!filtered.length) {
@@ -875,14 +957,30 @@
       return;
     }
 
-    // Podium — shown when not filtering by gender or when enough players exist
-    let html = '';
-    if (filter === 'all' || filter === 'Male')   { if (men.length)   html += renderLadderPodium(men,   'Men'); }
-    if (filter === 'all' || filter === 'Female') { if (women.length) html += renderLadderPodium(women, 'Women'); }
+    // Build podium row — side by side when all, full width when filtered
+    let podiumHTML = '';
+    const showMen   = (filter === 'all' || filter === 'Male')   && men.length;
+    const showWomen = (filter === 'all' || filter === 'Female') && women.length;
+    const isSingle  = (showMen && !showWomen) || (!showMen && showWomen);
+    if (showMen || showWomen) {
+      podiumHTML = `<div class="podium-row${isSingle ? ' single' : ''}">`;
+      if (showMen)   podiumHTML += renderLadderPodium(men,   'Men',   true);
+      if (showWomen) podiumHTML += renderLadderPodium(women, 'Women', false);
+      podiumHTML += `</div>`;
+    }
 
-    // Table
+    // Table rows with Trend column
     const rows = filtered.map((p, i) => {
       const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+      // Simple trend: top 3 = up arrow, others neutral
+      let trendHTML = '';
+      if (i === 0) {
+        trendHTML = `<div class="trend-fire"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Season leader</div>`;
+      } else if (p._points > 0) {
+        trendHTML = `<div class="trend-up"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>${p._points} pts earned</div>`;
+      } else {
+        trendHTML = `<div class="trend-neu">—</div>`;
+      }
       return `<tr>
         <td><span class="rank-num ${rankClass}">${i + 1}</span></td>
         <td>
@@ -890,29 +988,29 @@
             <div class="player-initials ${rankClass}">${esc(getInitials(p.first_name, p.last_name))}</div>
             <div>
               <div class="player-name">${esc(p.first_name)} ${esc(p.last_name)}</div>
-              <div class="player-sub">${esc(p.gender || '')}${p.skill_level ? ' · ' + esc(p.skill_level) : ''}</div>
+              <div class="player-sub">${esc(p.gender || '')}</div>
             </div>
           </div>
         </td>
-        <td style="text-align:right;"><span class="points-display">${p._points}</span><span style="font-size:11px;color:var(--text-muted);font-weight:600;margin-left:2px;">pts</span></td>
+        <td style="text-align:right;padding-right:24px;"><span class="points-display">${p._points}</span><span style="font-size:11px;color:var(--text-muted);font-weight:600;margin-left:2px;">pts</span></td>
+        <td style="width:160px;">${trendHTML}</td>
       </tr>`;
     }).join('');
 
-    html += `
-      <div class="card">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:48px;">Rank</th>
-              <th>Player</th>
-              <th style="text-align:right;">Points</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
+    const tableHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th style="width:48px;">Rank</th>
+            <th>Player</th>
+            <th style="text-align:right;width:100px;">Points</th>
+            <th style="text-align:center;width:160px;">Trend</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
 
-    document.getElementById('ladder-table').innerHTML = html;
+    document.getElementById('ladder-table').innerHTML = podiumHTML + `<div style="padding:0 4px;">${tableHTML}</div>`;
   };
 
   /* ─── PRINT STANDINGS ──────────────────────────────────── */
