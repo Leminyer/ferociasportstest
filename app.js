@@ -4509,8 +4509,25 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     document.getElementById('edit-event-description').value = btn.dataset.evdesc;
     document.getElementById('edit-event-reg-url').value   = btn.dataset.evreg;
     document.getElementById('edit-event-old-flyer').value = btn.dataset.evflyer;
+
+    // Wire styled file label to hidden input (once only)
+    const editFlyerInput   = document.getElementById('edit-event-flyer');
+    const editFlyerLabel   = document.getElementById('edit-ev-flyer-label');
+    const editFlyerLabelTxt= document.getElementById('edit-ev-flyer-label-text');
+    if (editFlyerInput && editFlyerLabel && !editFlyerInput._editWired) {
+      editFlyerInput._editWired = true;
+      editFlyerLabel.addEventListener('click', (e) => { e.preventDefault(); editFlyerInput.click(); });
+      editFlyerInput.addEventListener('change', () => {
+        if (editFlyerLabelTxt) editFlyerLabelTxt.textContent = editFlyerInput.files[0]
+          ? editFlyerInput.files[0].name
+          : 'Click to upload a new flyer — JPG or PNG, max 5MB';
+      });
+    }
+    if (editFlyerInput) editFlyerInput.value = '';
+    if (editFlyerLabelTxt) editFlyerLabelTxt.textContent = 'Click to upload a new flyer — JPG or PNG, max 5MB';
+
     // Show current flyer preview if exists
-    const flyerEl = document.getElementById('edit-event-current-flyer');
+    const flyerEl  = document.getElementById('edit-event-current-flyer');
     const flyerImg = document.getElementById('edit-event-flyer-img');
     if (btn.dataset.evflyer) {
       flyerImg.src = btn.dataset.evflyer;
@@ -4601,7 +4618,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       toast(`Error: ${err.message}`, true);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Save Changes';
+      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Save Changes';
     }
   };
 
