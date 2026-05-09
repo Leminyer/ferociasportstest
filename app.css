@@ -86,7 +86,7 @@
 /* ─── GAME CARD ───────────────────────────────────────── */
 .game-card        { border:0.5px solid var(--border); border-radius:var(--radius); margin-bottom:14px; overflow:hidden; box-shadow:0 2px 8px rgba(23,76,204,0.06); }
 .game-card-lime   { border:2px solid var(--lime); border-radius:var(--radius); margin-bottom:14px; overflow:hidden; box-shadow:0 2px 12px rgba(198,242,33,0.15); }
-.game-card-header { background:var(--blue); padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
+.game-card-header { background:#E8F0FF; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
 .game-card-header-lime { background:var(--lime); padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
 .game-card-body   { padding:18px; }
 .team-pad-blue    { background:var(--blue-pale); border-radius:var(--radius); padding:14px; text-align:center; }
@@ -181,3 +181,7 @@
   box-shadow: 0 8px 20px rgba(23,76,204,0.18) !important;
   opacity: 1 !important;
 }
+/* Game card header text override for light bg */
+.game-card-header .lime-tag { color:#174CCC; }
+.game-card-header .text-bold { color:#174CCC; }
+.game-card-header .row { color:#174CCC; }

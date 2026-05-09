@@ -1539,6 +1539,16 @@
   };
 
   const initEntry = async () => {
+    // Show ladder name as big title above points reference
+    const titleEl = document.getElementById('entry-ladder-title');
+    if (titleEl) {
+      if (currentLadder && currentLadder.name) {
+        titleEl.textContent = currentLadder.name;
+        titleEl.style.display = 'block';
+      } else {
+        titleEl.style.display = 'none';
+      }
+    }
     courtPlayers = [];
     noShowPlayer = null;
     noShowPenalty = -4;
@@ -1790,7 +1800,7 @@
         <div class="row gap-12">
           ${
             sitting && sitting.length
-              ? `<span style="font-size:11px;color:var(--blue-light);font-weight:500;">Sitting out: <strong style="color:white;">${sitting.map((p) => esc(p.first_name + ' ' + p.last_name)).join(', ')}</strong></span>`
+              ? `<span style="font-size:11px;color:#174CCC;font-weight:500;">Sitting out: <strong style="color:#174CCC;font-weight:800;">${sitting.map((p) => esc(p.first_name + ' ' + p.last_name)).join(', ')}</strong></span>`
               : ''
           }
           <label class="void-toggle-wrap">
@@ -1825,12 +1835,14 @@
   const toggleVoid = (gameNum) => {
     const isVoided = document.getElementById(`void-${gameNum}`).checked;
     const body = document.getElementById(`game-body-${gameNum}`);
+    const preview = document.getElementById(`pts-preview-${gameNum}`);
     if (isVoided) {
       body.classList.add('opacity-04');
-      document.getElementById(`pts-preview-${gameNum}`).innerHTML =
+      if (preview) preview.innerHTML =
         '<span class="color-orange text-bold">Game voided — 0 points for both teams</span>';
     } else {
       body.classList.remove('opacity-04');
+      if (preview) preview.innerHTML = '';
       autoCalcGame(gameNum);
     }
   };
@@ -1907,14 +1919,14 @@
       </div>
       <div id="game-body-${gameNum}" class="game-card-body">
         <div class="vs-grid-top" style="align-items:center;">
-          <div class="team-pad-blue-l">
+          <div class="team-pad-blue-l" style="text-align:center;">
             <div class="blue-tag mb-8">Team A</div>
             <select id="extraA1-${gameNum}" class="full-width mb-6" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 1</option>${playerOpts}</select>
             <select id="extraA2-${gameNum}" class="full-width mb-8" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 2</option>${playerOpts}</select>
             <input type="text" inputmode="numeric" placeholder="Enter score" value="--" id="scoreA-${gameNum}" data-egame="${gameNum}" data-eteam="A" class="full-width score-input">
           </div>
           <div class="vs-tag"><span>VS</span></div>
-          <div class="team-pad-teal-l">
+          <div class="team-pad-teal-l" style="text-align:center;">
             <div class="label-tag mb-8" style="color:var(--teal);">Team B</div>
             <select id="extraB1-${gameNum}" class="full-width mb-6" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 1</option>${playerOpts}</select>
             <select id="extraB2-${gameNum}" class="full-width mb-8" style="font-size:12px;font-family:Montserrat,sans-serif;"><option value="">Player 2</option>${playerOpts}</select>
