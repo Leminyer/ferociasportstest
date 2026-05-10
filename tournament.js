@@ -523,13 +523,14 @@ async function renderTournamentList() {
   const el = document.getElementById('t-content');
   el.innerHTML = `<div class="t-loading">Loading...</div>`;
 
-  let tournaments = [], categories = [], teams = [], rrMatches = [];
+  let tournaments = [], categories = [], teams = [], rrMatches = [], bracketMatches = [];
   try {
-    [tournaments, categories, teams, rrMatches] = await Promise.all([
+    [tournaments, categories, teams, rrMatches, bracketMatches] = await Promise.all([
       tApi('tournaments?select=*&order=id.desc'),
       tApi('tournament_categories?select=tournament_id,id,name').catch(() => []),
-      tApi('tournament_teams?select=id,category_id,name,wins,losses,pts_for').catch(() => []),
-      tApi('tournament_rr_matches?select=category_id,round,status').catch(() => []),
+      tApi('tournament_teams?select=id,category_id,name,player1_id,player2_id').catch(() => []),
+      tApi('tournament_rr_matches?select=category_id,round,status,team_a_id,team_b_id,score_a,score_b,winner_id,forfeit_team_id').catch(() => []),
+      tApi('tournament_bracket_matches?select=category_id,round_name,status,team_a_id,team_b_id,winner_id').catch(() => []),
     ]);
   } catch(e) {
     el.innerHTML = `<div class="t-empty">Error loading tournaments: ${tEsc(e.message)}</div>`;
@@ -561,13 +562,22 @@ async function renderTournamentList() {
     teamsByT[tid].push(tm);
   });
 
-  // RR matches per tournament: derive rounds completed and total
+  // RR matches per tournament
   const rrByT = {};
   rrMatches.forEach(m => {
     const tid = catTourneyMap[m.category_id];
     if (!tid) return;
     if (!rrByT[tid]) rrByT[tid] = [];
     rrByT[tid].push(m);
+  });
+
+  // Bracket matches per tournament
+  const bracketByT = {};
+  bracketMatches.forEach(m => {
+    const tid = catTourneyMap[m.category_id];
+    if (!tid) return;
+    if (!bracketByT[tid]) bracketByT[tid] = [];
+    bracketByT[tid].push(m);
   });
 
   // Total teams across active tournaments
@@ -605,33 +615,77 @@ async function renderTournamentList() {
 
   const tournamentCards = filtered.map(t => {
     const isClosed = t.status !== 'active' && t.status !== 'draft';
-    const tCats = catsByT[t.id] || [];
-    const catCount = tCats.length;
-    const tTeams = teamsByT[t.id] || [];
+    const tCats     = catsByT[t.id]     || [];
+    const catCount  = tCats.length;
+    const tTeams    = teamsByT[t.id]    || [];
     const tTeamCount = tTeams.length;
-    const tRR = rrByT[t.id] || [];
+    const tRR       = rrByT[t.id]       || [];
+    const tBracket  = bracketByT[t.id]  || [];
     const dis = isClosed ? 'disabled style="opacity:0.35;cursor:not-allowed;"' : '';
 
-    // Intelligence: Round progress
-    const tRounds = tRR.length ? [...new Set(tRR.map(m => m.round))] : [];
+    // Build team id→name map for this tournament
+    const tTeamMap = {};
+    tTeams.forEach(tm => { tTeamMap[tm.id] = tm.name; });
+
+    // ── Intelligence item 1: Round progress from RR matches ──────────────
+    const tRRActive = tRR.filter(m => m.status !== 'bye');
+    const tRounds = tRRActive.length ? [...new Set(tRRActive.map(m => m.round))].sort((a,b)=>a-b) : [];
     const totalRounds = tRounds.length;
-    const completedRounds = tRounds.filter(r => tRR.filter(m => m.round === r).every(m => m.status !== 'pending')).length;
-    const roundText = totalRounds > 0
-      ? (completedRounds < totalRounds ? `Round ${completedRounds + 1} of ${totalRounds} in progress` : `All ${totalRounds} rounds complete`)
-      : (t.status === 'active' ? 'Tournament in progress' : t.status === 'draft' ? 'Setup in progress' : 'Tournament completed');
-    const roundSub = totalRounds > 0 && completedRounds < totalRounds
-      ? `${completedRounds} of ${totalRounds} rounds finished`
-      : (t.status === 'draft' ? 'Not yet published to players' : t.status === 'active' ? 'Bracket is live' : 'Season finished');
+    const completedRounds = tRounds.filter(r =>
+      tRRActive.filter(m => m.round === r).every(m => m.status === 'completed')
+    ).length;
 
-    // Intelligence: Leading team (highest wins then pts_for)
-    const sortedTeams = [...tTeams].sort((a,b) => (b.wins||0)-(a.wins||0) || (b.pts_for||0)-(a.pts_for||0));
-    const leader = sortedTeams[0];
-    const leaderText = leader ? tEsc(leader.name || 'Unknown team') : (tTeamCount > 0 ? 'Teams registered' : 'No teams yet');
-    const leaderSub  = leader
-      ? `${leader.wins||0}W ${leader.losses||0}L · Leading`
-      : (tTeamCount > 0 ? 'Add scores to see standings' : 'Add teams to start bracket');
+    // Check if bracket is complete (has a Final winner)
+    const finalMatch = tBracket.find(m => m.round_name === 'Final' && m.status === 'completed');
+    const bracketComplete = !!finalMatch;
 
-    // Intelligence: Teams registered
+    let roundText, roundSub;
+    if (bracketComplete) {
+      roundText = 'Tournament completed';
+      roundSub  = 'Final results available';
+    } else if (totalRounds > 0) {
+      if (completedRounds < totalRounds) {
+        roundText = `Round ${completedRounds + 1} of ${totalRounds} in progress`;
+        roundSub  = `${completedRounds} of ${totalRounds} rounds finished`;
+      } else {
+        roundText = `All ${totalRounds} rounds complete`;
+        roundSub  = 'Moving to finals bracket';
+      }
+    } else if (t.status === 'active') {
+      roundText = 'Tournament in progress';
+      roundSub  = 'Bracket is live';
+    } else if (t.status === 'draft') {
+      roundText = 'Setup in progress';
+      roundSub  = 'Not yet published to players';
+    } else {
+      roundText = 'Tournament completed';
+      roundSub  = 'Season finished';
+    }
+
+    // ── Intelligence item 2: Champion or leading team ─────────────────────
+    let leaderText, leaderSub;
+    if (bracketComplete && finalMatch.winner_id) {
+      // We have a champion — show their name
+      const championName = tTeamMap[finalMatch.winner_id] || 'Champion';
+      leaderText = tEsc(championName) + ' 🏆';
+      leaderSub  = 'Tournament champion';
+    } else if (tRR.length > 0 && tTeams.length > 0) {
+      // Compute standings from RR matches
+      const standings = tCalcStandings(tTeams, tRR);
+      const leader = standings[0];
+      if (leader && (leader.w > 0 || leader.pts_for > 0)) {
+        leaderText = tEsc(leader.name);
+        leaderSub  = `${leader.w}W ${leader.l}L · Leading`;
+      } else {
+        leaderText = tTeamCount > 0 ? `${tTeamCount} team${tTeamCount !== 1 ? 's' : ''} enrolled` : 'No teams yet';
+        leaderSub  = tTeamCount > 0 ? 'Scores not recorded yet' : 'Add teams to start bracket';
+      }
+    } else {
+      leaderText = tTeamCount > 0 ? `${tTeamCount} team${tTeamCount !== 1 ? 's' : ''} enrolled` : 'No teams yet';
+      leaderSub  = tTeamCount > 0 ? 'Add scores to see standings' : 'Add teams to start bracket';
+    }
+
+    // ── Intelligence item 3: Teams registered ────────────────────────────
     const teamsText = tTeamCount > 0
       ? `${tTeamCount} team${tTeamCount !== 1 ? 's' : ''} registered`
       : 'No teams registered yet';
