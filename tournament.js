@@ -1521,7 +1521,7 @@ function renderTournamentDetail(t, categories) {
         data-tid="${t.id}" data-tname="${tEsc(t.name)}" data-tdate="${tEsc(t.date || '')}"
         data-catids="${categories.map(c => c.id).join(',')}"
         data-catnames="${categories.map(c => tEsc(c.name)).join('||')}"
-        style="width:34px;height:34px;border:0.5px solid #e0e7f5;border-radius:8px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#6b7a99;" title="Print Roster">
+        style="min-width:34px;height:34px;padding:0 10px;border:0.5px solid #e0e7f5;border-radius:8px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#6b7a99;white-space:nowrap;" title="Print Roster">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       </button>
     </div>
@@ -1618,28 +1618,35 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   const progressionEl = document.getElementById('td-setup-progression');
   if (progressionEl) {
     progressionEl.innerHTML = `
-      <div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:14px 20px;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:0;">
+      <div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:14px 20px;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:16px;">
         <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           Tournament Setup Progress
         </div>
-        <div style="display:flex;align-items:center;">
-          <div style="display:flex;flex-direction:column;align-items:center;flex:1;position:relative;">
+        <div style="display:flex;align-items:flex-start;margin-top:4px;">
+          <!-- Step 1 -->
+          <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;">
             ${stepIcon(s1done, s1cur, '1')}
             ${stepLbl(s1done, s1cur, 'Teams Added')}
           </div>
-          <div class="${connCls(s1done)}" style="height:2px;flex:1;margin-top:-16px;"></div>
-          <div style="display:flex;flex-direction:column;align-items:center;flex:1;position:relative;">
+          <!-- Connector 1→2 -->
+          <div class="${connCls(s1done)}" style="height:2px;flex:1;margin-top:13px;"></div>
+          <!-- Step 2 -->
+          <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;">
             ${stepIcon(s2done, s2cur, '2')}
             ${stepLbl(s2done, s2cur, 'Round Robin')}
           </div>
-          <div class="${connCls(s2done)}" style="height:2px;flex:1;margin-top:-16px;"></div>
-          <div style="display:flex;flex-direction:column;align-items:center;flex:1;position:relative;">
+          <!-- Connector 2→3 -->
+          <div class="${connCls(s2done)}" style="height:2px;flex:1;margin-top:13px;"></div>
+          <!-- Step 3 -->
+          <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;">
             ${stepIcon(s3done, s3cur, '3')}
             ${stepLbl(s3done, s3cur, 'Bracket Setup')}
           </div>
-          <div class="${connCls(s3done)}" style="height:2px;flex:1;margin-top:-16px;"></div>
-          <div style="display:flex;flex-direction:column;align-items:center;flex:1;position:relative;">
+          <!-- Connector 3→4 -->
+          <div class="${connCls(s3done)}" style="height:2px;flex:1;margin-top:13px;"></div>
+          <!-- Step 4 -->
+          <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;">
             ${stepIcon(step4Done, s4cur, '4')}
             ${stepLbl(step4Done, s4cur, 'Start Tournament')}
           </div>
@@ -1720,11 +1727,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
       </div>`
     : `<div style="text-align:center;padding:28px 16px;">
         <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">No ${singlesMode ? 'Players' : 'Teams'} Added Yet</div>
-        <div style="font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Add ${singlesMode ? 'players' : 'teams'} to begin building the tournament bracket.</div>
-        ${tournament.status === 'draft' ? `<button onclick="showAddTeam(${cat.id})" style="display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-size:12px;font-weight:700;cursor:pointer;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          + Add ${entityCap}
-        </button>` : ''}
+        <div style="font-size:12px;font-weight:600;color:#6b7a99;">Add ${singlesMode ? 'players' : 'teams'} to begin building the tournament bracket.</div>
       </div>`;
 
   html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;">
@@ -2007,13 +2010,20 @@ async function showAddTeam(catId) {
   const catName = cat.name;
   const singles = isSingles(catName);
 
-  if (singles) {
-    // Multi-select player picker for singles — same UX as ladder modal
-    const existingTeams = await tApi(`tournament_teams?category_id=eq.${catId}&select=player1_id`);
-    const enrolledIds = existingTeams.map(t => t.player1_id).filter(Boolean);
-    const activePlayers = tAllPlayers.filter(p => p.status !== 'inactive');
+  // Fetch all player IDs already assigned in THIS tournament (all categories) — not other tournaments
+  const tournCats = await tApi(`tournament_categories?tournament_id=eq.${tCurrentTournamentId}&select=id`);
+  const allCatIds = tournCats.map(c => c.id).join(',') || '0';
+  const existingTeams = await tApi(`tournament_teams?category_id=in.(${allCatIds})&select=player1_id,player2_id,player3_id,player4_id`);
+  const assignedIds = new Set();
+  existingTeams.forEach(t => {
+    [t.player1_id, t.player2_id, t.player3_id, t.player4_id].filter(Boolean).forEach(id => assignedIds.add(id));
+  });
 
-    // Build player rows as a string (avoid nested template literal issues)
+  const activePlayers = tAllPlayers.filter(p => p.status !== 'inactive');
+
+  // ── Keep existing singles flow unchanged ──────────────────────────────
+  if (singles) {
+    const enrolledIds = existingTeams.map(t => t.player1_id).filter(Boolean);
     let playerRows = '';
     activePlayers.forEach(p => {
       const alreadyIn = enrolledIds.includes(p.id);
@@ -2026,7 +2036,6 @@ async function showAddTeam(catId) {
         + '<label for="t-pcb-' + p.id + '" style="font-size:13px;font-weight:600;cursor:pointer;flex:1;">' + tEsc(p.first_name) + ' ' + tEsc(p.last_name) + tag + '</label>'
         + '</div>';
     });
-
     document.getElementById('t-modal-title').textContent = 'Add Players';
     document.getElementById('t-modal-body').innerHTML =
       '<div style="margin-bottom:12px;font-size:13px;color:#6b7a99;font-weight:500;">Check players to add. Already enrolled players are greyed out.</div>'
@@ -2050,32 +2059,275 @@ async function showAddTeam(catId) {
     return;
   }
 
-  // Non-singles: original team form
-  const playersPerTeam = catName.toLowerCase().includes('team_challenge') ? 4 : 2;
-  const playerOpts = tAllPlayers.filter(p => p.status !== 'inactive')
-    .map(p => `<option value="${p.id}">${tEsc(p.first_name)} ${tEsc(p.last_name)}</option>`).join('');
-  const playerFields = Array.from({length: playersPerTeam}, (_, i) => `
-    <div class="t-form-group">
-      <label class="t-label">Player ${i + 1}</label>
-      <select class="t-input t-player-select" id="t-player-${i+1}">
-        <option value="">-- Select player --</option>${playerOpts}
-      </select>
-    </div>`).join('');
-  document.getElementById('t-modal-title').textContent = 'Add Team';
+  // ── New Create Team modal ─────────────────────────────────────────────
+  // State stored on window for event handler access
+  window._ctCatId      = catId;
+  window._ctCatName    = catName;
+  window._ctPlayer1    = null; // {id, first_name, last_name, status}
+  window._ctPlayer2    = null;
+  window._ctAssigned   = assignedIds;
+  window._ctPlayers    = activePlayers;
+  window._ctSingles    = singles;
+
+  const getInitials = (p) => ((p.first_name||'')[0]||'').toUpperCase() + ((p.last_name||'')[0]||'').toUpperCase();
+
+  // Build the modal HTML
+  const modalEl = document.querySelector('.t-modal');
+  if (modalEl) modalEl.style.maxWidth = '740px';
+
+  document.getElementById('t-modal-title').textContent = 'Create Team';
   document.getElementById('t-modal-body').innerHTML = `
-    <form id="t-add-team-form" onsubmit="saveTeam(event, ${catId})">
-      <div class="t-form-group">
-        <label class="t-label">Team name *</label>
-        <input class="t-input" type="text" id="t-team-name" required placeholder="e.g. Team Thunder">
+    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.maxWidth='';closeTModal();})()"
+      style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+      onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+      onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <div style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#174CCC;background:#e8f0ff;padding:3px 10px;border-radius:99px;border:0.5px solid #c5d6f5;margin-bottom:14px;">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+      Division: ${tEsc(catName)}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;">
+
+      <!-- LEFT: form fields -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Team Identity -->
+        <div>
+          <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+            <span style="width:3px;height:13px;border-radius:99px;background:#174CCC;display:inline-block;flex-shrink:0;"></span>
+            Team Identity
+          </div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Team Name <span style="color:#e53935;">*</span></div>
+          <input id="ct-team-name" type="text" placeholder="e.g. Thunder Smashers"
+            oninput="ctUpdatePreview()"
+            style="width:100%;padding:9px 12px;border:1px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;color:#0d1f4a;outline:none;"
+            onfocus="this.style.borderColor='#174CCC';this.style.boxShadow='0 0 0 3px rgba(23,76,204,0.08)'"
+            onblur="this.style.borderColor='#e0e7f5';this.style.boxShadow='none'">
+          <div style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:4px;">Visible in brackets, standings, and results.</div>
+        </div>
+
+        <!-- Players -->
+        <div>
+          <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+            <span style="width:3px;height:13px;border-radius:99px;background:#174CCC;display:inline-block;flex-shrink:0;"></span>
+            Players
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <!-- Player 1 -->
+            <div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Player 1 <span style="color:#e53935;">*</span></div>
+              <div id="ct-p1-slot"></div>
+            </div>
+            <!-- Player 2 -->
+            <div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Player 2 <span style="color:#e53935;">*</span></div>
+              <div id="ct-p2-slot"></div>
+            </div>
+          </div>
+          <div id="ct-dup-warning" style="display:none;"></div>
+        </div>
       </div>
-      ${playerFields}
-      <div class="t-form-actions">
-        <button type="button" class="t-btn t-btn-ghost" onclick="closeTModal()">Cancel</button>
-        <button type="submit" class="t-btn t-btn-primary">Add Team</button>
+
+      <!-- RIGHT: Team Preview -->
+      <div style="background:#f8f9ff;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;">
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Team Preview</div>
+        <div style="background:white;border:0.5px solid #e0e7f5;border-radius:10px;padding:14px;box-shadow:0 1px 3px rgba(23,76,204,0.06);">
+          <div id="ct-preview-name" style="font-size:14px;font-weight:800;color:#b0bbd6;margin-bottom:10px;min-height:20px;">Team name...</div>
+          <div id="ct-preview-p1" style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#f0f2f8;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#c5d6f5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div style="font-size:11px;font-weight:500;color:#b0bbd6;">Select Player 1...</div>
+          </div>
+          <div id="ct-preview-p2" style="display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#f0f2f8;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#c5d6f5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div style="font-size:11px;font-weight:500;color:#b0bbd6;">Select Player 2...</div>
+          </div>
+        </div>
       </div>
-    </form>`;
+    </div>
+
+    <!-- Footer -->
+    <div style="display:flex;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:0.5px solid #e0e7f5;">
+      <button onclick="ctSaveTeam()"
+        style="display:inline-flex;align-items:center;gap:7px;padding:11px 28px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        Create Team
+      </button>
+    </div>`;
+
   openTModal();
+  // Render player slots after modal is open
+  ctRenderSlot(1);
+  ctRenderSlot(2);
 }
+
+// ── Create Team helpers ────────────────────────────────────────────────────
+function ctGetInitials(p) {
+  return ((p.first_name||'')[0]||'').toUpperCase() + ((p.last_name||'')[0]||'').toUpperCase();
+}
+
+function ctRenderSlot(num) {
+  const slotEl = document.getElementById(`ct-p${num}-slot`);
+  if (!slotEl) return;
+  const player = num === 1 ? window._ctPlayer1 : window._ctPlayer2;
+
+  if (player) {
+    // Filled state — show player card
+    const initials = ctGetInitials(player);
+    const statusColor = player.status === 'active' ? '#24BC96' : '#F26024';
+    const statusLabel = player.status === 'active' ? 'Active' : player.status;
+    slotEl.innerHTML = `
+      <div style="border:1px solid #c5d6f5;border-radius:10px;padding:12px 14px;background:white;display:flex;align-items:center;gap:10px;position:relative;min-height:72px;">
+        <div style="width:38px;height:38px;border-radius:50%;background:#174CCC;color:white;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${tEsc(initials)}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:3px;">${tEsc(player.first_name)} ${tEsc(player.last_name)}</div>
+          <div style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:${statusColor};">
+            <div style="width:5px;height:5px;border-radius:50%;background:${statusColor};"></div>
+            ${tEsc(statusLabel)}
+          </div>
+        </div>
+        <button onclick="ctClearPlayer(${num})"
+          style="position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;border:none;background:#f0f2f8;color:#6b7a99;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+      </div>`;
+  } else {
+    // Empty state — show search input
+    slotEl.innerHTML = `
+      <div style="border:1.5px dashed #c5d6f5;border-radius:10px;overflow:hidden;background:#fafbff;min-height:72px;">
+        <input id="ct-search-${num}" type="text" placeholder="Search player by name..."
+          autocomplete="off"
+          oninput="ctFilterPlayers(${num})"
+          onfocus="this.closest('div').style.borderColor='#174CCC';this.closest('div').style.background='#f0f4ff';"
+          onblur="setTimeout(()=>{ctHideDropdown(${num})},150);this.closest('div').style.borderColor='#c5d6f5';this.closest('div').style.background='#fafbff';"
+          style="width:100%;padding:10px 12px;border:none;outline:none;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;color:#0d1f4a;background:transparent;">
+        <div id="ct-drop-${num}" style="display:none;background:white;border-top:0.5px solid #e0e7f5;max-height:150px;overflow-y:auto;"></div>
+      </div>`;
+  }
+}
+
+function ctFilterPlayers(num) {
+  const q = (document.getElementById(`ct-search-${num}`)?.value || '').toLowerCase().trim();
+  const drop = document.getElementById(`ct-drop-${num}`);
+  if (!drop) return;
+
+  const otherPlayer = num === 1 ? window._ctPlayer2 : window._ctPlayer1;
+  const results = window._ctPlayers.filter(p => {
+    const name = (p.first_name + ' ' + p.last_name).toLowerCase();
+    return q.length >= 1 && name.includes(q);
+  }).slice(0, 8);
+
+  if (!results.length) { drop.style.display = 'none'; return; }
+
+  drop.innerHTML = results.map(p => {
+    const initials = ctGetInitials(p);
+    const isAssigned = window._ctAssigned.has(p.id);
+    const isSelf = otherPlayer && otherPlayer.id === p.id;
+    const disabled = isAssigned || isSelf;
+    const subtext = isAssigned
+      ? '<div style="font-size:9px;font-weight:700;color:#F26024;">Already assigned in this tournament</div>'
+      : isSelf
+      ? '<div style="font-size:9px;font-weight:700;color:#F26024;">Already selected above</div>'
+      : `<div style="font-size:9px;font-weight:700;color:#24BC96;">${p.status === 'active' ? 'Active' : p.status}</div>`;
+    const opacity = disabled ? 'opacity:0.5;cursor:not-allowed;' : 'cursor:pointer;';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:0.5px solid #f4f5f8;${opacity}"
+      ${!disabled ? `onmousedown="ctSelectPlayer(${num}, ${p.id})"` : ''}>
+      <div style="width:26px;height:26px;border-radius:50%;background:${disabled ? '#f0f2f8' : '#e8f0ff'};color:${disabled ? '#b0bbd6' : '#174CCC'};font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${tEsc(initials)}</div>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:${disabled ? '#b0bbd6' : '#0d1f4a'};">${tEsc(p.first_name)} ${tEsc(p.last_name)}</div>
+        ${subtext}
+      </div>
+    </div>`;
+  }).join('');
+  drop.style.display = 'block';
+}
+
+function ctHideDropdown(num) {
+  const drop = document.getElementById(`ct-drop-${num}`);
+  if (drop) drop.style.display = 'none';
+}
+
+function ctSelectPlayer(num, playerId) {
+  const player = window._ctPlayers.find(p => p.id === playerId);
+  if (!player) return;
+  if (num === 1) window._ctPlayer1 = player;
+  else window._ctPlayer2 = player;
+  ctRenderSlot(num);
+  ctUpdatePreview();
+}
+
+function ctClearPlayer(num) {
+  if (num === 1) window._ctPlayer1 = null;
+  else window._ctPlayer2 = null;
+  ctRenderSlot(num);
+  ctUpdatePreview();
+}
+
+function ctUpdatePreview() {
+  const nameEl = document.getElementById('ct-preview-name');
+  const p1El   = document.getElementById('ct-preview-p1');
+  const p2El   = document.getElementById('ct-preview-p2');
+  const nameVal = document.getElementById('ct-team-name')?.value?.trim() || '';
+  const p1 = window._ctPlayer1;
+  const p2 = window._ctPlayer2;
+
+  if (nameEl) {
+    if (nameVal) { nameEl.textContent = nameVal; nameEl.style.color = '#0d1f4a'; }
+    else { nameEl.textContent = 'Team name...'; nameEl.style.color = '#b0bbd6'; }
+  }
+
+  const renderPreviewPlayer = (el, player, label) => {
+    if (!el) return;
+    if (player) {
+      const initials = ctGetInitials(player);
+      el.innerHTML = `
+        <div style="width:28px;height:28px;border-radius:50%;background:#174CCC;color:white;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${tEsc(initials)}</div>
+        <div style="font-size:12px;font-weight:700;color:#0d1f4a;">${tEsc(player.first_name)} ${tEsc(player.last_name)}</div>`;
+    } else {
+      el.innerHTML = `
+        <div style="width:28px;height:28px;border-radius:50%;background:#f0f2f8;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#c5d6f5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div style="font-size:11px;font-weight:500;color:#b0bbd6;">${label}</div>`;
+    }
+  };
+  renderPreviewPlayer(p1El, p1, 'Select Player 1...');
+  renderPreviewPlayer(p2El, p2, 'Select Player 2...');
+}
+
+async function ctSaveTeam() {
+  const catId  = window._ctCatId;
+  const name   = document.getElementById('ct-team-name')?.value?.trim();
+  const p1     = window._ctPlayer1;
+  const p2     = window._ctPlayer2;
+  if (!name) { tToast('Please enter a team name.', true); return; }
+  if (!p1)   { tToast('Please select Player 1.', true); return; }
+  if (!p2)   { tToast('Please select Player 2.', true); return; }
+  if (p1.id === p2.id) { tToast('Player 1 and Player 2 must be different people.', true); return; }
+  try {
+    await tApi('tournament_teams', 'POST', {
+      category_id: catId, name,
+      player1_id: p1.id,
+      player2_id: p2.id,
+      player3_id: null,
+      player4_id: null,
+    });
+    // Reset modal size
+    const modalEl = document.querySelector('.t-modal');
+    if (modalEl) modalEl.style.maxWidth = '';
+    tToast(`Team "${name}" created!`);
+    closeTModal();
+    tCurrentCategoryId = catId;
+    const [t] = await tApi(`tournaments?id=eq.${tCurrentTournamentId}&select=*`);
+    const categories = await tApi(`tournament_categories?tournament_id=eq.${tCurrentTournamentId}&select=*&order=id`);
+    renderTournamentDetail(t, categories);
+  } catch(err) { tToast(`Error: ${err.message}`, true); }
+}
+
 
 async function saveTeam(e, catId) {
   e.preventDefault();
