@@ -611,41 +611,43 @@ async function renderTournamentList() {
       </div>
       <!-- Body -->
       <div class="t-op-body">
-        <!-- LEFT -->
+        <!-- LEFT — matches proposal: name, pill+date, meta, cat pills, stats -->
         <div class="t-op-left">
           <div class="t-op-name">${tEsc(t.name)}</div>
           <div class="t-op-status-row">
             <span class="${pillClass(t.status)}">${pillLabel(t.status)}</span>
             ${t.date ? `<span class="t-op-date-badge">${calSVG} ${fmtDate(t.date)}</span>` : ''}
           </div>
+          <div class="t-op-meta">${trophySVG} ${catCount} Categor${catCount !== 1 ? 'ies' : 'y'}</div>
           <div class="t-op-cat-pills">${catPillsHTML}</div>
           <div class="t-op-stats-row">
             <div><div class="t-op-stat-val">${tTeamCount}</div><div class="t-op-stat-lbl">Teams</div></div>
             <div><div class="t-op-stat-val">${catCount}</div><div class="t-op-stat-lbl">Categories</div></div>
+            <div><div class="t-op-stat-val">—</div><div class="t-op-stat-lbl">Rounds</div></div>
           </div>
         </div>
-        <!-- CENTER: Tournament Intelligence with real data -->
+        <!-- CENTER — Tournament Intelligence matching proposal exactly -->
         <div class="t-op-center">
           <div class="t-op-intel-title">Tournament Intelligence</div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:#fde8d8;">${boltSVG}</div>
             <div>
-              <div class="t-op-intel-text">${tTeamCount} team${tTeamCount !== 1 ? 's' : ''} registered</div>
-              <div class="t-op-intel-sub">${tTeamCount > 0 ? 'Across all categories' : 'No teams added yet'}</div>
+              <div class="t-op-intel-text">${t.status === 'active' ? 'Tournament in progress' : t.status === 'draft' ? 'Setup in progress' : 'Tournament completed'}</div>
+              <div class="t-op-intel-sub">${t.status === 'draft' ? 'Not yet published to players' : t.status === 'active' ? 'Open Tournament to record scores' : 'All rounds finished'}</div>
             </div>
           </div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:rgba(198,242,33,0.2);">${crwnSVG}</div>
             <div>
-              <div class="t-op-intel-text">${catCount} categor${catCount !== 1 ? 'ies' : 'y'}</div>
-              <div class="t-op-intel-sub">${catCount > 0 ? tCatNames : 'No categories yet'}</div>
+              <div class="t-op-intel-text">${tTeamCount > 0 ? tTeamCount + ' team' + (tTeamCount !== 1 ? 's' : '') + ' registered' : 'No teams registered yet'}</div>
+              <div class="t-op-intel-sub">${catCount > 0 ? catCount + ' categor' + (catCount !== 1 ? 'ies' : 'y') + ' · ' + (tTeamCount > 0 ? 'All confirmed' : 'Add teams to start') : 'Add categories first'}</div>
             </div>
           </div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:#d4f5ed;">${trendSVG}</div>
             <div>
-              <div class="t-op-intel-text">${t.status === 'draft' ? 'Draft — not published' : t.status === 'active' ? 'Active — visible to players' : 'Completed'}</div>
-              <div class="t-op-intel-sub">${t.status === 'draft' ? 'Players cannot see this yet' : t.status === 'active' ? 'Share link available' : 'Season finished'}</div>
+              <div class="t-op-intel-text">${tCats.length > 0 ? tEsc(tCats[0].name) : 'No categories set'}</div>
+              <div class="t-op-intel-sub">${tCats.length > 1 ? '+' + (tCats.length - 1) + ' more categor' + (tCats.length - 1 !== 1 ? 'ies' : 'y') : tCats.length === 1 ? 'Only category' : 'Add categories to organize brackets'}</div>
             </div>
           </div>
         </div>
@@ -737,11 +739,11 @@ async function renderTournamentList() {
           <div class="t-new-divider" style="margin:10px 0;"></div>
           <!-- Categories -->
           <div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
               <div class="t-new-field-lbl" style="margin:0;">Tournament Categories</div>
               <span class="t-cat-count-badge" id="t-cat-count">0 Added</span>
             </div>
-            <div id="t-categories-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+            <div id="t-categories-list" style="display:flex;flex-direction:column;gap:7px;margin-bottom:8px;"></div>
             <!-- Integrated add input -->
             <div class="t-cat-add-wrap">
               <input class="t-cat-add-input" type="text" id="t-cat-input" placeholder="Type a category name and press Add...">
@@ -920,6 +922,12 @@ async function tEditTournament(id) {
 
   document.getElementById('t-modal-title').textContent = 'Tournament Settings';
   document.getElementById('t-modal-body').innerHTML = `
+    <button onclick="closeTModal()"
+      style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+      onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+      onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Update tournament information and categories.</div>
     ${isActive ? `<div style="padding:8px 12px;background:#fde8d8;border-radius:7px;font-size:12px;font-weight:600;color:#c04a0e;margin-bottom:14px;">⚠️ Tournament is active — categories are locked to protect team data. You can still update the name and date.</div>` : ''}
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:10px;">
@@ -949,8 +957,7 @@ async function tEditTournament(id) {
         </div>`}
     </div>
     <div class="t-new-divider" style="margin:10px 0;"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">Cancel</button>
+    <div style="display:flex;justify-content:flex-end;">
       <button type="button" class="t-new-submit-btn" style="padding:8px 20px;" onclick="tSaveEditTournament()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Apply Updates
@@ -1090,15 +1097,20 @@ function tEditCategory(idx) {
   const current = _tCategories[idx];
   document.getElementById('t-modal-title').textContent = 'Edit Category';
   document.getElementById('t-modal-body').innerHTML = `
+    <button onclick="closeTModal()"
+      style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+      onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+      onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <div style="padding:8px 0 16px;">
       <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Category Name</div>
       <input id="t-edit-cat-input" class="t-new-input" type="text" value="${tEsc(current)}" placeholder="e.g. Mixed Doubles 3.5" style="width:100%;">
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">Cancel</button>
+    <div style="display:flex;justify-content:flex-end;">
       <button type="button" class="t-new-submit-btn" style="padding:8px 20px;" onclick="tSaveEditCategory(${idx})">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Apply
+        Apply Changes
       </button>
     </div>`;
   openTModal();
