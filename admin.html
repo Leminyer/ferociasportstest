@@ -429,6 +429,50 @@
   .share-card-btn.preview{background:#f0f2f8;color:#0d1f4a;border-color:#e0e7f5;}
   .share-tab.active{color:#174CCC !important;border-bottom-color:#C6F221 !important;}
 
+  /* Ladder Operations page */
+  .lop-create-label{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;}
+  .lop-create-input{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;padding:8px 11px;border:1px solid #e0e7f5;border-radius:8px;color:#0d1f4a;background:white;outline:none;width:100%;transition:border-color .15s,box-shadow .15s;}
+  .lop-create-input:focus{border-color:#174CCC;box-shadow:0 0 0 3px rgba(23,76,204,0.08);}
+  .lop-create-input::placeholder{color:#b0bbd6;font-weight:500;}
+  .lop-filter-sel{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;padding:7px 28px 7px 12px;border:0.5px solid #e0e7f5;border-radius:99px;color:#0d1f4a;background:white;outline:none;appearance:none;cursor:pointer;}
+  .lop-card{background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(23,76,204,0.07);margin-bottom:14px;transition:box-shadow .15s;}
+  .lop-card:hover{box-shadow:0 6px 20px rgba(23,76,204,0.11);}
+  .lop-tabs{display:flex;background:white;border-bottom:1.5px solid #e0e7f5;padding:0 20px;}
+  .lop-tab{display:flex;align-items:center;gap:5px;padding:11px 16px;font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#6b7a99;cursor:pointer;border:none;background:transparent;font-family:'Montserrat',sans-serif;border-bottom:2px solid transparent;margin-bottom:-1.5px;white-space:nowrap;transition:all .15s;}
+  .lop-tab.active{color:#174CCC;border-bottom-color:#174CCC;background:linear-gradient(180deg,#f4f7ff 0%,white 100%);}
+  .lop-tab:hover:not(.active){color:#174CCC;background:#f8f9ff;}
+  .lop-body{display:grid;grid-template-columns:1fr 1fr auto;}
+  .lop-left{padding:16px 20px;border-right:0.5px solid #f0f2f8;}
+  .lop-center{padding:16px 20px;border-right:0.5px solid #f0f2f8;display:flex;flex-direction:column;gap:7px;}
+  .lop-right{padding:16px 16px;display:flex;flex-direction:column;gap:6px;min-width:155px;}
+  .lop-name{font-size:15px;font-weight:800;color:#0d1f4a;margin-bottom:6px;line-height:1.3;}
+  .lop-status-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .lop-active-pill{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 9px;border-radius:99px;background:#d4f5ed;color:#085041;}
+  .lop-closed-pill{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 9px;border-radius:99px;background:#f4f5f8;color:#6b7a99;}
+  .lop-next{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#174CCC;background:#e8f0ff;padding:3px 9px;border-radius:99px;}
+  .lop-dates{font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:5px;margin-bottom:10px;}
+  .lop-stats-row{display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+  .lop-stat-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:#0d1f4a;line-height:1;}
+  .lop-stat-lbl{font-size:9px;font-weight:700;color:#6b7a99;text-transform:uppercase;letter-spacing:.5px;}
+  .lop-progress-lbl{display:flex;justify-content:space-between;margin-bottom:4px;}
+  .lop-progress-lbl span{font-size:10px;font-weight:700;color:#6b7a99;}
+  .lop-progress-lbl .wk{color:#174CCC;}
+  .lop-bar{height:5px;background:#e8f0ff;border-radius:99px;overflow:hidden;}
+  .lop-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#174CCC,#24BC96);}
+  .lop-intel-title{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:3px;}
+  .lop-intel-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8f9ff;border-radius:7px;border:0.5px solid #f0f2f8;}
+  .lop-intel-icon{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .lop-intel-text{font-size:11px;font-weight:700;color:#0d1f4a;}
+  .lop-intel-sub{font-size:10px;font-weight:600;color:#6b7a99;}
+  .lop-action-title{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:2px;}
+  .lop-btn{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;border:0.5px solid #e0e7f5;background:white;color:#174CCC;width:100%;transition:all .15s;}
+  .lop-btn:hover:not(:disabled){background:#e8f0ff;border-color:#c5d6f5;}
+  .lop-btn.warn{color:#F26024;border-color:rgba(242,96,36,0.2);}
+  .lop-btn.warn:hover:not(:disabled){background:#fff3e8;}
+  .lop-btn.danger{color:#e53935;border-color:rgba(229,57,53,0.2);}
+  .lop-btn.danger:hover:not(:disabled){background:#fde8d8;}
+  .lop-btn:disabled{opacity:0.35;cursor:not-allowed;}
+
   /* Launch Campaign modal */
   .promo-comp-label{font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:5px;}
   .promo-type-pill{font-size:10px;font-weight:700;padding:5px 14px;border-radius:99px;cursor:pointer;border:0.5px solid #e0e7f5;background:white;color:#6b7a99;font-family:'Montserrat',sans-serif;transition:all .15s;}
@@ -1133,21 +1177,94 @@
 
   <!-- LADDERS -->
   <div id="page-ladders" class="page">
-    <div class="card">
-      <div class="card-title">Create New Ladder</div>
-      <form id="create-ladder-form">
-        <div class="form-group"><label>Ladder name</label><input type="text" id="new-ladder-name" required placeholder="e.g. Spring Ladder 2026"></div>
-        <div class="form-row">
-          <div class="form-group"><label>Start date</label><input type="date" id="new-ladder-start"></div>
-          <div class="form-group"><label>End date</label><input type="date" id="new-ladder-end"></div>
+
+    <!-- Page title -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:4px;">Ladder Operations Center</div>
+    <div style="font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:20px;">Create, manage, and monitor active competitive ladder seasons.</div>
+
+    <!-- Stat cards -->
+    <div class="stats-grid" id="ladder-op-stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
+      <div class="stat stat-green" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Active Ladders</div>
+        <div class="stat-value" id="lop-active">—</div>
+        <div class="stat-ctx ctx-green" style="margin-top:auto;display:flex;align-items:center;gap:4px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Currently running
         </div>
-        <button type="submit" class="btn btn-primary">Create ladder</button>
+      </div>
+      <div class="stat stat-blue" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Closed Ladders</div>
+        <div class="stat-value" id="lop-closed">—</div>
+        <div class="stat-ctx ctx-blue" style="margin-top:auto;display:flex;align-items:center;gap:4px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Completed seasons
+        </div>
+      </div>
+      <div class="stat stat-orange" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Total Players</div>
+        <div class="stat-value" id="lop-players">—</div>
+        <div class="stat-ctx ctx-orange" style="margin-top:auto;display:flex;align-items:center;gap:4px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Across active ladders
+        </div>
+      </div>
+      <div class="stat stat-lime" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Pending Scores</div>
+        <div class="stat-value" id="lop-pending">—</div>
+        <div class="stat-ctx" style="margin-top:auto;display:flex;align-items:center;gap:4px;color:#c04a0e;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#c04a0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Awaiting results
+        </div>
+      </div>
+    </div>
+
+    <!-- Compact create form -->
+    <div class="card" style="padding:16px 20px;margin-bottom:20px;">
+      <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        <span style="width:6px;height:6px;border-radius:50%;background:#174CCC;display:inline-block;"></span>
+        New Ladder
+      </div>
+      <form id="create-ladder-form">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end;">
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="lop-create-label">Ladder Name</div>
+            <input type="text" id="new-ladder-name" required placeholder="e.g. Doubles Saturday 3.5 – Summer 2026" class="lop-create-input">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="lop-create-label">Start Date</div>
+            <input type="date" id="new-ladder-start" class="lop-create-input">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="lop-create-label">End Date</div>
+            <input type="date" id="new-ladder-end" class="lop-create-input">
+          </div>
+          <button type="submit" class="ap-submit-btn" style="padding:8px 18px;font-size:11px;white-space:nowrap;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+            Launch Ladder
+          </button>
+        </div>
       </form>
     </div>
-    <div class="card">
-      <div class="card-title">All Ladders</div>
-      <div id="ladders-list"><div class="loading">Loading ladders...</div></div>
+
+    <!-- Section header + filter -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;display:flex;align-items:center;gap:8px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0d1f4a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.56 13.9l-1.56 6.1 5-3 5 3-1.56-6.1"/></svg>
+        Ladders
+      </div>
+      <div style="position:relative;">
+        <select id="ladder-status-filter" class="lop-filter-sel">
+          <option value="all">All Ladders</option>
+          <option value="active">Active Only</option>
+          <option value="closed">Closed Only</option>
+        </select>
+        <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;" width="10" height="6" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="#6b7a99"/></svg>
+      </div>
     </div>
+
+    <!-- Ladders list -->
+    <div id="ladders-list"><div class="loading">Loading ladders...</div></div>
+
   </div>
 
   <!-- ADD PLAYER -->

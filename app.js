@@ -534,40 +534,254 @@
 
   /* ─── LADDER MANAGEMENT PAGE ───────────────────────────── */
 
+  // ── Ladder ops page state ─────────────────────────────────────────────
+  let _lopFilter = 'all';
+
+  const _renderLadderCards = async () => {
+    const el = document.getElementById('ladders-list');
+    if (!el) return;
+
+    let filtered = allLadders.filter(l => {
+      if (_lopFilter === 'active') return l.status === 'active';
+      if (_lopFilter === 'closed') return l.status !== 'active';
+      return true;
+    });
+
+    if (!filtered.length) {
+      el.innerHTML = `<div class="empty" style="padding:20px;text-align:center;background:white;border-radius:10px;">No ladders found.</div>`;
+      return;
+    }
+
+    // Fetch matches + ladder_players for intelligence
+    let matchStats = {}, ladderPlayers = [], pendingAll = [];
+    try {
+      const [matches, lp, pending] = await Promise.all([
+        api('matches?select=ladder_id,player_id,score_for,session_date,points_earned&order=session_date.desc').catch(() => []),
+        api('ladder_players?select=ladder_id,player_id').catch(() => []),
+        api('matches?score_for=is.null&default_no_show=is.false&select=ladder_id').catch(() => []),
+      ]);
+      // Per-ladder stats
+      matches.forEach(m => {
+        if (!matchStats[m.ladder_id]) matchStats[m.ladder_id] = { games: 0, sessions: new Set(), pts: {}, playerNames: {} };
+        const s = matchStats[m.ladder_id];
+        s.games++;
+        if (m.session_date) s.sessions.add(m.session_date);
+        if (m.score_for !== null && m.points_earned) {
+          s.pts[m.player_id] = (s.pts[m.player_id] || 0) + m.points_earned;
+        }
+      });
+      ladderPlayers = lp;
+      pendingAll = pending;
+    } catch(_) {}
+
+    // Compute player counts per ladder
+    const playersByLadder = {};
+    ladderPlayers.forEach(lp => {
+      playersByLadder[lp.ladder_id] = (playersByLadder[lp.ladder_id] || new Set()).add(lp.player_id);
+    });
+
+    // Compute pending per ladder
+    const pendingByLadder = {};
+    pendingAll.forEach(m => {
+      pendingByLadder[m.ladder_id] = (pendingByLadder[m.ladder_id] || 0) + 1;
+    });
+
+    // Week progress helper
+    const weekProgress = (l) => {
+      if (!l.start_date || !l.end_date) return null;
+      const start = new Date(l.start_date + 'T00:00:00');
+      const end   = new Date(l.end_date   + 'T00:00:00');
+      const now   = new Date();
+      const total = Math.round((end - start) / 604800000);
+      const done  = Math.max(0, Math.round((now - start) / 604800000));
+      const pct   = Math.min(100, Math.round((done / (total || 1)) * 100));
+      return { done: Math.min(done, total), total: total || 1, pct };
+    };
+
+    // Next session day helper (based on end_date weekday as proxy)
+    const nextSessionStr = (l) => {
+      if (!l.start_date) return null;
+      const d = new Date(l.start_date + 'T00:00:00');
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      return `Next: ${days[d.getDay()]} session`;
+    };
+
+    // SVG icons
+    const calSVG  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const clkSVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+    const plrsSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+    const editSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    const closSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>`;
+    const reopSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+    const trshSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+    const boltSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+    const crwnSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a5e00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
+    const trendSVG= `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
+    const ovSVG   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    const plrSVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;
+    const sessSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const stndSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.56 13.9l-1.56 6.1 5-3 5 3-1.56-6.1"/></svg>`;
+
+    el.innerHTML = filtered.map(l => {
+      const isActive  = l.status === 'active';
+      const isClosed  = !isActive;
+      const stats     = matchStats[l.id] || { games: 0, sessions: new Set(), pts: {} };
+      const players   = playersByLadder[l.id] ? playersByLadder[l.id].size : 0;
+      const sessions  = stats.sessions.size;
+      const games     = stats.games;
+      const prog      = weekProgress(l);
+      const dateStr   = [
+        l.start_date ? fmtDate(l.start_date) : null,
+        l.end_date   ? fmtDate(l.end_date)   : null,
+      ].filter(Boolean).join(' → ');
+
+      // Top scorer
+      const topPid = Object.keys(stats.pts).sort((a,b) => stats.pts[b] - stats.pts[a])[0];
+      const topPts = topPid ? stats.pts[topPid] : 0;
+
+      // Recent sessions (last 30 days)
+      const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
+      const recentSessions = [...stats.sessions].filter(d => new Date(d) >= monthAgo).length;
+
+      // Disabled attr for closed ladders
+      const dis = isClosed ? 'disabled' : '';
+
+      return `<div class="lop-card" id="lop-card-${l.id}">
+        <!-- Tabs at top -->
+        <div class="lop-tabs">
+          <button class="lop-tab active" onclick="lopTab(event,'${l.id}','overview')">${ovSVG} Overview</button>
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','players')">${plrSVG} Players</button>
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','sessions')">${sessSVG} Sessions</button>
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','standings')">${stndSVG} Standings</button>
+        </div>
+        <!-- Card body -->
+        <div class="lop-body">
+          <!-- LEFT -->
+          <div class="lop-left">
+            <div class="lop-name">${esc(l.name)}</div>
+            <div class="lop-status-row">
+              <span class="${isActive ? 'lop-active-pill' : 'lop-closed-pill'}">${isActive ? 'Season Active' : 'Closed'}</span>
+              ${isActive && l.start_date ? `<span class="lop-next">${clkSVG} ${nextSessionStr(l) || 'Active'}</span>` : ''}
+            </div>
+            ${dateStr ? `<div class="lop-dates">${calSVG} ${esc(dateStr)}</div>` : ''}
+            <div class="lop-stats-row">
+              <div><div class="lop-stat-val">${players}</div><div class="lop-stat-lbl">Players</div></div>
+              <div><div class="lop-stat-val">${games}</div><div class="lop-stat-lbl">Games</div></div>
+              <div><div class="lop-stat-val">${sessions}</div><div class="lop-stat-lbl">Sessions</div></div>
+            </div>
+            ${prog ? `<div>
+              <div class="lop-progress-lbl"><span>Season Progress</span><span class="wk">Week ${prog.done} of ${prog.total}</span></div>
+              <div class="lop-bar"><div class="lop-fill" style="width:${prog.pct}%;"></div></div>
+            </div>` : ''}
+          </div>
+          <!-- CENTER: Intelligence -->
+          <div class="lop-center">
+            <div class="lop-intel-title">Competitive Intelligence</div>
+            <div class="lop-intel-item">
+              <div class="lop-intel-icon" style="background:#fde8d8;">${boltSVG}</div>
+              <div>
+                <div class="lop-intel-text">${recentSessions} session${recentSessions !== 1 ? 's' : ''} this month</div>
+                <div class="lop-intel-sub">${recentSessions > 0 ? 'Ladder is active' : 'No recent activity'}</div>
+              </div>
+            </div>
+            <div class="lop-intel-item">
+              <div class="lop-intel-icon" style="background:rgba(198,242,33,0.2);">${crwnSVG}</div>
+              <div>
+                <div class="lop-intel-text">${topPts > 0 ? `+${topPts} pts leading` : 'No scores yet'}</div>
+                <div class="lop-intel-sub">${topPts > 0 ? 'Season leader' : 'Record first session'}</div>
+              </div>
+            </div>
+            <div class="lop-intel-item">
+              <div class="lop-intel-icon" style="background:#d4f5ed;">${trendSVG}</div>
+              <div>
+                <div class="lop-intel-text">${players} player${players !== 1 ? 's' : ''} enrolled</div>
+                <div class="lop-intel-sub">${games} total games played</div>
+              </div>
+            </div>
+          </div>
+          <!-- RIGHT: Actions — disabled when closed -->
+          <div class="lop-right">
+            <div class="lop-action-title">Actions</div>
+            <button class="lop-btn" data-action="openLadderPlayers" data-lid="${l.id}" data-lname="${esc(l.name)}" ${dis}>${plrsSVG} Manage Players</button>
+            <button class="lop-btn" data-action="openEditLadder" data-lid="${l.id}" ${dis}>${editSVG} Edit Ladder</button>
+            <button class="lop-btn warn" data-action="toggleLadderStatus" data-lid="${l.id}" data-lstatus="${esc(l.status)}" ${dis}>${isActive ? closSVG + ' Close Ladder' : reopSVG + ' Reopen Ladder'}</button>
+            <button class="lop-btn danger" data-action="deleteLadder" data-lid="${l.id}" data-lname="${esc(l.name)}">${trshSVG} Delete</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  };
+
+  // Quick access tab handler
+  window.lopTab = (e, ladderId, tab) => {
+    // Update tab styles for this card
+    const card = document.getElementById(`lop-card-${ladderId}`);
+    if (!card) return;
+    card.querySelectorAll('.lop-tab').forEach(t => t.classList.remove('active'));
+    e.currentTarget.classList.add('active');
+
+    if (tab === 'overview') return; // already showing
+
+    // Navigate to the right page with this ladder pre-selected
+    const ladder = allLadders.find(l => String(l.id) === String(ladderId));
+    if (!ladder) return;
+    currentLadder = ladder;
+    const sel = document.getElementById('ladder-selector');
+    if (sel) sel.value = ladderId;
+    updateLadderBanner();
+
+    if (tab === 'players') {
+      showPage('ladder', document.getElementById('sb-standings'));
+      // Switch to players tab inside ladder page
+      const plrTab = document.querySelector('[data-action="switchLadderTab"][data-tab="players"]');
+      if (plrTab) plrTab.click();
+    } else if (tab === 'sessions') {
+      showPage('sessions', document.getElementById('sb-standings'));
+    } else if (tab === 'standings') {
+      showPage('ladder', document.getElementById('sb-standings'));
+    }
+  };
+
   const loadLaddersPage = async () => {
     try {
-      allLadders = await api('ladders?select=*&order=id.desc');
+      const [ladders, ladderPlayers, pending] = await Promise.all([
+        api('ladders?select=*&order=id.desc'),
+        api('ladder_players?select=ladder_id,player_id').catch(() => []),
+        api('matches?score_for=is.null&default_no_show=is.false&select=ladder_id').catch(() => []),
+      ]);
+      allLadders = ladders;
+
+      // Stat cards
+      const active  = ladders.filter(l => l.status === 'active').length;
+      const closed  = ladders.filter(l => l.status !== 'active').length;
+      // Unique players in active ladders
+      const activeLadderIds = new Set(ladders.filter(l => l.status === 'active').map(l => l.id));
+      const activePlayers   = new Set(ladderPlayers.filter(lp => activeLadderIds.has(lp.ladder_id)).map(lp => lp.player_id)).size;
+      const pendingCount    = pending.length;
+
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setEl('lop-active',  active);
+      setEl('lop-closed',  closed);
+      setEl('lop-players', activePlayers);
+      setEl('lop-pending', pendingCount || '—');
+
     } catch (e) {
       document.getElementById('ladders-list').innerHTML =
         `<div class="empty">Error: ${esc(e.message)}</div>`;
       return;
     }
-    const el = document.getElementById('ladders-list');
-    if (!allLadders.length) {
-      el.innerHTML = '<div class="empty">No ladders yet. Create your first one!</div>';
-      return;
+
+    // Wire filter dropdown
+    const filterSel = document.getElementById('ladder-status-filter');
+    if (filterSel && !filterSel._wired) {
+      filterSel._wired = true;
+      filterSel.addEventListener('change', () => {
+        _lopFilter = filterSel.value;
+        _renderLadderCards();
+      });
     }
-    el.innerHTML = allLadders
-      .map((l) => {
-        const dates =
-          (l.start_date ? `Started: ${fmtDate(l.start_date)}` : 'No start date') +
-          (l.end_date ? ` · Ends: ${fmtDate(l.end_date)}` : '');
-        return `
-          <div class="list-row" style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;">
-            <div style="flex:1;min-width:0;">
-              <div class="text-bold text-14">${esc(l.name)}</div>
-              <div class="text-muted-12 mt-4">${dates}</div>
-            </div>
-            <div class="row-wrap" style="flex-shrink:0;justify-content:flex-end;">
-              <span class="badge badge-${l.status === 'active' ? 'active' : 'inactive'}">${esc(l.status)}</span>
-              <button class="btn btn-outline btn-sm" data-action="openLadderPlayers" data-lid="${l.id}" data-lname="${esc(l.name)}">Players</button>
-              <button class="btn btn-outline btn-sm" data-action="openEditLadder" data-lid="${l.id}">Edit</button>
-              <button class="btn btn-outline btn-sm" data-action="toggleLadderStatus" data-lid="${l.id}" data-lstatus="${esc(l.status)}">${l.status === 'active' ? 'Close' : 'Reopen'}</button>
-              <button class="btn btn-danger btn-sm" data-action="deleteLadder" data-lid="${l.id}" data-lname="${esc(l.name)}">Delete</button>
-            </div>
-          </div>`;
-      })
-      .join('');
+
+    await _renderLadderCards();
   };
 
   const createLadder = async (e) => {
@@ -584,7 +798,7 @@
       toast(`Ladder "${name}" created!`);
       document.getElementById('create-ladder-form').reset();
       await loadLadderSelector();
-      loadLaddersPage();
+      await loadLaddersPage();
     } catch (err) {
       toast(`Error: ${err.message}`, true);
     }
