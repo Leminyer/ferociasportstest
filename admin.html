@@ -735,24 +735,6 @@
   .modal-title{font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:20px;}
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
 
-  /* ── HOME TILES ──────────────────────────────────────── */
-  .tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:500px;margin:0 auto;}
-  .tile{
-    border-radius:var(--radius);padding:32px 24px;cursor:pointer;
-    transition:opacity .15s,transform .15s;
-  }
-  .tile:hover{opacity:.9;transform:translateY(-2px);}
-  .tile:active{transform:scale(.98);}
-  .tile-icon{font-size:36px;margin-bottom:14px;}
-  .tile-title{font-size:13px;font-weight:800;color:white;letter-spacing:1px;text-transform:uppercase;}
-  .tile-sub{font-size:11px;margin-top:5px;font-weight:500;}
-  .tile-blue{background:var(--blue);}
-  .tile-blue .tile-sub{color:var(--blue-light);}
-  .tile-teal{background:var(--teal);}
-  .tile-teal .tile-sub{color:var(--teal-light);}
-  .tile-orange{background:var(--orange);}
-  .tile-orange .tile-sub{color:rgba(255,255,255,0.6);}
-
   /* ── TOAST ───────────────────────────────────────────── */
   .toast{
     position:fixed;bottom:24px;right:24px;
@@ -788,8 +770,6 @@
     .header-logo{height:24px;}
     .header-tagline{display:none;}
     .header-divider{display:none;}
-    .tile-grid{grid-template-columns:1fr 1fr;gap:10px;}
-    .tile{padding:24px 16px;}
 
   }
 
@@ -969,25 +949,6 @@
 <div id="ladder-banner" style="display:none;background:var(--blue-pale);border-bottom:0.5px solid var(--border);padding:10px 24px;font-size:12px;font-weight:700;color:var(--blue);"></div>
 
 <main>
-
-  <!-- PROGRAMS LANDING -->
-  <div id="page-programs-home" class="page">
-    <div style="text-align:center;padding:48px 24px 32px;">
-      <div style="font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--text-muted);margin-bottom:32px;">Programs</div>
-      <div class="tile-grid">
-        <div class="tile tile-blue" data-action="switchProgramTab" data-tab="ladder">
-          <div class="tile-icon">🏅</div>
-          <div class="tile-title">Ladder</div>
-          <div class="tile-sub">Standings & Sessions</div>
-        </div>
-        <div class="tile tile-orange" data-action="switchProgramTab" data-tab="tournament">
-          <div class="tile-icon">🏆</div>
-          <div class="tile-title">Tournaments</div>
-          <div class="tile-sub">Brackets & Results</div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- HOME -->
   <div id="page-home" class="page active">

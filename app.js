@@ -300,18 +300,6 @@
     loadDashboard();
   };
 
-  const switchMainTab = (tab) => {
-    // Legacy shim — kept so any old tile clicks still work
-    if (tab === 'programs') sbShowLadder();
-    else if (tab === 'management') showPage('players', document.getElementById('sb-players'));
-  };
-
-  const switchProgramTab = (tab) => {
-    // Legacy shim — kept so old tile clicks still work
-    if (tab === 'ladder') sbShowLadder();
-    else sbShowTournament();
-  };
-
   const sbShowLadder = () => {
     sbCloseMore();
     if (currentLadder) {
@@ -393,41 +381,6 @@
     }
   };
 
-  const renderTournamentViewReadOnly = async () => {
-    const el = document.getElementById('tournament-view-content');
-    if (!currentTournamentId) {
-      el.innerHTML = '<div class="empty">Select a tournament to view details.</div>';
-      return;
-    }
-    el.innerHTML = '<div class="loading">Loading tournament...</div>';
-    try {
-      const [tArr, categories] = await Promise.all([
-        api(`tournaments?id=eq.${currentTournamentId}&select=*`),
-        api(`tournament_categories?tournament_id=eq.${currentTournamentId}&select=*&order=id`),
-      ]);
-      const t = tArr[0];
-      if (!t) {
-        el.innerHTML = '<div class="empty">Tournament not found.</div>';
-        return;
-      }
-      const dateStr = t.date
-        ? fmtDate(t.date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
-        : 'No date set';
-      el.innerHTML = `
-        <div class="card">
-          <div class="text-bolder" style="font-size:18px;">${esc(t.name)}</div>
-          <div class="text-muted-sm mt-4">${dateStr}</div>
-          <div class="text-muted-13 mt-12">
-            ${categories.length} categor${categories.length !== 1 ? 'ies' : 'y'}: ${categories.map((c) => esc(c.name)).join(' · ')}
-          </div>
-          <div class="bg-pale color-blue mt-16 text-bold" style="padding:14px;border-radius:var(--radius-sm);font-size:13px;">
-            To manage this tournament go to <strong>Management → Tournaments</strong>
-          </div>
-        </div>`;
-    } catch (e) {
-      el.innerHTML = `<div class="empty">Error: ${esc(e.message)}</div>`;
-    }
-  };
 
   const showPage = (name, btn) => {
     document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
@@ -5562,8 +5515,6 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   const CLICK_HANDLERS = {
     // Navigation
     showPage: (btn) => showPage(btn.dataset.page, btn),
-    switchTab: (btn) => switchMainTab(btn.dataset.tab),
-    switchProgramTab: (btn) => switchProgramTab(btn.dataset.tab),
     goHome: () => goHome(),
     sbGoHome: () => goHome(),
     sbShowLadder: () => sbShowLadder(),
