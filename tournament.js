@@ -523,12 +523,13 @@ async function renderTournamentList() {
   const el = document.getElementById('t-content');
   el.innerHTML = `<div class="t-loading">Loading...</div>`;
 
-  let tournaments = [], categories = [], teams = [];
+  let tournaments = [], categories = [], teams = [], rrMatches = [];
   try {
-    [tournaments, categories, teams] = await Promise.all([
+    [tournaments, categories, teams, rrMatches] = await Promise.all([
       tApi('tournaments?select=*&order=id.desc'),
       tApi('tournament_categories?select=tournament_id,id,name').catch(() => []),
-      tApi('tournament_teams?select=id,category_id').catch(() => []),
+      tApi('tournament_teams?select=id,category_id,name,wins,losses,pts_for').catch(() => []),
+      tApi('tournament_rr_matches?select=category_id,round,status').catch(() => []),
     ]);
   } catch(e) {
     el.innerHTML = `<div class="t-empty">Error loading tournaments: ${tEsc(e.message)}</div>`;
@@ -547,19 +548,32 @@ async function renderTournamentList() {
     catsByT[c.tournament_id].push({ id: c.id, name: c.name });
   });
 
-  // Teams per tournament (via category)
+  // Category id → tournament_id map
   const catTourneyMap = {};
   categories.forEach(c => { catTourneyMap[c.id] = c.tournament_id; });
+
+  // Teams per tournament
   const teamsByT = {};
-  teams.forEach(t => {
-    const tid = catTourneyMap[t.category_id];
-    if (tid) teamsByT[tid] = (teamsByT[tid] || 0) + 1;
+  teams.forEach(tm => {
+    const tid = catTourneyMap[tm.category_id];
+    if (!tid) return;
+    if (!teamsByT[tid]) teamsByT[tid] = [];
+    teamsByT[tid].push(tm);
+  });
+
+  // RR matches per tournament: derive rounds completed and total
+  const rrByT = {};
+  rrMatches.forEach(m => {
+    const tid = catTourneyMap[m.category_id];
+    if (!tid) return;
+    if (!rrByT[tid]) rrByT[tid] = [];
+    rrByT[tid].push(m);
   });
 
   // Total teams across active tournaments
   const totalTeamsActive = tournaments
     .filter(t => t.status === 'active')
-    .reduce((sum, t) => sum + (teamsByT[t.id] || 0), 0);
+    .reduce((sum, t) => sum + (teamsByT[t.id] ? teamsByT[t.id].length : 0), 0);
 
   const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : 'No date set';
 
@@ -593,9 +607,37 @@ async function renderTournamentList() {
     const isClosed = t.status !== 'active' && t.status !== 'draft';
     const tCats = catsByT[t.id] || [];
     const catCount = tCats.length;
-    const tTeamCount = teamsByT[t.id] || 0;
-    const tCatNames = tCats.map(c => c.name).join(' · ');
+    const tTeams = teamsByT[t.id] || [];
+    const tTeamCount = tTeams.length;
+    const tRR = rrByT[t.id] || [];
     const dis = isClosed ? 'disabled style="opacity:0.35;cursor:not-allowed;"' : '';
+
+    // Intelligence: Round progress
+    const tRounds = tRR.length ? [...new Set(tRR.map(m => m.round))] : [];
+    const totalRounds = tRounds.length;
+    const completedRounds = tRounds.filter(r => tRR.filter(m => m.round === r).every(m => m.status !== 'pending')).length;
+    const roundText = totalRounds > 0
+      ? (completedRounds < totalRounds ? `Round ${completedRounds + 1} of ${totalRounds} in progress` : `All ${totalRounds} rounds complete`)
+      : (t.status === 'active' ? 'Tournament in progress' : t.status === 'draft' ? 'Setup in progress' : 'Tournament completed');
+    const roundSub = totalRounds > 0 && completedRounds < totalRounds
+      ? `${completedRounds} of ${totalRounds} rounds finished`
+      : (t.status === 'draft' ? 'Not yet published to players' : t.status === 'active' ? 'Bracket is live' : 'Season finished');
+
+    // Intelligence: Leading team (highest wins then pts_for)
+    const sortedTeams = [...tTeams].sort((a,b) => (b.wins||0)-(a.wins||0) || (b.pts_for||0)-(a.pts_for||0));
+    const leader = sortedTeams[0];
+    const leaderText = leader ? tEsc(leader.name || 'Unknown team') : (tTeamCount > 0 ? 'Teams registered' : 'No teams yet');
+    const leaderSub  = leader
+      ? `${leader.wins||0}W ${leader.losses||0}L · Leading`
+      : (tTeamCount > 0 ? 'Add scores to see standings' : 'Add teams to start bracket');
+
+    // Intelligence: Teams registered
+    const teamsText = tTeamCount > 0
+      ? `${tTeamCount} team${tTeamCount !== 1 ? 's' : ''} registered`
+      : 'No teams registered yet';
+    const teamsSub = tTeamCount > 0
+      ? `${catCount > 0 ? catCount + ' categor' + (catCount !== 1 ? 'ies' : 'y') + ' · ' : ''}Full bracket · All confirmed`
+      : 'Add teams to start bracket';
     // Category pills HTML for overview
     const catPillsHTML = tCats.length
       ? tCats.map(c => `<span class="t-op-cat-pill">${tEsc(c.name)}</span>`).join('')
@@ -626,28 +668,28 @@ async function renderTournamentList() {
             <div><div class="t-op-stat-val">—</div><div class="t-op-stat-lbl">Rounds</div></div>
           </div>
         </div>
-        <!-- CENTER — Tournament Intelligence: status, teams registered, categories -->
+        <!-- CENTER — Tournament Intelligence: EXACTLY as proposal -->
         <div class="t-op-center">
           <div class="t-op-intel-title">Tournament Intelligence</div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:#fde8d8;">${boltSVG}</div>
             <div>
-              <div class="t-op-intel-text">${t.status === 'active' ? 'Tournament in progress' : t.status === 'draft' ? 'Setup in progress' : 'Tournament completed'}</div>
-              <div class="t-op-intel-sub">${t.status === 'draft' ? 'Not yet published to players' : t.status === 'active' ? 'Bracket is live' : 'Season finished'}</div>
+              <div class="t-op-intel-text">${roundText}</div>
+              <div class="t-op-intel-sub">${roundSub}</div>
             </div>
           </div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:rgba(198,242,33,0.2);">${crwnSVG}</div>
             <div>
-              <div class="t-op-intel-text">${tTeamCount > 0 ? tTeamCount + ' team' + (tTeamCount !== 1 ? 's' : '') + ' registered' : 'No teams registered yet'}</div>
-              <div class="t-op-intel-sub">${tTeamCount > 0 ? (catCount > 0 ? catCount + ' categor' + (catCount !== 1 ? 'ies' : 'y') + ' · All confirmed' : 'Across all categories') : 'Add teams to start bracket'}</div>
+              <div class="t-op-intel-text">${leaderText}</div>
+              <div class="t-op-intel-sub">${leaderSub}</div>
             </div>
           </div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:#d4f5ed;">${trendSVG}</div>
             <div>
-              <div class="t-op-intel-text">${tCats.length > 0 ? tEsc(tCats[0].name) : 'No categories set'}</div>
-              <div class="t-op-intel-sub">${tCats.length > 1 ? '+' + (tCats.length - 1) + ' more categor' + (tCats.length - 1 !== 1 ? 'ies' : 'y') : tCats.length === 1 ? 'Only category' : 'Add categories to organize brackets'}</div>
+              <div class="t-op-intel-text">${teamsText}</div>
+              <div class="t-op-intel-sub">${teamsSub}</div>
             </div>
           </div>
         </div>
