@@ -626,21 +626,21 @@ async function renderTournamentList() {
             <div><div class="t-op-stat-val">—</div><div class="t-op-stat-lbl">Rounds</div></div>
           </div>
         </div>
-        <!-- CENTER — Tournament Intelligence matching proposal exactly -->
+        <!-- CENTER — Tournament Intelligence: status, teams registered, categories -->
         <div class="t-op-center">
           <div class="t-op-intel-title">Tournament Intelligence</div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:#fde8d8;">${boltSVG}</div>
             <div>
               <div class="t-op-intel-text">${t.status === 'active' ? 'Tournament in progress' : t.status === 'draft' ? 'Setup in progress' : 'Tournament completed'}</div>
-              <div class="t-op-intel-sub">${t.status === 'draft' ? 'Not yet published to players' : t.status === 'active' ? 'Open Tournament to record scores' : 'All rounds finished'}</div>
+              <div class="t-op-intel-sub">${t.status === 'draft' ? 'Not yet published to players' : t.status === 'active' ? 'Bracket is live' : 'Season finished'}</div>
             </div>
           </div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:rgba(198,242,33,0.2);">${crwnSVG}</div>
             <div>
               <div class="t-op-intel-text">${tTeamCount > 0 ? tTeamCount + ' team' + (tTeamCount !== 1 ? 's' : '') + ' registered' : 'No teams registered yet'}</div>
-              <div class="t-op-intel-sub">${catCount > 0 ? catCount + ' categor' + (catCount !== 1 ? 'ies' : 'y') + ' · ' + (tTeamCount > 0 ? 'All confirmed' : 'Add teams to start') : 'Add categories first'}</div>
+              <div class="t-op-intel-sub">${tTeamCount > 0 ? (catCount > 0 ? catCount + ' categor' + (catCount !== 1 ? 'ies' : 'y') + ' · All confirmed' : 'Across all categories') : 'Add teams to start bracket'}</div>
             </div>
           </div>
           <div class="t-op-intel-item">
@@ -656,7 +656,13 @@ async function renderTournamentList() {
           <div class="t-op-action-title">Actions</div>
           <button class="t-op-btn" onclick="openTournament(${t.id})">${openSVG} Open Tournament</button>
           <button class="t-op-btn" onclick="tEditTournament(${t.id})" ${dis}>${editSVG} Edit</button>
-          <button class="t-op-btn t-op-btn-warn" onclick="tToggleStatus(${t.id},'${t.status}')" ${dis}>${closeSVG} ${t.status === 'active' ? 'Close' : t.status === 'draft' ? 'Activate' : 'Reopen'}</button>
+          <button class="t-op-btn ${t.status === 'active' ? 't-op-btn-warn' : ''}" onclick="tToggleStatus(${t.id},'${t.status}')" ${dis}>
+            ${t.status === 'active'
+              ? closeSVG + ' Close'
+              : t.status === 'draft'
+                ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Activate`
+                : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg> Reopen`}
+          </button>
           <button class="t-op-btn t-op-btn-danger" onclick="deleteTournament(${t.id})">${trashSVG} Delete</button>
         </div>
       </div>
@@ -723,27 +729,27 @@ async function renderTournamentList() {
         <span class="t-panel-chevron ${_tPanelOpen ? 'open' : ''}">▼</span>
       </div>
       ${_tPanelOpen ? `
-      <div class="t-panel-body">
+      <div class="t-panel-body" style="padding:14px 16px 16px;">
         <form id="t-create-form" onsubmit="createTournament(event)">
           <!-- Name + Date -->
-          <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:10px;">
-            <div style="display:flex;flex-direction:column;gap:4px;">
-              <div class="t-new-field-lbl">Tournament Name</div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:6px;">
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <div class="t-new-field-lbl">Tournament Name <span style="color:#e53935;">*</span></div>
               <input class="t-new-input" type="text" id="t-name" required placeholder="e.g. Spring Doubles Open 2026">
             </div>
-            <div style="display:flex;flex-direction:column;gap:4px;">
-              <div class="t-new-field-lbl">Date</div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <div class="t-new-field-lbl">Date <span style="color:#e53935;">*</span></div>
               <input class="t-new-input" type="date" id="t-date">
             </div>
           </div>
-          <div class="t-new-divider" style="margin:10px 0;"></div>
+          <div class="t-new-divider" style="margin:8px 0;"></div>
           <!-- Categories -->
           <div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-              <div class="t-new-field-lbl" style="margin:0;">Tournament Categories</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <div class="t-new-field-lbl" style="margin:0;">Tournament Categories <span style="color:#e53935;">*</span></div>
               <span class="t-cat-count-badge" id="t-cat-count">0 Added</span>
             </div>
-            <div id="t-categories-list" style="display:flex;flex-direction:column;gap:7px;margin-bottom:8px;"></div>
+            <div id="t-categories-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
             <!-- Integrated add input -->
             <div class="t-cat-add-wrap">
               <input class="t-cat-add-input" type="text" id="t-cat-input" placeholder="Type a category name and press Add...">
@@ -753,7 +759,7 @@ async function renderTournamentList() {
               </button>
             </div>
           </div>
-          <div class="t-new-divider" style="margin:10px 0;"></div>
+          <div class="t-new-divider" style="margin:8px 0;"></div>
           <!-- Submit -->
           <div style="display:flex;justify-content:center;">
             <button type="submit" class="t-new-submit-btn">
@@ -1138,8 +1144,9 @@ async function createTournament(e) {
   const name = document.getElementById('t-name').value.trim();
   const date = document.getElementById('t-date').value || null;
   const categories = _tCategories.filter(Boolean);
-  if (!name) { tToast('Please enter a tournament name.', true); return; }
-  if (!categories.length) { tToast('Please add at least one category.', true); return; }
+  if (!name) { tToast('Tournament name is required.', true); return; }
+  if (!date) { tToast('Please select a tournament date.', true); return; }
+  if (!categories.length) { tToast('Please add at least one category before creating.', true); return; }
   try {
     // Validate no duplicate name + date combination
     let dupQuery = `tournaments?name=eq.${encodeURIComponent(name)}&select=id,name,date`;
