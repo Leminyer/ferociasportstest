@@ -1430,53 +1430,122 @@ async function openTournament(id) {
 
 function renderTournamentDetail(t, categories) {
   const el = document.getElementById('t-content');
-  const date = t.date ? new Date(t.date + 'T12:00:00').toLocaleDateString('en-US', {weekday:'long',month:'long',day:'numeric',year:'numeric'}) : 'No date set';
+  const dateStr = t.date ? new Date(t.date + 'T12:00:00').toLocaleDateString('en-US', {weekday:'long',month:'long',day:'numeric',year:'numeric'}) : 'No date set';
+
+  // Compute live header meta from categories data
+  const totalTeams = 0; // will be updated when category loads
+  const catCount = categories.length;
+  const statusLabel = t.status === 'active' ? 'Active' : t.status === 'completed' ? 'Completed' : 'Draft';
+  const statusPillStyle = t.status === 'active'
+    ? 'background:#d4f5ed;color:#085041;'
+    : t.status === 'completed'
+    ? 'background:#e8f0ff;color:#174CCC;'
+    : 'background:#f4f5f8;color:#6b7a99;';
+
+  // Progress label
+  const progressLabel = t.status === 'draft' ? 'Not Started' : t.status === 'active' ? 'In Progress' : 'Completed';
+  const progressColor = t.status === 'draft' ? '#b0bbd6' : t.status === 'active' ? '#24BC96' : '#174CCC';
+
+  // Start Tournament button — disabled until active
+  const canStart = t.status === 'draft';
+  const startBtnHTML = `
+    <button id="td-start-btn"
+      onclick="${t.status === 'draft' ? `startTournament(${t.id})` : `completeTournament(${t.id})`}"
+      style="display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border:none;border-radius:99px;
+             background:${t.status === 'active' ? 'linear-gradient(180deg,#F26024,#d44e10)' : 'linear-gradient(180deg,#2456d3 0%,#174CCC 100%)'};
+             color:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      ${t.status === 'active' ? 'Complete Tournament' : 'Start Tournament'}
+    </button>`;
+
+  // Category emojis — cycle through
+  const catEmojis = ['🏆','🎾','🏅','⚡','🔥','👑','🎯','🥇'];
+
+  const divTabsHTML = categories.map((cat, i) => {
+    const isActive = cat.id === tCurrentCategoryId;
+    const emoji = catEmojis[i % catEmojis.length];
+    const catStatusLabel = cat.status === 'active' ? 'Active' : cat.status === 'completed' ? 'Completed' : 'Draft';
+    const pillStyle = isActive
+      ? 'background:rgba(255,255,255,0.2);color:white;'
+      : 'background:rgba(23,76,204,0.1);color:#174CCC;';
+    return `
+      <div class="td-div-tab ${isActive ? 'active' : ''}" onclick="switchCategory(${cat.id}, ${t.id})" style="cursor:pointer;">
+        <div style="font-size:16px;margin-bottom:5px;">${emoji}</div>
+        <div class="td-div-tab-name">${tEsc(cat.name)}</div>
+        <div class="td-div-tab-intel" id="td-div-intel-${cat.id}">Loading...</div>
+        <div class="td-div-status-pill" style="${pillStyle}">${tEsc(catStatusLabel)}</div>
+      </div>`;
+  }).join('');
+
   el.innerHTML = `
-    <div class="t-header-bar">
-      <button class="t-btn t-btn-ghost" onclick="renderTournamentList()">← Tournaments</button>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span class="t-status-badge t-status-${tEsc(t.status)}">${tEsc(t.status)}</span>
-        ${t.status === 'draft' ? `<button class="t-btn t-btn-success" onclick="startTournament(${t.id})">▶ Start Tournament</button>` : ''}
-        ${t.status === 'active' ? `<button class="t-btn t-btn-danger" onclick="completeTournament(${t.id})">Complete</button>` : ''}
-        <button class="t-btn t-btn-primary" title="Notify all players with the results link"
-          onclick="window.app.openTournamentNotifyModal(${t.id})"
-          style="background:var(--teal);border-color:var(--teal);">
-          ✉ Notify Players
-        </button>
-        <button class="t-btn t-btn-primary" id="t-print-roster-btn"
-          onclick="printTournamentRoster(this)"
-          data-tid="${t.id}"
-          data-tname="${tEsc(t.name)}"
-          data-tdate="${tEsc(t.date || '')}"
-          data-catids="${categories.map(c => c.id).join(',')}"
-          data-catnames="${categories.map(c => tEsc(c.name)).join('||')}"
-          title="Print roster for all categories">
-          📄 Print Roster
-        </button>
+    <div class="td-header">
+      <div class="td-identity">
+        <div class="td-name">${tEsc(t.name)}</div>
+        <div class="td-date">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          ${dateStr}
+        </div>
+      </div>
+      <div class="td-meta">
+        <div class="td-meta-item">
+          <span class="td-status-chip" style="${statusPillStyle}">${statusLabel}</span>
+          <div class="td-meta-lbl">Status</div>
+        </div>
+        <div class="td-meta-sep"></div>
+        <div class="td-meta-item">
+          <div class="td-meta-val" id="td-total-teams">—</div>
+          <div class="td-meta-lbl">Teams</div>
+        </div>
+        <div class="td-meta-sep"></div>
+        <div class="td-meta-item">
+          <div class="td-meta-val">${catCount}</div>
+          <div class="td-meta-lbl">Categories</div>
+        </div>
+        <div class="td-meta-sep"></div>
+        <div class="td-meta-item">
+          <div class="td-meta-val" style="font-size:13px;font-weight:800;color:${progressColor};font-family:'Montserrat',sans-serif;">${progressLabel}</div>
+          <div class="td-meta-lbl">Progress</div>
+        </div>
       </div>
     </div>
-    <div class="t-tournament-hero" style="position:relative;">
-      <div class="t-tournament-hero-name">${tEsc(t.name)}</div>
-      <div class="t-tournament-hero-date">📅 ${date}</div>
-      ${t.status !== 'completed' ? `<button type="button" class="t-btn t-btn-sm" onclick="openEditTournament(${t.id})" style="position:absolute;top:0;right:0;background:rgba(255,255,255,0.15);color:#fff;border:1.5px solid rgba(255,255,255,0.3);">✏️ Edit</button>` : ''}
+
+    <div class="td-action-bar">
+      <span class="td-start-hint" id="td-start-hint" style="display:none;font-size:10px;font-weight:700;color:#b0bbd6;padding:0 6px;"></span>
+      ${startBtnHTML}
+      <button onclick="window.app.openTournamentNotifyModal(${t.id})"
+        style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;color:#0d1f4a;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Notify Players
+      </button>
+      <button onclick="printTournamentRoster(this)"
+        data-tid="${t.id}" data-tname="${tEsc(t.name)}" data-tdate="${tEsc(t.date || '')}"
+        data-catids="${categories.map(c => c.id).join(',')}"
+        data-catnames="${categories.map(c => tEsc(c.name)).join('||')}"
+        style="width:34px;height:34px;border:0.5px solid #e0e7f5;border-radius:8px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#6b7a99;" title="Print Roster">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      </button>
     </div>
-    <div class="t-category-tabs">
-      ${categories.map(cat => `
-        <button class="t-category-tab ${cat.id === tCurrentCategoryId ? 'active' : ''}"
-          onclick="switchCategory(${cat.id}, ${t.id})">
-          ${tEsc(cat.name)}
-          <span class="t-cat-status-dot t-dot-${tEsc(cat.status)}"></span>
-        </button>
-      `).join('')}
+
+    <div style="padding:16px 28px 0;">
+      <div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);">
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;padding:12px 16px 6px;">Divisions</div>
+        <div style="display:flex;gap:8px;padding:0 12px 12px;flex-wrap:wrap;" id="td-division-tabs">
+          ${divTabsHTML}
+        </div>
+      </div>
     </div>
-    <div id="t-category-content">Loading category...</div>
+
+    <div style="padding:16px 28px 0;" id="td-setup-progression"></div>
+    <div style="padding:0 28px 28px;" id="t-category-content"><div class="t-loading">Loading...</div></div>
   `;
+
   if (tCurrentCategoryId) loadCategory(tCurrentCategoryId, t);
 }
 async function switchCategory(catId, tId) {
   tCurrentCategoryId = catId;
-  document.querySelectorAll('.t-category-tab').forEach(b => b.classList.remove('active'));
-  event.target.closest('.t-category-tab').classList.add('active');
+  document.querySelectorAll('.td-div-tab').forEach(b => b.classList.remove('active'));
+  const activeTab = document.querySelector(`.td-div-tab[onclick*="${catId}"]`);
+  if (activeTab) activeTab.classList.add('active');
   document.getElementById('t-category-content').innerHTML = '<div class="t-loading">Loading...</div>';
   const [t] = await tApi(`tournaments?id=eq.${tId}&select=*`);
   loadCategory(catId, t);
@@ -1494,178 +1563,275 @@ async function loadCategory(catId, t) {
 function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, groups = []) {
   const el = document.getElementById('t-category-content');
   const useGroups = groups.length > 0;
-
-  // Single-RR mode: standings against all teams. Groups mode: per-group standings.
-  // Both modes need a unified "all standings sorted" for places where we don't care.
-  const standings = useGroups
-    ? null
-    : tCalcStandings(teams, rrMatches);
-
+  const standings = useGroups ? null : tCalcStandings(teams, rrMatches);
   const rrComplete = rrMatches.length > 0 && rrMatches.filter(m => m.status === 'pending').length === 0;
   const tMap = {}; teams.forEach(t => tMap[t.id] = t);
-
-  // Build per-group structures only if we have groups
   let groupViews = [];
   if (useGroups) {
     groupViews = groups.map(g => {
       const groupTeams = teams.filter(t => t.group_id === g.id);
       const groupMatches = rrMatches.filter(m => m.group_id === g.id);
-      return {
-        group: g,
-        teams: groupTeams,
-        matches: groupMatches,
-        standings: tCalcStandings(groupTeams, groupMatches),
-      };
+      return { group: g, teams: groupTeams, matches: groupMatches, standings: tCalcStandings(groupTeams, groupMatches) };
     });
   }
 
-  let html = '';
-
-  // PHASE 1: TEAMS / PLAYERS
   const singlesMode = isSingles(cat.name);
   const entityCap = singlesMode ? 'Player' : 'Team';
   const entityLow = singlesMode ? 'player' : 'team';
-  html += `
-    <div class="t-phase-card">
-      <div class="t-phase-header">
-        <div class="t-phase-title">
-          <span class="t-phase-num">1</span> ${singlesMode ? 'Players' : 'Teams'}
-          <span class="t-team-count">${teams.length} ${teams.length !== 1 ? (singlesMode ? 'players' : 'teams') : entityLow}</span>
+
+  // ── Update division tab intel ──────────────────────────────────────────
+  const intelEl = document.getElementById(`td-div-intel-${cat.id}`);
+  if (intelEl) {
+    const rrTotal = rrMatches.filter(m => m.status !== 'bye').length;
+    const rrDone  = rrMatches.filter(m => m.status === 'completed').length;
+    let intel = `${teams.length} ${teams.length !== 1 ? (singlesMode ? 'players' : 'teams') : entityLow}`;
+    if (rrMatches.length > 0) intel += ` · ${rrDone}/${rrTotal} RR Matches`;
+    if (bracketMatches.length > 0) intel += ` · Bracket Live`;
+    intelEl.textContent = intel;
+  }
+
+  // ── Update total teams in header ──────────────────────────────────────
+  const totalTeamsEl = document.getElementById('td-total-teams');
+  if (totalTeamsEl) totalTeamsEl.textContent = teams.length;
+
+  // ── Setup progression ─────────────────────────────────────────────────
+  const rrTotal2 = rrMatches.filter(m => m.status !== 'bye').length;
+  const rrDone2  = rrMatches.filter(m => m.status === 'completed').length;
+  const step1Done = teams.length >= 3;
+  const step2Done = rrComplete;
+  const step3Done = bracketMatches.length > 0 && bracketMatches.every(m => m.status === 'completed');
+  const step4Done = tournament.status === 'completed';
+
+  const stepIcon = (done, current, num) => {
+    if (done) return `<div class="td-step-icon done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>`;
+    if (current) return `<div class="td-step-icon current">${num}</div>`;
+    return `<div class="td-step-icon locked"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#b0bbd6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>`;
+  };
+  const stepLbl = (done, current, label) => {
+    const cls = done ? 'done' : current ? 'current' : 'locked';
+    return `<div class="td-step-lbl ${cls}">${label}</div>`;
+  };
+  const s1done = step1Done, s2done = step2Done, s3done = step3Done;
+  const s1cur  = !s1done, s2cur = s1done && !s2done, s3cur = s2done && !s3done, s4cur = s3done && !step4Done;
+  const connCls = (done) => done ? 'td-step-conn done' : 'td-step-conn';
+
+  const progressionEl = document.getElementById('td-setup-progression');
+  if (progressionEl) {
+    progressionEl.innerHTML = `
+      <div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:14px 20px;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:0;">
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Tournament Setup Progress
         </div>
-        ${tournament.status === 'draft' ? `<button class="t-btn t-btn-sm t-btn-primary" onclick="showAddTeam(${cat.id})">+ Add ${entityCap}</button>` : ''}
+        <div style="display:flex;align-items:center;">
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;position:relative;">
+            ${stepIcon(s1done, s1cur, '1')}
+            ${stepLbl(s1done, s1cur, 'Teams Added')}
+          </div>
+          <div class="${connCls(s1done)}" style="height:2px;flex:1;margin-top:-16px;"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;position:relative;">
+            ${stepIcon(s2done, s2cur, '2')}
+            ${stepLbl(s2done, s2cur, 'Round Robin')}
+          </div>
+          <div class="${connCls(s2done)}" style="height:2px;flex:1;margin-top:-16px;"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;position:relative;">
+            ${stepIcon(s3done, s3cur, '3')}
+            ${stepLbl(s3done, s3cur, 'Bracket Setup')}
+          </div>
+          <div class="${connCls(s3done)}" style="height:2px;flex:1;margin-top:-16px;"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;position:relative;">
+            ${stepIcon(step4Done, s4cur, '4')}
+            ${stepLbl(step4Done, s4cur, 'Start Tournament')}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ── Update Start button hint ──────────────────────────────────────────
+  const hintEl = document.getElementById('td-start-hint');
+  const startBtn = document.getElementById('td-start-btn');
+  if (hintEl && startBtn && tournament.status === 'draft') {
+    if (!step1Done) {
+      hintEl.textContent = 'Add at least 3 teams to start tournament';
+      hintEl.style.display = 'inline';
+      startBtn.style.opacity = '0.45';
+      startBtn.style.cursor = 'not-allowed';
+      startBtn.onclick = null;
+    } else if (!step2Done) {
+      hintEl.textContent = 'Complete round robin to start tournament';
+      hintEl.style.display = 'inline';
+      startBtn.style.opacity = '0.45';
+      startBtn.style.cursor = 'not-allowed';
+      startBtn.onclick = null;
+    } else if (!bracketMatches.length) {
+      hintEl.textContent = 'Generate bracket to start tournament';
+      hintEl.style.display = 'inline';
+      startBtn.style.opacity = '0.45';
+      startBtn.style.cursor = 'not-allowed';
+      startBtn.onclick = null;
+    } else {
+      hintEl.style.display = 'none';
+      startBtn.style.opacity = '1';
+      startBtn.style.cursor = 'pointer';
+      startBtn.onclick = () => startTournament(tournament.id);
+    }
+  }
+
+  // ── SVG helpers ───────────────────────────────────────────────────────
+  const lockSVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#b0bbd6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+
+  // ── Section header helper ─────────────────────────────────────────────
+  const sectionHdr = (num, label, count, actionHTML, locked) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:0.5px solid #f0f2f8;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:22px;height:22px;border-radius:50%;background:${locked ? '#f0f2f8' : '#174CCC'};color:${locked ? '#b0bbd6' : 'white'};font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${num}</div>
+        <div style="font-size:12px;font-weight:800;color:${locked ? '#b0bbd6' : '#0d1f4a'};letter-spacing:.3px;text-transform:uppercase;">${label}${count !== null ? ` <span style="font-size:11px;font-weight:600;color:#6b7a99;text-transform:none;">${count}</span>` : ''}</div>
       </div>
-      ${teams.length ? `
-        <div class="t-teams-grid">
-          ${teams.map((team, i) => {
-            const players = [team.player1_id, team.player2_id, team.player3_id, team.player4_id]
-              .filter(Boolean).map(id => {
-                const p = tAllPlayers.find(x => x.id === id);
-                return p ? `${p.first_name} ${p.last_name}` : '?';
-              });
-            return `
-              <div class="t-team-chip">
-                <div class="t-team-seed">${i + 1}</div>
-                <div class="t-team-info">
-                  <div class="t-team-name">${tEsc(team.name)}</div>
-                  ${!singlesMode ? `<div class="t-team-players">${players.join(' & ')}</div>` : ''}
-                </div>
-                ${tournament.status !== 'completed' && !singlesMode ? `
-                  <button class="t-btn-icon" onclick="editTeam(${team.id}, ${cat.id})" style="color:#174CCC;font-size:14px;background:none;border:none;cursor:pointer;" title="Edit">✏️</button>
-                ` : ''}
-                ${tournament.status === 'draft' ? `
-                  <button class="t-btn-icon t-btn-danger-icon" onclick="deleteTeam(${team.id}, ${cat.id})" data-tname="${tEsc(team.name)}">×</button>
-                ` : ''}
-              </div>`;
-          }).join('')}
-        </div>
-      ` : `<div class="t-empty-sm">No ${singlesMode ? 'players' : 'teams'} yet. Add ${singlesMode ? 'players' : 'teams'} to get started.</div>`}
+      ${actionHTML}
     </div>`;
 
-  // PHASE 2: ROUND ROBIN
+  const lockedHdr = (label) => `<div style="font-size:10px;font-weight:700;color:#b0bbd6;display:flex;align-items:center;gap:5px;">${lockSVG} ${label}</div>`;
+
+  let html = '';
+
+  // ── SECTION 1: Team Registration ──────────────────────────────────────
+  const addTeamBtn = tournament.status === 'draft'
+    ? `<button onclick="showAddTeam(${cat.id})" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-size:11px;font-weight:700;cursor:pointer;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add ${entityCap}
+      </button>`
+    : '';
+
+  const teamsBody = teams.length
+    ? `<div style="display:flex;flex-direction:column;gap:8px;padding:16px 20px;">
+        ${teams.map((team, i) => {
+          const players = [team.player1_id, team.player2_id, team.player3_id, team.player4_id]
+            .filter(Boolean).map(id => { const p = tAllPlayers.find(x => x.id === id); return p ? `${p.first_name} ${p.last_name}` : '?'; });
+          return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:#174CCC;color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i + 1}</div>
+            <div style="flex:1;">
+              <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${tEsc(team.name)}</div>
+              ${!singlesMode ? `<div style="font-size:11px;font-weight:600;color:#6b7a99;">${players.join(' & ')}</div>` : ''}
+            </div>
+            ${tournament.status !== 'completed' && !singlesMode ? `<button onclick="editTeam(${team.id}, ${cat.id})" style="width:24px;height:24px;border:none;background:transparent;color:#174CCC;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:5px;" title="Edit">✏️</button>` : ''}
+            ${tournament.status === 'draft' ? `<button onclick="deleteTeam(${team.id}, ${cat.id})" data-tname="${tEsc(team.name)}" style="width:22px;height:22px;border:none;background:transparent;color:#e53935;cursor:pointer;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;">×</button>` : ''}
+          </div>`;
+        }).join('')}
+      </div>`
+    : `<div style="text-align:center;padding:28px 16px;">
+        <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">No ${singlesMode ? 'Players' : 'Teams'} Added Yet</div>
+        <div style="font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Add ${singlesMode ? 'players' : 'teams'} to begin building the tournament bracket.</div>
+        ${tournament.status === 'draft' ? `<button onclick="showAddTeam(${cat.id})" style="display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-size:12px;font-weight:700;cursor:pointer;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          + Add ${entityCap}
+        </button>` : ''}
+      </div>`;
+
+  html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;">
+    ${sectionHdr(1, 'Team Registration', teams.length ? `${teams.length} ${teams.length !== 1 ? (singlesMode ? 'players' : 'teams') : entityLow}` : null, addTeamBtn, false)}
+    ${teamsBody}
+  </div>`;
+
+  // ── SECTION 2: Round Robin Setup ──────────────────────────────────────
   const rrTotal = rrMatches.filter(m => m.status !== 'bye').length;
-  const rrDone = rrMatches.filter(m => m.status === 'completed').length;
-  const rrPct = rrTotal > 0 ? Math.round((rrDone / rrTotal) * 100) : 0;
+  const rrDone  = rrMatches.filter(m => m.status === 'completed').length;
+  const rrPct   = rrTotal > 0 ? Math.round((rrDone / rrTotal) * 100) : 0;
+  const rrLocked = teams.length < 3;
 
-  html += `
-    <div class="t-phase-card ${teams.length < 3 ? 't-phase-disabled' : ''}">
-      <div class="t-phase-header">
-        <div class="t-phase-title">
-          <span class="t-phase-num">2</span> ${useGroups ? 'Group Stage' : 'Round Robin'}
-          ${rrMatches.length > 0 ? `<span class="t-progress-label">${rrDone}/${rrTotal} matches</span>` : ''}
-          ${useGroups ? `<span class="t-progress-label">${groups.length} groups</span>` : ''}
+  let rrActionHTML = '';
+  if (!rrLocked && rrMatches.length === 0 && tournament.status !== 'draft') {
+    rrActionHTML = `<button onclick="showRRFormatModal(${cat.id})" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-size:11px;font-weight:700;cursor:pointer;">Generate Schedule</button>`;
+  } else if (!rrLocked && rrMatches.length === 0 && tournament.status === 'draft') {
+    rrActionHTML = `<span style="font-size:10px;font-weight:700;color:#b0bbd6;">Start tournament first</span>`;
+  } else if (rrMatches.length > 0) {
+    rrActionHTML = `<span style="font-size:10px;font-weight:700;color:#6b7a99;">${rrDone}/${rrTotal} matches</span>`;
+  }
+
+  let rrBody = '';
+  if (rrLocked) {
+    rrBody = `<div style="padding:12px 20px;">
+      <div style="background:#fafbff;border:0.5px solid #e0e7f5;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px;">
+        <div style="width:36px;height:36px;border-radius:8px;background:#f0f2f8;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${lockSVG}</div>
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#6b7a99;margin-bottom:2px;">Round Robin Available After Team Setup</div>
+          <div style="font-size:11px;font-weight:600;color:#b0bbd6;">Add at least 3 ${singlesMode ? 'players' : 'teams'} to generate the round robin schedule.</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:${step1Done ? '#24BC96' : '#e0e7f5'};"></div>
+            <div style="width:6px;height:6px;border-radius:50%;background:#174CCC;"></div>
+            <div style="width:6px;height:6px;border-radius:50%;background:#e0e7f5;"></div>
+            <div style="width:6px;height:6px;border-radius:50%;background:#e0e7f5;"></div>
+            <span style="font-size:10px;font-weight:600;color:#b0bbd6;margin-left:4px;">Step 2 of 4</span>
+          </div>
         </div>
-        ${teams.length >= 3 && rrMatches.length === 0 && tournament.status !== 'draft' ?
-          `<button class="t-btn t-btn-sm t-btn-primary" onclick="showRRFormatModal(${cat.id})">Generate Schedule</button>` : ''}
-        ${teams.length >= 3 && rrMatches.length === 0 && tournament.status === 'draft' ?
-          `<span class="t-hint">Start tournament first</span>` : ''}
       </div>
-      ${rrMatches.length > 0 ? `
-        ${rrTotal > 0 ? `<div class="t-progress-bar"><div class="t-progress-fill" style="width:${rrPct}%"></div></div>` : ''}
-        ${useGroups
-          ? renderGroupedRR(groupViews, tMap, tournament, cat)
-          : `<div class="t-rr-grid">${renderRRRounds(rrMatches, tMap, tournament)}</div>
-             ${rrDone > 0 ? tRenderStandings(standings, cat.name) : ''}`
-        }
-      ` : teams.length < 3 ? `<div class="t-empty-sm">Add at least 3 teams first.</div>` :
-        `<div class="t-empty-sm">Generate the schedule to start round robin play.</div>`}
     </div>`;
+  } else if (rrMatches.length > 0) {
+    rrBody = `<div style="padding:12px 20px 16px;">
+      ${rrTotal > 0 ? `<div class="t-progress-bar" style="margin-bottom:12px;"><div class="t-progress-fill" style="width:${rrPct}%;"></div></div>` : ''}
+      ${useGroups ? renderGroupedRR(groupViews, tMap, tournament, cat) : `<div class="t-rr-grid">${renderRRRounds(rrMatches, tMap, tournament)}</div>${rrDone > 0 ? tRenderStandings(standings, cat.name) : ''}`}
+    </div>`;
+  } else {
+    rrBody = `<div style="padding:16px 20px;font-size:12px;font-weight:600;color:#6b7a99;">Generate the schedule to start round robin play.</div>`;
+  }
 
-  // PHASE 3: FINALS
+  html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;${rrLocked ? 'opacity:0.75;' : ''}">
+    ${sectionHdr(2, 'Round Robin Setup', rrMatches.length > 0 ? `${useGroups ? groups.length + ' groups' : ''}` : null, rrLocked ? lockedHdr('Available after team setup') : rrActionHTML, rrLocked)}
+    ${rrBody}
+  </div>`;
+
+  // ── SECTION 3: Bracket Setup ──────────────────────────────────────────
+  const bracketLocked = !rrComplete && bracketMatches.length === 0;
   if (rrComplete || bracketMatches.length > 0) {
-    // In groups mode the per-group advancement is already locked from schedule generation.
-    // Compute the number of teams advancing and a seeded preview.
-    let seededPreview = null;        // teams in seed order, with _groupRank etc.
-    let lockedFinalsSize = null;     // the locked total when groups
+    let seededPreview = null, lockedFinalsSize = null;
     if (useGroups && cat.finals_per_group) {
-      seededPreview = tBuildSeededAdvancement(
-        groupViews.map(gv => gv.standings),
-        cat.finals_per_group
-      );
+      seededPreview = tBuildSeededAdvancement(groupViews.map(gv => gv.standings), cat.finals_per_group);
       lockedFinalsSize = seededPreview.length;
     }
-
-    // Bracket-size dropdown options (single-RR only). Filter to only reasonable sizes.
-    const ssOpts = !useGroups
-      ? `<option value="2">Top 2</option>
-         <option value="3">Top 3</option>
-         <option value="4" selected>Top 4</option>
-         <option value="6">Top 6</option>
-         <option value="8">Top 8</option>`
+    const ssOpts = !useGroups ? `<option value="2">Top 2</option><option value="3">Top 3</option><option value="4" selected>Top 4</option><option value="6">Top 6</option><option value="8">Top 8</option>` : '';
+    let bracketActionHTML = bracketMatches.length === 0
+      ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          ${useGroups ? `<span style="background:#e8f0ff;color:#174CCC;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;">Top ${cat.finals_per_group} per group → ${lockedFinalsSize} teams</span><input type="hidden" id="finals-size-${cat.id}" value="${lockedFinalsSize}">` : `<select id="finals-size-${cat.id}" class="t-select-sm">${ssOpts}</select>`}
+          <select id="finals-elim-${cat.id}" class="t-select-sm"><option value="single">Single Elim</option></select>
+          <select id="finals-score-format-${cat.id}" class="t-select-sm"><option value="play11_win2">11, win by 2</option><option value="play11_win1">11, win by 1</option><option value="play15_win2">15, win by 2</option><option value="play15_win1">15, win by 1</option><option value="play21_win2">21, win by 2</option><option value="play21_win1">21, win by 1</option><option value="best_of_3">Best of 3 (first to win 2)</option><option value="best_of_5">Best of 5 (first to win 3)</option></select>
+          <button onclick="generateBracket(${cat.id}, ${cat.tournament_id})" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-size:11px;font-weight:700;cursor:pointer;">Generate Bracket</button>
+        </div>`
       : '';
+    let bracketBody = bracketMatches.length > 0
+      ? `<div style="padding:12px 20px 16px;">${renderBracket(bracketMatches, tMap, tournament)}</div>`
+      : `<div style="padding:16px 20px;">
+          <div style="font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:12px;">${useGroups ? 'These teams will advance to the bracket:' : 'Choose how many teams advance and generate the bracket.'}</div>
+          ${useGroups && seededPreview ? seededPreview.map((s, i) => `<div class="t-standing-preview-row"><span class="t-seed-badge">${i+1}</span><span class="t-standing-name">${tEsc(s.name)}</span><span class="t-group-tag">Group ${tEsc(groups[s._groupIndex]?.name||'?')} · #${s._groupRank}</span><span class="t-standing-record">${s.w}W ${s.l}L ${s.pts_for-s.pts_against>0?'+':''}${s.pts_for-s.pts_against}</span></div>`).join('') : (standings||[]).slice(0,8).map((s,i)=>`<div class="t-standing-preview-row"><span class="t-seed-badge">${i+1}</span><span class="t-standing-name">${tEsc(s.name)}</span><span class="t-standing-record">${s.w}W ${s.l}L ${s.pts_for-s.pts_against>0?'+':''}${s.pts_for-s.pts_against}</span></div>`).join('')}
+        </div>`;
 
-    html += `
-      <div class="t-phase-card">
-        <div class="t-phase-header">
-          <div class="t-phase-title"><span class="t-phase-num">3</span> Finals</div>
-          ${bracketMatches.length === 0 ? `
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              ${useGroups
-                ? `<span class="t-hint" style="background:#e8f0ff;color:#174CCC;padding:4px 10px;border-radius:99px;font-weight:700;">Top ${cat.finals_per_group} per group → ${lockedFinalsSize} teams</span>
-                   <input type="hidden" id="finals-size-${cat.id}" value="${lockedFinalsSize}">`
-                : `<select id="finals-size-${cat.id}" class="t-select-sm">${ssOpts}</select>`
-              }
-              <select id="finals-elim-${cat.id}" class="t-select-sm">
-                <option value="single">Single Elim</option>
-              </select>
-              <select id="finals-score-format-${cat.id}" class="t-select-sm">
-                <option value="play11_win2">11, win by 2</option>
-                <option value="play11_win1">11, win by 1</option>
-                <option value="play15_win2">15, win by 2</option>
-                <option value="play15_win1">15, win by 1</option>
-                <option value="play21_win2">21, win by 2</option>
-                <option value="play21_win1">21, win by 1</option>
-                <option value="best_of_3">Best of 3 (first to win 2)</option>
-                <option value="best_of_5">Best of 5 (first to win 3)</option>
-              </select>
-              <button class="t-btn t-btn-sm t-btn-primary" onclick="generateBracket(${cat.id}, ${cat.tournament_id})">Generate Bracket</button>
-            </div>` : ''}
-        </div>
-        ${bracketMatches.length > 0 ? renderBracket(bracketMatches, tMap, tournament) : `
-          <div class="t-standings-preview">
-            <div class="t-empty-sm">${useGroups ? 'These teams will advance to the bracket:' : 'Choose how many teams advance and generate the bracket.'}</div>
-            <div style="margin-top:12px;">
-              ${useGroups && seededPreview
-                ? seededPreview.map((s, i) => `
-                    <div class="t-standing-preview-row">
-                      <span class="t-seed-badge">${i + 1}</span>
-                      <span class="t-standing-name">${tEsc(s.name)}</span>
-                      <span class="t-group-tag">Group ${tEsc(groups[s._groupIndex]?.name || '?')} · #${s._groupRank}</span>
-                      <span class="t-standing-record">${s.w}W ${s.l}L ${s.pts_for - s.pts_against > 0 ? '+' : ''}${s.pts_for - s.pts_against}</span>
-                    </div>`).join('')
-                : (standings || []).slice(0, 8).map((s, i) => `
-                    <div class="t-standing-preview-row">
-                      <span class="t-seed-badge">${i + 1}</span>
-                      <span class="t-standing-name">${tEsc(s.name)}</span>
-                      <span class="t-standing-record">${s.w}W ${s.l}L ${s.pts_for - s.pts_against > 0 ? '+' : ''}${s.pts_for - s.pts_against}</span>
-                    </div>`).join('')
-              }
-            </div>
-          </div>`}
+    html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;">
+      ${sectionHdr(3, 'Bracket Setup', null, bracketActionHTML, false)}
+      ${bracketBody}
+    </div>`;
+
+    // ── SECTION 4: Live Results ─────────────────────────────────────────
+    const hasResults = bracketMatches.some(m => m.status === 'completed');
+    if (hasResults || tournament.status === 'completed') {
+      const resultBody = `<div style="padding:12px 20px 16px;">${tRenderStandings(standings, cat.name)}</div>`;
+      html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;">
+        ${sectionHdr(4, 'Live Results', null, '', false)}
+        ${resultBody}
       </div>`;
+    }
+  } else {
+    // Show locked sections 3 and 4
+    html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;opacity:0.6;">
+      ${sectionHdr(3, 'Bracket Setup', null, lockedHdr('Locked until RR complete'), true)}
+      <div style="padding:10px 20px 14px;font-size:11px;font-weight:600;color:#b0bbd6;">Complete round robin to unlock bracket generation.</div>
+    </div>
+    <div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;opacity:0.6;">
+      ${sectionHdr(4, 'Live Results', null, lockedHdr('Available after bracket'), true)}
+      <div style="padding:10px 20px 14px;font-size:11px;font-weight:600;color:#b0bbd6;">Results will appear here once the bracket is live.</div>
+    </div>`;
   }
 
   el.innerHTML = html;
 }
+
 
 function renderRRRounds(matches, tMap, tournament) {
   const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b);
@@ -2920,35 +3086,6 @@ function onForfeitCheck(checked, other) {
   if (otherCb && otherCb.checked) otherCb.checked = false;
 }
 
-async function openEditTournament(id) {
-  const [t] = await tApi(`tournaments?id=eq.${id}&select=*`);
-  if (!t) return;
-  document.getElementById('t-modal-title').textContent = 'Edit Tournament';
-  document.getElementById('t-modal-body').innerHTML =
-    '<form id="t-edit-tournament-form" onsubmit="saveEditTournament(event,' + id + ')">'
-    + '<div class="t-form-group"><label class="t-label">Tournament name *</label>'
-    + '<input class="t-input" type="text" id="t-edit-t-name" required value="' + (t.name||'').replace(/"/g,'&quot;') + '"></div>'
-    + '<div class="t-form-group"><label class="t-label">Date</label>'
-    + '<input class="t-input" type="date" id="t-edit-t-date" value="' + (t.date||'') + '"></div>'
-    + '<div class="t-form-actions">'
-    + '<button type="button" class="t-btn t-btn-ghost" onclick="closeTModal()">Cancel</button>'
-    + '<button type="submit" class="t-btn t-btn-primary">Save Changes</button>'
-    + '</div></form>';
-  openTModal();
-}
-
-async function saveEditTournament(e, id) {
-  e.preventDefault();
-  const name = document.getElementById('t-edit-t-name').value.trim();
-  const date = document.getElementById('t-edit-t-date').value || null;
-  if (!name) { tToast('Please enter a tournament name.', true); return; }
-  try {
-    await tApi(`tournaments?id=eq.${id}`, 'PATCH', { name, date });
-    tToast('Tournament updated!');
-    closeTModal();
-    openTournament(id);
-  } catch(err) { tToast(`Error: ${err.message}`, true); }
-}
 
 function restoreScoreModal(title, body) {
   document.getElementById('t-modal-title').textContent = title;
