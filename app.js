@@ -375,8 +375,16 @@
     const tid = document.getElementById('tournament-selector').value;
     if (!tid) return;
     currentTournamentId = parseInt(tid, 10);
-    // Navigate to the t-tournaments management page and open the tournament detail view
-    showPage('t-tournaments', null);
+
+    // Switch page DOM without calling showPage() to avoid activating the Management sidebar item
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const pageEl = document.getElementById('page-t-tournaments');
+    if (pageEl) pageEl.classList.add('active');
+
+    // Keep Tournament Hub (sb-tournament) highlighted, not Management → Tournament
+    sbSetActive('tournament-view');
+
+    // Load tournament module and open the selected tournament detail
     if (typeof loadTournamentModule !== 'undefined') {
       await loadTournamentModule();
     }
