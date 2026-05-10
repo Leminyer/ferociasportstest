@@ -308,7 +308,7 @@
     const climber    = ranked.slice().sort((a,b) => (recentPts[b.id]||0) - (recentPts[a.id]||0))[1] || ranked[0];
     const consistent = ranked.slice().sort((a,b) => (gameCounts[b.id]||0) - (gameCounts[a.id]||0))[0];
     const n = (p) => p ? `${esc(p.first_name)} ${esc(p.last_name)}` : '—';
-    el.style.cssText = 'display:flex;align-items:center;gap:20px;flex-wrap:wrap;';
+    el.style.cssText = 'display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:white;border:0.5px solid #e0e7f5;border-radius:10px;padding:14px 18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(23,76,204,0.06);';
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);flex-shrink:0;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
