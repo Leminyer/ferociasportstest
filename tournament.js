@@ -514,88 +514,339 @@ async function loadTournamentModule() {
 }
 
 // ─── TOURNAMENT LIST ────────────────────────────────────────
+let _tFilter = 'all';
+let _tPanelOpen = false;
+let _tCategories = []; // temp categories for create form
+const _tCatEmojis = ['🏆','🎾','🏅','⚡','🔥','👑','🎯','🥇'];
+
 async function renderTournamentList() {
   const el = document.getElementById('t-content');
-  el.innerHTML = `<div class="t-loading">Loading tournaments...</div>`;
-  const tournaments = await tApi('tournaments?select=*&order=id.desc');
-  el.innerHTML = `
-    <div class="t-header-bar">
-      <h2 class="t-section-title">Tournaments</h2>
-      <button class="t-btn t-btn-primary" onclick="showCreateTournament()">+ New Tournament</button>
-    </div>
-    ${tournaments.length ? `
-      <div class="t-card-grid">
-        ${tournaments.map(t => `
-          <div class="t-tournament-card" onclick="openTournament(${t.id})" style="position:relative;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div class="t-tournament-card-status t-status-${tEsc(t.status)}" style="margin:0;">${tEsc(t.status)}</div>
-              ${t.status === 'draft' ? `<button type="button" class="t-btn t-btn-danger t-btn-sm" onclick="deleteTournament(${t.id})" data-tname="${tEsc(t.name)}" style="font-size:10px;padding:4px 10px;">Delete</button>` : ''}
-            </div>
-            <div class="t-tournament-card-name">${tEsc(t.name)}</div>
-            <div class="t-tournament-card-date">${t.date ? new Date(t.date + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short',month:'short',day:'numeric',year:'numeric'}) : 'No date set'}</div>
-          </div>
-        `).join('')}
+  el.innerHTML = `<div class="t-loading">Loading...</div>`;
+
+  let tournaments = [], categories = [];
+  try {
+    [tournaments, categories] = await Promise.all([
+      tApi('tournaments?select=*&order=id.desc'),
+      tApi('tournament_categories?select=tournament_id,id').catch(() => []),
+    ]);
+  } catch(e) {
+    el.innerHTML = `<div class="t-empty">Error loading tournaments: ${tEsc(e.message)}</div>`;
+    return;
+  }
+
+  // Stat counts
+  const active    = tournaments.filter(t => t.status === 'active').length;
+  const draft     = tournaments.filter(t => t.status === 'draft').length;
+  const completed = tournaments.filter(t => t.status === 'completed').length;
+  const catsByT   = {};
+  categories.forEach(c => { if (!catsByT[c.tournament_id]) catsByT[c.tournament_id] = 0; catsByT[c.tournament_id]++; });
+
+  const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : 'No date set';
+
+  // Filter
+  const filtered = tournaments.filter(t => {
+    if (_tFilter === 'active')    return t.status === 'active';
+    if (_tFilter === 'draft')     return t.status === 'draft';
+    if (_tFilter === 'completed') return t.status === 'completed';
+    return true;
+  });
+
+  // SVG icons
+  const trophySVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0d1f4a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
+  const calSVG    = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+  const openSVG   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const editSVG   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+  const closeSVG  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>`;
+  const trashSVG  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`;
+  const boltSVG   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+  const crwnSVG   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a5e00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
+  const trendSVG  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
+  const ovSVG     = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+  const teamSVG   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;
+  const brackSVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
+  const resSVG    = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.56 13.9l-1.56 6.1 5-3 5 3-1.56-6.1"/></svg>`;
+
+  const pillClass = (s) => s === 'active' ? 'top-pill-active' : s === 'completed' ? 'top-pill-completed' : 'top-pill-draft';
+  const pillLabel = (s) => s === 'active' ? 'Active' : s === 'completed' ? 'Completed' : 'Draft';
+
+  const tournamentCards = filtered.map(t => {
+    const isClosed = t.status !== 'active' && t.status !== 'draft';
+    const catCount = catsByT[t.id] || 0;
+    const dis = isClosed ? 'disabled style="opacity:0.35;cursor:not-allowed;"' : '';
+    return `
+    <div class="t-op-card" id="t-op-card-${t.id}">
+      <!-- Tabs -->
+      <div class="t-op-tabs">
+        <button class="t-op-tab active" onclick="tOpTab(event,${t.id},'overview')">${ovSVG} Overview</button>
+        <button class="t-op-tab" onclick="tOpTab(event,${t.id},'teams')">${teamSVG} Teams</button>
+        <button class="t-op-tab" onclick="tOpTab(event,${t.id},'bracket')">${brackSVG} Bracket</button>
+        <button class="t-op-tab" onclick="tOpTab(event,${t.id},'results')">${resSVG} Results</button>
       </div>
-    ` : `<div class="t-empty">No tournaments yet. Create your first one!</div>`}
-  `;
-}
-
-// ─── CREATE TOURNAMENT ──────────────────────────────────────
-function showCreateTournament() {
-  const el = document.getElementById('t-content');
-  el.innerHTML = `
-    <div class="t-header-bar">
-      <button class="t-btn t-btn-ghost" onclick="renderTournamentList()">← Back</button>
-      <h2 class="t-section-title">New Tournament</h2>
-    </div>
-    <div class="t-card">
-      <form id="t-create-form" onsubmit="createTournament(event)">
-        <div class="t-form-group">
-          <label class="t-label">Tournament name *</label>
-          <input class="t-input" type="text" id="t-name" required placeholder="e.g. Spring Open 2026">
-        </div>
-        <div class="t-form-group">
-          <label class="t-label">Date</label>
-          <input class="t-input" type="date" id="t-date">
-        </div>
-        <div class="t-form-group">
-          <label class="t-label">Categories *</label>
-          <div style="font-size:11px;color:#6b7a99;font-weight:500;margin-bottom:10px;">
-            Add one or more categories. Use custom names for specific groups (e.g. "Group A Mixed 3.5-4.25").
+      <!-- Body -->
+      <div class="t-op-body">
+        <!-- LEFT -->
+        <div class="t-op-left">
+          <div class="t-op-name">${tEsc(t.name)}</div>
+          <div class="t-op-status-row">
+            <span class="${pillClass(t.status)}">${pillLabel(t.status)}</span>
+            ${t.date ? `<span class="t-op-date-badge">${calSVG} ${fmtDate(t.date)}</span>` : ''}
           </div>
-          <div id="t-categories-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
-          <button type="button" class="t-btn t-btn-ghost t-btn-sm" onclick="addCategoryField()">+ Add Category</button>
+          <div class="t-op-meta">${trophySVG} ${catCount} Categor${catCount !== 1 ? 'ies' : 'y'}</div>
+          <div class="t-op-stats-row">
+            <div><div class="t-op-stat-val">0</div><div class="t-op-stat-lbl">Teams</div></div>
+            <div><div class="t-op-stat-val">${catCount}</div><div class="t-op-stat-lbl">Categories</div></div>
+            <div><div class="t-op-stat-val">0</div><div class="t-op-stat-lbl">Rounds</div></div>
+          </div>
         </div>
-        <div class="t-form-actions">
-          <button type="button" class="t-btn t-btn-ghost" onclick="renderTournamentList()">Cancel</button>
-          <button type="submit" class="t-btn t-btn-primary">Create Tournament</button>
+        <!-- CENTER -->
+        <div class="t-op-center">
+          <div class="t-op-intel-title">Tournament Intelligence</div>
+          <div class="t-op-intel-item">
+            <div class="t-op-intel-icon" style="background:#fde8d8;">${boltSVG}</div>
+            <div><div class="t-op-intel-text">${t.status === 'active' ? 'Tournament in progress' : t.status === 'draft' ? 'Setup in progress' : 'Tournament completed'}</div><div class="t-op-intel-sub">${t.status === 'draft' ? 'No teams registered yet' : 'View bracket for details'}</div></div>
+          </div>
+          <div class="t-op-intel-item">
+            <div class="t-op-intel-icon" style="background:rgba(198,242,33,0.2);">${crwnSVG}</div>
+            <div><div class="t-op-intel-text">${catCount} categor${catCount !== 1 ? 'ies' : 'y'} set up</div><div class="t-op-intel-sub">${t.status === 'draft' ? 'Add teams to start' : 'Ready to play'}</div></div>
+          </div>
+          <div class="t-op-intel-item">
+            <div class="t-op-intel-icon" style="background:#d4f5ed;">${trendSVG}</div>
+            <div><div class="t-op-intel-text">${t.status === 'draft' ? 'Not yet published' : 'Visible to players'}</div><div class="t-op-intel-sub">${t.status === 'draft' ? 'Draft — players cannot see this' : 'Share link available'}</div></div>
+          </div>
         </div>
-      </form>
+        <!-- RIGHT -->
+        <div class="t-op-right">
+          <div class="t-op-action-title">Actions</div>
+          <button class="t-op-btn" onclick="openTournament(${t.id})">${openSVG} Open Tournament</button>
+          <button class="t-op-btn" onclick="tEditTournament(${t.id})" ${dis}>${editSVG} Edit</button>
+          <button class="t-op-btn t-op-btn-warn" onclick="tToggleStatus(${t.id},'${t.status}')" ${dis}>${closeSVG} ${t.status === 'active' ? 'Close' : t.status === 'draft' ? 'Activate' : 'Reopen'}</button>
+          <button class="t-op-btn t-op-btn-danger" onclick="deleteTournament(${t.id})">${trashSVG} Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Collapsible panel state
+  const panelIcon = _tPanelOpen
+    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>`
+    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+  const panelSubtitle = _tPanelOpen ? 'Fill in the details and add categories before creating' : 'Click to expand setup form';
+
+  el.innerHTML = `
+    <!-- Page title -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:4px;">Tournament Operations Center</div>
+    <div style="font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:20px;">Create, manage, and monitor active competitive tournaments.</div>
+
+    <!-- Stat cards -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
+      <div class="stat stat-green" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Active Tournaments</div>
+        <div class="stat-value">${active}</div>
+        <div class="stat-ctx ctx-green" style="margin-top:auto;display:flex;align-items:center;gap:4px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Currently running
+        </div>
+      </div>
+      <div class="stat stat-blue" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Draft</div>
+        <div class="stat-value">${draft}</div>
+        <div class="stat-ctx ctx-blue" style="margin-top:auto;display:flex;align-items:center;gap:4px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          In setup
+        </div>
+      </div>
+      <div class="stat stat-orange" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Total Teams</div>
+        <div class="stat-value">—</div>
+        <div class="stat-ctx ctx-orange" style="margin-top:auto;display:flex;align-items:center;gap:4px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Across active
+        </div>
+      </div>
+      <div class="stat stat-lime" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Completed</div>
+        <div class="stat-value">${completed}</div>
+        <div class="stat-ctx" style="margin-top:auto;display:flex;align-items:center;gap:4px;color:#6b7a99;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Finished
+        </div>
+      </div>
     </div>
-  `;
-  // Add two default category fields
-  addCategoryField();
+
+    <!-- Collapsible create panel -->
+    <div class="t-collapsible-panel" style="margin-bottom:20px;">
+      <div class="t-panel-header" onclick="tTogglePanel()">
+        <div class="t-panel-header-left">
+          <div class="t-panel-toggle-icon">${panelIcon}</div>
+          <div>
+            <div class="t-panel-title">New Tournament</div>
+            <div class="t-panel-subtitle">${panelSubtitle}</div>
+          </div>
+        </div>
+        <span class="t-panel-chevron ${_tPanelOpen ? 'open' : ''}">▼</span>
+      </div>
+      ${_tPanelOpen ? `
+      <div class="t-panel-body">
+        <form id="t-create-form" onsubmit="createTournament(event)">
+          <!-- Name + Date -->
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px;">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div class="t-new-field-lbl">Tournament Name</div>
+              <input class="t-new-input" type="text" id="t-name" required placeholder="e.g. Spring Doubles Open 2026">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div class="t-new-field-lbl">Date</div>
+              <input class="t-new-input" type="date" id="t-date">
+            </div>
+          </div>
+          <div class="t-new-divider"></div>
+          <!-- Categories -->
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <div class="t-new-field-lbl" style="margin:0;">Tournament Categories</div>
+              <span class="t-cat-count-badge" id="t-cat-count">0 Added</span>
+            </div>
+            <div id="t-categories-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+            <!-- Integrated add input -->
+            <div class="t-cat-add-wrap">
+              <input class="t-cat-add-input" type="text" id="t-cat-input" placeholder="Type a category name and press Add...">
+              <button type="button" class="t-cat-add-btn" onclick="tAddCategory()">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add
+              </button>
+            </div>
+          </div>
+          <div class="t-new-divider"></div>
+          <!-- Submit -->
+          <div style="display:flex;justify-content:center;">
+            <button type="submit" class="t-new-submit-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+              Create Tournament
+            </button>
+          </div>
+        </form>
+      </div>` : ''}
+    </div>
+
+    <!-- Section header + filter -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;display:flex;align-items:center;gap:8px;">
+        ${trophySVG} Tournaments
+      </div>
+      <div style="position:relative;">
+        <select class="t-op-filter-sel" onchange="tFilterChange(this.value)">
+          <option value="all" ${_tFilter==='all'?'selected':''}>All Tournaments</option>
+          <option value="active" ${_tFilter==='active'?'selected':''}>Active Only</option>
+          <option value="draft" ${_tFilter==='draft'?'selected':''}>Draft Only</option>
+          <option value="completed" ${_tFilter==='completed'?'selected':''}>Completed</option>
+        </select>
+        <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;" width="10" height="6" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="#6b7a99"/></svg>
+      </div>
+    </div>
+
+    <!-- Tournament cards -->
+    <div id="t-tournament-list">
+      ${filtered.length ? tournamentCards : `<div class="t-empty">No tournaments found.</div>`}
+    </div>`;
+
+  // Wire Enter key on category input
+  const catInput = document.getElementById('t-cat-input');
+  if (catInput) {
+    catInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tAddCategory(); }});
+  }
 }
 
-function addCategoryField() {
-  const list = document.getElementById('t-categories-list');
-  const idx = list.children.length;
-  const div = document.createElement('div');
-  div.style.cssText = 'display:flex;gap:8px;align-items:center;';
-  div.innerHTML = `
-    <input class="t-input t-category-input" type="text" placeholder="e.g. Group A Mixed Doubles 3.5-4.25" style="flex:1;">
-    <button type="button" class="t-btn t-btn-danger t-btn-sm" onclick="this.parentElement.remove()" style="flex-shrink:0;">×</button>
-  `;
-  list.appendChild(div);
-  div.querySelector('input').focus();
+// ── Helpers ─────────────────────────────────────────────────
+function tTogglePanel() {
+  _tPanelOpen = !_tPanelOpen;
+  _tCategories = [];
+  renderTournamentList();
+  if (_tPanelOpen) {
+    setTimeout(() => document.getElementById('t-name')?.focus(), 100);
+  }
 }
+
+function tFilterChange(val) {
+  _tFilter = val;
+  renderTournamentList();
+}
+
+function tOpTab(e, tournamentId, tab) {
+  const card = document.getElementById(`t-op-card-${tournamentId}`);
+  if (!card) return;
+  card.querySelectorAll('.t-op-tab').forEach(t => t.classList.remove('active'));
+  e.currentTarget.classList.add('active');
+  if (tab === 'overview') return;
+  openTournament(tournamentId);
+}
+
+async function tToggleStatus(id, currentStatus) {
+  const newStatus = currentStatus === 'active' ? 'completed' : 'active';
+  const label = newStatus === 'active' ? 'activate' : 'close';
+  const confirmed = await tConfirm({ title: `${label.charAt(0).toUpperCase() + label.slice(1)} Tournament?`, message: `Are you sure you want to ${label} this tournament?`, okLabel: label.charAt(0).toUpperCase() + label.slice(1) });
+  if (!confirmed) return;
+  await tApi(`tournaments?id=eq.${id}`, 'PATCH', { status: newStatus });
+  renderTournamentList();
+}
+
+async function tEditTournament(id) {
+  openTournament(id);
+}
+
+function tAddCategory() {
+  const input = document.getElementById('t-cat-input');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) return;
+  _tCategories.push(name);
+  input.value = '';
+  input.focus();
+  _renderCategoryCards();
+}
+
+function tRemoveCategory(idx) {
+  _tCategories.splice(idx, 1);
+  _renderCategoryCards();
+}
+
+function _renderCategoryCards() {
+  const list = document.getElementById('t-categories-list');
+  const badge = document.getElementById('t-cat-count');
+  if (!list) return;
+  if (badge) badge.textContent = `${_tCategories.length} Added`;
+
+  const editSVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+  const trashSVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`;
+
+  list.innerHTML = _tCategories.map((cat, i) => {
+    const emoji = _tCatEmojis[i % _tCatEmojis.length];
+    return `<div class="t-cat-card">
+      <div class="t-cat-card-icon">${emoji}</div>
+      <div class="t-cat-card-name">${tEsc(cat)}</div>
+      <button type="button" class="t-cat-ghost-btn" onclick="tEditCategory(${i})">${editSVG} Edit</button>
+      <div class="t-cat-ghost-sep"></div>
+      <button type="button" class="t-cat-ghost-btn remove" onclick="tRemoveCategory(${i})">${trashSVG} Remove</button>
+    </div>`;
+  }).join('');
+}
+
+function tEditCategory(idx) {
+  const newName = prompt('Edit category name:', _tCategories[idx]);
+  if (newName !== null && newName.trim()) {
+    _tCategories[idx] = newName.trim();
+    _renderCategoryCards();
+  }
+}
+
+// ─── CREATE TOURNAMENT — now handled inline via collapsible panel ─────────
+function showCreateTournament() { _tPanelOpen = true; _tCategories = []; renderTournamentList(); }
+function addCategoryField() { tAddCategory(); }
 
 async function createTournament(e) {
   e.preventDefault();
   const name = document.getElementById('t-name').value.trim();
   const date = document.getElementById('t-date').value || null;
-  const categories = [...document.querySelectorAll('.t-category-input')]
-    .map(i => i.value.trim()).filter(Boolean);
+  const categories = _tCategories.filter(Boolean);
   if (!name) { tToast('Please enter a tournament name.', true); return; }
   if (!categories.length) { tToast('Please add at least one category.', true); return; }
   try {
@@ -620,6 +871,8 @@ async function createTournament(e) {
       );
     }
     tToast(`Tournament "${name}" created!`);
+    _tPanelOpen = false;
+    _tCategories = [];
     openTournament(t.id);
   } catch(err) { tToast(`Error: ${err.message}`, true); }
 }
