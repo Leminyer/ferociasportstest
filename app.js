@@ -1048,20 +1048,39 @@
   window.lpSegClick = async (btn, newStatus, pid) => {
     const seg = btn.closest('.lp-seg');
     if (!seg) return;
+
     // Update UI immediately
     seg.querySelectorAll('.lp-seg-btn').forEach(b => {
       b.classList.remove('lp-seg-active', 'lp-seg-sub');
     });
     btn.classList.add(newStatus === 'active' ? 'lp-seg-active' : 'lp-seg-sub');
-    // Save to DB
+
+    // Guard: ensure we have a ladder context
+    if (!modalLadderId) {
+      toast('Error: no ladder selected. Please close and reopen the modal.', true);
+      return;
+    }
+
+    // Disable seg while saving
+    seg.style.opacity = '0.6';
+    seg.style.pointerEvents = 'none';
+
     try {
       await api(
         `ladder_players?ladder_id=eq.${modalLadderId}&player_id=eq.${pid}`,
         'PATCH',
         { status: newStatus }
       );
+      toast(`Player status updated to ${newStatus === 'active' ? 'Active' : 'Sub'}.`);
     } catch(e) {
-      toast(`Error updating status: ${e.message}`, true);
+      // Revert UI on failure
+      seg.querySelectorAll('.lp-seg-btn').forEach(b => b.classList.remove('lp-seg-active','lp-seg-sub'));
+      const prev = newStatus === 'active' ? 'sub' : 'active';
+      seg.querySelector(`.lp-seg-btn:${prev === 'active' ? 'first-child' : 'last-child'}`)?.classList.add(prev === 'active' ? 'lp-seg-active' : 'lp-seg-sub');
+      toast(`Error updating status: ${e.message || 'Unknown error'}`, true);
+    } finally {
+      seg.style.opacity = '';
+      seg.style.pointerEvents = '';
     }
   };
 
@@ -1080,7 +1099,7 @@
     const toRemove = prevEnrolledIds.filter(id => !nowCheckedIds.includes(id));
 
     if (!toAdd.length && !toRemove.length) {
-      toast('No enrollment changes to save.');
+      toast('No participant changes to save.');
       return;
     }
     const saveBtn = document.getElementById('lp-save-btn');
@@ -1110,7 +1129,7 @@
           'DELETE'
         );
       }
-      toast(`Saved! ${toAdd.length} added, ${toRemove.length} removed.`);
+      toast(`Participants updated! ${toAdd.length} added, ${toRemove.length} removed.`);
       await loadLadderPlayers();
       closeLpModal();
     } catch (e) {
