@@ -430,6 +430,7 @@
   .share-tab.active{color:#174CCC !important;border-bottom-color:#C6F221 !important;}
 
   /* Ladder Participants modal */
+  #lp-search:focus{outline:none !important;box-shadow:none !important;border:none !important;}
   .lp-select-all-row{display:flex;align-items:center;gap:10px;padding:10px 20px;background:#f8f9ff;border-bottom:0.5px solid #e8edf8;}
   .lp-player-row-new{display:flex;align-items:center;gap:12px;padding:10px 20px;border-bottom:0.5px solid #f4f5f8;cursor:pointer;transition:all 0.18s ease;}
   .lp-player-row-new:hover{background:rgba(23,76,204,0.02);}
@@ -2120,10 +2121,10 @@
 
     <!-- Search bar -->
     <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:0.5px solid #e0e7f5;background:#fafbff;flex-shrink:0;">
-      <div style="flex:1;display:flex;align-items:center;gap:8px;background:#f0f2f8;border:0.5px solid #e0e7f5;border-radius:8px;padding:7px 12px;">
+      <div style="flex:1;display:flex;align-items:center;gap:8px;background:#f0f2f8;border:0.5px solid #e0e7f5;border-radius:8px;padding:7px 12px;outline:none;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="lp-search" placeholder="Search ladder participants..." autocomplete="off"
-          style="border:none;background:transparent;outline:none;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;color:#0d1f4a;width:100%;padding:0;line-height:1.4;">
+          style="border:none;background:transparent;outline:none;box-shadow:none;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;color:#0d1f4a;width:100%;padding:0;line-height:1.4;-webkit-appearance:none;">
       </div>
     </div>
 
