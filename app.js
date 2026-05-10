@@ -887,11 +887,30 @@
 
   const openLadderPlayers = async (ladderId, ladderName) => {
     modalLadderId = ladderId;
-    document.getElementById('lp-modal-title').textContent = `Players — ${ladderName}`;
-    document.getElementById('lp-modal').classList.add('open');
+    const modal = document.getElementById('lp-modal');
+    if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
     const searchEl = document.getElementById('lp-search');
-    if (searchEl) searchEl.value = '';
+    if (searchEl) {
+      searchEl.value = '';
+      if (!searchEl._lpWired) {
+        searchEl._lpWired = true;
+        searchEl.addEventListener('input', () => {
+          const q = searchEl.value.toLowerCase();
+          document.querySelectorAll('.lp-player-row-new').forEach(row => {
+            row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+          });
+        });
+      }
+    }
     await refreshLadderPlayersModal();
+  };
+
+  // Avatar color from name
+  const _lpAvColor = (name) => {
+    const colors = ['#174CCC','#24BC96','#F26024','#7c3aed','#0891b2','#d97706','#16a34a','#db2777'];
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+    return colors[Math.abs(h) % colors.length];
   };
 
   const refreshLadderPlayersModal = async () => {
@@ -900,131 +919,202 @@
       api(`ladder_players?select=ladder_id,player_id,status&ladder_id=eq.${modalLadderId}`),
     ]);
     allPlayers = allP;
-    const enrolledIds = enrolled.map((r) => Number(r.player_id));
+    const enrolledIds  = enrolled.map((r) => Number(r.player_id));
     const activePlayers = allPlayers.filter((p) => p.status !== 'inactive');
+    const subCount     = enrolled.filter(r => r.status === 'sub').length;
 
     const listEl = document.getElementById('lp-enrolled');
-    const allChecked = activePlayers.every((p) => enrolledIds.includes(Number(p.id)));
     listEl.dataset.enrolledIds = enrolledIds.join(',');
 
-    const headerHtml = `
-      <div class="lp-sticky-header">
-        <input type="checkbox" id="lp-select-all" ${allChecked ? 'checked' : ''}
-          style="width:16px;height:16px;cursor:pointer;" data-action="lpToggleAll">
-        <label for="lp-select-all" class="text-bolder text-uppercase color-blue cursor-pointer" style="font-size:12px;letter-spacing:.5px;">Select all</label>
-        <span class="text-bold color-blue" style="margin-left:auto;font-size:12px;">${enrolledIds.length} / ${activePlayers.length} enrolled</span>
-      </div>`;
+    // Update summary pill
+    const summaryEl = document.getElementById('lp-summary-text');
+    if (summaryEl) summaryEl.textContent = `${enrolledIds.length} enrolled • ${subCount} subs`;
 
-    const rowsHtml = activePlayers
-      .map((p) => {
-        const isEnrolled = enrolledIds.includes(Number(p.id));
-        const enrolledRow = enrolled.find((r) => Number(r.player_id) === Number(p.id));
-        const ladderStatus = enrolledRow && enrolledRow.status ? enrolledRow.status : 'active';
-        const fullName = `${p.first_name} ${p.last_name}`;
-        return `<div class="lp-row lp-player-row" data-name="${esc(fullName.toLowerCase())}">
-          <input type="checkbox" id="lp-cb-${p.id}" ${isEnrolled ? 'checked' : ''}
-            style="width:16px;height:16px;cursor:pointer;" data-pid="${p.id}">
-          <label for="lp-cb-${p.id}" class="text-bold cursor-pointer flex-1" style="font-size:13px;">
-            ${esc(fullName)}
-            <span class="badge badge-${esc(p.status)}" style="margin-left:6px;">${esc(p.status)}</span>
-          </label>
-          ${
-            isEnrolled
-              ? `<select data-action="lpChangeStatus" data-pid="${p.id}"
-                  class="lp-status-select ${ladderStatus === 'active' ? 'lp-status-active' : 'lp-status-sub'}">
-                  <option value="active" ${ladderStatus === 'active' ? 'selected' : ''}>Active</option>
-                  <option value="sub" ${ladderStatus === 'sub' ? 'selected' : ''}>Sub</option>
-                </select>`
-              : ''
-          }
-        </div>`;
-      })
-      .join('');
+    // Select-all row
+    const allChecked = activePlayers.every((p) => enrolledIds.includes(Number(p.id)));
+    const checkSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+    const headerHtml = `<div class="lp-select-all-row">
+      <div class="lp-cb-box ${allChecked ? 'lp-cb-checked' : ''}" id="lp-cb-all-box" onclick="lpToggleAllNew(this)" style="cursor:pointer;">
+        ${allChecked ? checkSVG : ''}
+      </div>
+      <span style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#174CCC;cursor:pointer;flex:1;" onclick="lpToggleAllNew(document.getElementById('lp-cb-all-box'))">Select All</span>
+      <span style="font-size:11px;font-weight:700;color:#6b7a99;">${enrolledIds.length} of ${activePlayers.length} enrolled</span>
+    </div>`;
+
+    const rowsHtml = activePlayers.map((p) => {
+      const isEnrolled   = enrolledIds.includes(Number(p.id));
+      const enrolledRow  = enrolled.find((r) => Number(r.player_id) === Number(p.id));
+      const ladderStatus = enrolledRow?.status || 'active';
+      const fullName     = `${p.first_name} ${p.last_name}`;
+      const initials     = `${p.first_name?.[0] || ''}${p.last_name?.[0] || ''}`.toUpperCase();
+      const avColor      = _lpAvColor(fullName);
+      const checkSVG     = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+      const segToggle = isEnrolled ? `
+        <div class="lp-seg" data-pid="${p.id}">
+          <button type="button" class="lp-seg-btn ${ladderStatus === 'active' ? 'lp-seg-active' : ''}"
+            onclick="lpSegClick(this,'active',${p.id})">Active</button>
+          <button type="button" class="lp-seg-btn ${ladderStatus === 'sub' ? 'lp-seg-sub' : ''}"
+            onclick="lpSegClick(this,'sub',${p.id})">Sub</button>
+        </div>` : '';
+
+      return `<div class="lp-player-row-new ${isEnrolled ? 'lp-selected' : ''}"
+          data-name="${esc(fullName.toLowerCase())}" data-pid="${p.id}"
+          onclick="lpRowClick(event,${p.id})">
+        <div class="lp-cb-box ${isEnrolled ? 'lp-cb-checked' : ''}" data-pid="${p.id}" style="pointer-events:none;">
+          ${isEnrolled ? checkSVG : ''}
+        </div>
+        <div class="lp-av" style="background:${avColor};">${esc(initials)}</div>
+        <div class="lp-pname ${isEnrolled ? '' : 'lp-unenrolled'}">${esc(fullName)}</div>
+        ${segToggle}
+      </div>`;
+    }).join('');
 
     listEl.innerHTML = headerHtml + rowsHtml;
   };
 
-  const lpChangeStatus = async (sel) => {
-    const pid = parseInt(sel.dataset.pid, 10);
-    const newStatus = sel.value;
-    sel.disabled = true;
+  // Toggle single row on click (but not if clicking seg button)
+  window.lpRowClick = (e, pid) => {
+    if (e.target.closest('.lp-seg')) return; // ignore seg clicks
+    const row = e.currentTarget;
+    const cb  = row.querySelector('.lp-cb-box');
+    const isChecked = cb.classList.contains('lp-cb-checked');
+    const checkSVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    if (isChecked) {
+      cb.classList.remove('lp-cb-checked');
+      cb.innerHTML = '';
+      row.classList.remove('lp-selected');
+      // Remove seg toggle
+      const seg = row.querySelector('.lp-seg');
+      if (seg) seg.remove();
+    } else {
+      cb.classList.add('lp-cb-checked');
+      cb.innerHTML = checkSVG;
+      row.classList.add('lp-selected');
+      // Add seg toggle (default active)
+      const pname = row.querySelector('.lp-pname');
+      if (pname) pname.classList.remove('lp-unenrolled');
+      const seg = document.createElement('div');
+      seg.className = 'lp-seg';
+      seg.dataset.pid = pid;
+      seg.innerHTML = `<button type="button" class="lp-seg-btn lp-seg-active" onclick="lpSegClick(this,'active',${pid})">Active</button><button type="button" class="lp-seg-btn" onclick="lpSegClick(this,'sub',${pid})">Sub</button>`;
+      row.appendChild(seg);
+    }
+  };
+
+  // Toggle All
+  window.lpToggleAllNew = (boxEl) => {
+    const isChecked = boxEl.classList.contains('lp-cb-checked');
+    const checkSVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    if (isChecked) {
+      // Deselect all
+      boxEl.classList.remove('lp-cb-checked');
+      boxEl.innerHTML = '';
+      document.querySelectorAll('.lp-player-row-new').forEach(row => {
+        row.classList.remove('lp-selected');
+        const cb = row.querySelector('.lp-cb-box');
+        if (cb) { cb.classList.remove('lp-cb-checked'); cb.innerHTML = ''; }
+        const seg = row.querySelector('.lp-seg');
+        if (seg) seg.remove();
+        const pname = row.querySelector('.lp-pname');
+        if (pname) pname.classList.add('lp-unenrolled');
+      });
+    } else {
+      // Select all
+      boxEl.classList.add('lp-cb-checked');
+      boxEl.innerHTML = checkSVG;
+      document.querySelectorAll('.lp-player-row-new').forEach(row => {
+        const pid = row.dataset.pid;
+        if (!row.classList.contains('lp-selected')) {
+          row.classList.add('lp-selected');
+          const cb = row.querySelector('.lp-cb-box');
+          if (cb) { cb.classList.add('lp-cb-checked'); cb.innerHTML = checkSVG; }
+          const pname = row.querySelector('.lp-pname');
+          if (pname) pname.classList.remove('lp-unenrolled');
+          if (!row.querySelector('.lp-seg')) {
+            const seg = document.createElement('div');
+            seg.className = 'lp-seg';
+            seg.dataset.pid = pid;
+            seg.innerHTML = `<button type="button" class="lp-seg-btn lp-seg-active" onclick="lpSegClick(this,'active',${pid})">Active</button><button type="button" class="lp-seg-btn" onclick="lpSegClick(this,'sub',${pid})">Sub</button>`;
+            row.appendChild(seg);
+          }
+        }
+      });
+    }
+  };
+
+  // Segmented status pill click
+  window.lpSegClick = async (btn, newStatus, pid) => {
+    const seg = btn.closest('.lp-seg');
+    if (!seg) return;
+    // Update UI immediately
+    seg.querySelectorAll('.lp-seg-btn').forEach(b => {
+      b.classList.remove('lp-seg-active', 'lp-seg-sub');
+    });
+    btn.classList.add(newStatus === 'active' ? 'lp-seg-active' : 'lp-seg-sub');
+    // Save to DB
     try {
       await api(
         `ladder_players?ladder_id=eq.${modalLadderId}&player_id=eq.${pid}`,
         'PATCH',
-        { status: newStatus },
+        { status: newStatus }
       );
-      sel.classList.toggle('lp-status-active', newStatus === 'active');
-      sel.classList.toggle('lp-status-sub', newStatus === 'sub');
-      const p = ladderPlayers.find((x) => x.id === pid);
-      if (p) p.ladder_status = newStatus;
-      toast(`Status updated to ${newStatus}.`);
-    } catch (e) {
-      toast(`Error: ${e.message}`, true);
-    } finally {
-      sel.disabled = false;
+    } catch(e) {
+      toast(`Error updating status: ${e.message}`, true);
     }
   };
+
+  const lpChangeStatus = async (sel) => { /* now handled by lpSegClick */ };
 
   const lpSaveChanges = async () => {
     const listEl = document.getElementById('lp-enrolled');
     const prevEnrolledIds = (listEl.dataset.enrolledIds || '')
-      .split(',')
-      .filter(Boolean)
-      .map(Number);
-    const checkboxes = document.querySelectorAll('#lp-enrolled input[type="checkbox"][data-pid]');
-    const nowCheckedIds = [...checkboxes]
-      .filter((cb) => cb.checked)
-      .map((cb) => parseInt(cb.dataset.pid, 10));
+      .split(',').filter(Boolean).map(Number);
 
-    const toAdd = nowCheckedIds.filter((id) => !prevEnrolledIds.includes(id));
-    const toRemove = prevEnrolledIds.filter((id) => !nowCheckedIds.includes(id));
+    // Read currently selected rows (new UI — use lp-selected class)
+    const nowCheckedIds = [...document.querySelectorAll('.lp-player-row-new.lp-selected')]
+      .map(row => parseInt(row.dataset.pid, 10)).filter(Boolean);
+
+    const toAdd    = nowCheckedIds.filter(id => !prevEnrolledIds.includes(id));
+    const toRemove = prevEnrolledIds.filter(id => !nowCheckedIds.includes(id));
 
     if (!toAdd.length && !toRemove.length) {
-      toast('No changes to save.');
+      toast('No enrollment changes to save.');
       return;
     }
     const saveBtn = document.getElementById('lp-save-btn');
-    if (saveBtn) {
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving...';
-    }
+    const origHTML = saveBtn?.innerHTML;
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = 'Saving...'; }
+
     try {
       if (toAdd.length) {
-        await api(
-          'ladder_players',
-          'POST',
-          toAdd.map((pid) => ({ ladder_id: parseInt(modalLadderId, 10), player_id: pid })),
+        await api('ladder_players', 'POST',
+          toAdd.map(pid => ({ ladder_id: parseInt(modalLadderId, 10), player_id: pid, status: 'active' }))
         );
       }
       if (toRemove.length) {
-        // Single bulk delete
         await api(
           `ladder_players?ladder_id=eq.${modalLadderId}&player_id=in.(${toRemove.join(',')})`,
-          'DELETE',
+          'DELETE'
         );
       }
       toast(`Saved! ${toAdd.length} added, ${toRemove.length} removed.`);
       await loadLadderPlayers();
-      document.getElementById('lp-modal').classList.remove('open');
+      closeLpModal();
     } catch (e) {
       toast(`Error: ${e.message}`, true);
     } finally {
-      if (saveBtn) {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save changes';
-      }
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = origHTML; }
     }
   };
 
-  const lpToggleAll = (btn) => {
-    const selectAll = btn.checked;
-    document
-      .querySelectorAll('#lp-enrolled input[type="checkbox"][data-pid]')
-      .forEach((cb) => (cb.checked = selectAll));
-  };
+  const lpToggleAll = (btn) => { /* replaced by lpToggleAllNew */ };
 
-  const closeLpModal = () => document.getElementById('lp-modal').classList.remove('open');
+  const closeLpModal = () => {
+    const modal = document.getElementById('lp-modal');
+    if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+  };
 
   /* ─── LADDER STANDINGS ─────────────────────────────────── */
 
