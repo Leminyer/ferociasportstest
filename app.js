@@ -1089,8 +1089,19 @@
 
     try {
       if (toAdd.length) {
+        // Read the actual seg pill status for each newly added player
+        const getSegStatus = (pid) => {
+          const row = document.querySelector(`.lp-player-row-new[data-pid="${pid}"]`);
+          if (!row) return 'active';
+          const subBtn = row.querySelector('.lp-seg-btn.lp-seg-sub');
+          return subBtn ? 'sub' : 'active';
+        };
         await api('ladder_players', 'POST',
-          toAdd.map(pid => ({ ladder_id: parseInt(modalLadderId, 10), player_id: pid, status: 'active' }))
+          toAdd.map(pid => ({
+            ladder_id:  parseInt(modalLadderId, 10),
+            player_id:  pid,
+            status:     getSegStatus(pid),
+          }))
         );
       }
       if (toRemove.length) {
