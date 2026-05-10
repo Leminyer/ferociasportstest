@@ -373,13 +373,16 @@
 
   const onTournamentChange = async () => {
     const tid = document.getElementById('tournament-selector').value;
-    const el = document.getElementById('tournament-view-content');
-    if (!tid) {
-      el.innerHTML = '<div class="empty">Select a tournament to view details.</div>';
-      return;
-    }
+    if (!tid) return;
     currentTournamentId = parseInt(tid, 10);
-    await renderTournamentViewReadOnly();
+    // Navigate to the t-tournaments management page and open the tournament detail view
+    showPage('t-tournaments', null);
+    if (typeof loadTournamentModule !== 'undefined') {
+      await loadTournamentModule();
+    }
+    if (typeof openTournament !== 'undefined') {
+      openTournament(currentTournamentId);
+    }
   };
 
   const renderTournamentViewReadOnly = async () => {
