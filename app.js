@@ -556,18 +556,22 @@
     let matchStats = {}, ladderPlayers = [], pendingAll = [];
     try {
       const [matches, lp, pending] = await Promise.all([
-        api('matches?select=ladder_id,player_id,score_for,session_date,points_earned&order=session_date.desc').catch(() => []),
+        api('matches?select=ladder_id,player_id,score_for,session_date,points_earned,players(first_name,last_name)&order=session_date.desc').catch(() => []),
         api('ladder_players?select=ladder_id,player_id').catch(() => []),
         api('matches?score_for=is.null&default_no_show=is.false&select=ladder_id').catch(() => []),
       ]);
       // Per-ladder stats
       matches.forEach(m => {
-        if (!matchStats[m.ladder_id]) matchStats[m.ladder_id] = { games: 0, sessions: new Set(), pts: {}, playerNames: {} };
+        if (!matchStats[m.ladder_id]) matchStats[m.ladder_id] = { games: 0, sessions: new Set(), pts: {}, names: {} };
         const s = matchStats[m.ladder_id];
         s.games++;
         if (m.session_date) s.sessions.add(m.session_date);
         if (m.score_for !== null && m.points_earned) {
           s.pts[m.player_id] = (s.pts[m.player_id] || 0) + m.points_earned;
+        }
+        // Store player name
+        if (m.players && m.player_id) {
+          s.names[m.player_id] = `${m.players.first_name} ${m.players.last_name}`;
         }
       });
       ladderPlayers = lp;
@@ -669,10 +673,13 @@
               <div><div class="lop-stat-val">${games}</div><div class="lop-stat-lbl">Games</div></div>
               <div><div class="lop-stat-val">${sessions}</div><div class="lop-stat-lbl">Sessions</div></div>
             </div>
-            ${prog ? `<div>
-              <div class="lop-progress-lbl"><span>Season Progress</span><span class="wk">Week ${prog.done} of ${prog.total}</span></div>
-              <div class="lop-bar"><div class="lop-fill" style="width:${prog.pct}%;"></div></div>
-            </div>` : ''}
+            <div style="margin-top:8px;">
+              <div class="lop-progress-lbl">
+                <span>Season Progress</span>
+                <span class="wk">${prog ? `Week ${prog.done} of ${prog.total}` : 'No dates set'}</span>
+              </div>
+              <div class="lop-bar"><div class="lop-fill" style="width:${prog ? prog.pct : 0}%;"></div></div>
+            </div>
           </div>
           <!-- CENTER: Intelligence -->
           <div class="lop-center">
@@ -687,8 +694,8 @@
             <div class="lop-intel-item">
               <div class="lop-intel-icon" style="background:rgba(198,242,33,0.2);">${crwnSVG}</div>
               <div>
-                <div class="lop-intel-text">${topPts > 0 ? `+${topPts} pts leading` : 'No scores yet'}</div>
-                <div class="lop-intel-sub">${topPts > 0 ? 'Season leader' : 'Record first session'}</div>
+                <div class="lop-intel-text">${topPts > 0 ? esc(stats.names[topPid] || 'Unknown') : 'No scores yet'}</div>
+                <div class="lop-intel-sub">${topPts > 0 ? `+${topPts} pts · Season leader` : 'Record first session'}</div>
               </div>
             </div>
             <div class="lop-intel-item">
@@ -819,29 +826,30 @@
   const openEditLadder = (id) => {
     const l = allLadders.find((x) => x.id === id);
     if (!l) return;
-    document.getElementById('edit-ladder-id').value = l.id;
-    document.getElementById('edit-ladder-name').value = l.name;
+    document.getElementById('edit-ladder-id').value  = l.id;
+    document.getElementById('edit-ladder-name').value  = l.name;
     document.getElementById('edit-ladder-start').value = l.start_date || '';
-    document.getElementById('edit-ladder-end').value = l.end_date || '';
-    document.getElementById('edit-ladder-status').value = l.status || 'active';
-    document.getElementById('edit-ladder-modal').classList.add('open');
+    document.getElementById('edit-ladder-end').value   = l.end_date   || '';
+    const modal = document.getElementById('edit-ladder-modal');
+    if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
   };
 
-  const closeEditLadderModal = () =>
-    document.getElementById('edit-ladder-modal').classList.remove('open');
+  const closeEditLadderModal = () => {
+    const modal = document.getElementById('edit-ladder-modal');
+    if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+  };
 
   const saveEditLadder = async (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-ladder-id').value;
     const body = {
-      name: document.getElementById('edit-ladder-name').value.trim(),
+      name:       document.getElementById('edit-ladder-name').value.trim(),
       start_date: document.getElementById('edit-ladder-start').value || null,
-      end_date: document.getElementById('edit-ladder-end').value || null,
-      status: document.getElementById('edit-ladder-status').value,
+      end_date:   document.getElementById('edit-ladder-end').value   || null,
     };
     try {
       await api(`ladders?id=eq.${id}`, 'PATCH', body);
-      toast('Ladder updated!');
+      toast('Ladder updated successfully!');
       closeEditLadderModal();
       await loadLadderSelector();
       loadLaddersPage();
