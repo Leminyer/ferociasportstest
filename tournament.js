@@ -523,11 +523,12 @@ async function renderTournamentList() {
   const el = document.getElementById('t-content');
   el.innerHTML = `<div class="t-loading">Loading...</div>`;
 
-  let tournaments = [], categories = [];
+  let tournaments = [], categories = [], teams = [];
   try {
-    [tournaments, categories] = await Promise.all([
+    [tournaments, categories, teams] = await Promise.all([
       tApi('tournaments?select=*&order=id.desc'),
-      tApi('tournament_categories?select=tournament_id,id').catch(() => []),
+      tApi('tournament_categories?select=tournament_id,id,name').catch(() => []),
+      tApi('tournament_teams?select=id,category_id').catch(() => []),
     ]);
   } catch(e) {
     el.innerHTML = `<div class="t-empty">Error loading tournaments: ${tEsc(e.message)}</div>`;
@@ -538,8 +539,27 @@ async function renderTournamentList() {
   const active    = tournaments.filter(t => t.status === 'active').length;
   const draft     = tournaments.filter(t => t.status === 'draft').length;
   const completed = tournaments.filter(t => t.status === 'completed').length;
-  const catsByT   = {};
-  categories.forEach(c => { if (!catsByT[c.tournament_id]) catsByT[c.tournament_id] = 0; catsByT[c.tournament_id]++; });
+
+  // Category map: tournament_id → [{id, name}]
+  const catsByT = {};
+  categories.forEach(c => {
+    if (!catsByT[c.tournament_id]) catsByT[c.tournament_id] = [];
+    catsByT[c.tournament_id].push({ id: c.id, name: c.name });
+  });
+
+  // Teams per tournament (via category)
+  const catTourneyMap = {};
+  categories.forEach(c => { catTourneyMap[c.id] = c.tournament_id; });
+  const teamsByT = {};
+  teams.forEach(t => {
+    const tid = catTourneyMap[t.category_id];
+    if (tid) teamsByT[tid] = (teamsByT[tid] || 0) + 1;
+  });
+
+  // Total teams across active tournaments
+  const totalTeamsActive = tournaments
+    .filter(t => t.status === 'active')
+    .reduce((sum, t) => sum + (teamsByT[t.id] || 0), 0);
 
   const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : 'No date set';
 
@@ -571,8 +591,15 @@ async function renderTournamentList() {
 
   const tournamentCards = filtered.map(t => {
     const isClosed = t.status !== 'active' && t.status !== 'draft';
-    const catCount = catsByT[t.id] || 0;
+    const tCats = catsByT[t.id] || [];
+    const catCount = tCats.length;
+    const tTeamCount = teamsByT[t.id] || 0;
+    const tCatNames = tCats.map(c => c.name).join(' · ');
     const dis = isClosed ? 'disabled style="opacity:0.35;cursor:not-allowed;"' : '';
+    // Category pills HTML for overview
+    const catPillsHTML = tCats.length
+      ? tCats.map(c => `<span class="t-op-cat-pill">${tEsc(c.name)}</span>`).join('')
+      : '<span style="font-size:11px;font-weight:600;color:#b0bbd6;">No categories yet</span>';
     return `
     <div class="t-op-card" id="t-op-card-${t.id}">
       <!-- Tabs -->
@@ -591,27 +618,35 @@ async function renderTournamentList() {
             <span class="${pillClass(t.status)}">${pillLabel(t.status)}</span>
             ${t.date ? `<span class="t-op-date-badge">${calSVG} ${fmtDate(t.date)}</span>` : ''}
           </div>
-          <div class="t-op-meta">${trophySVG} ${catCount} Categor${catCount !== 1 ? 'ies' : 'y'}</div>
+          <div class="t-op-cat-pills">${catPillsHTML}</div>
           <div class="t-op-stats-row">
-            <div><div class="t-op-stat-val">0</div><div class="t-op-stat-lbl">Teams</div></div>
+            <div><div class="t-op-stat-val">${tTeamCount}</div><div class="t-op-stat-lbl">Teams</div></div>
             <div><div class="t-op-stat-val">${catCount}</div><div class="t-op-stat-lbl">Categories</div></div>
-            <div><div class="t-op-stat-val">0</div><div class="t-op-stat-lbl">Rounds</div></div>
           </div>
         </div>
-        <!-- CENTER -->
+        <!-- CENTER: Tournament Intelligence with real data -->
         <div class="t-op-center">
           <div class="t-op-intel-title">Tournament Intelligence</div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:#fde8d8;">${boltSVG}</div>
-            <div><div class="t-op-intel-text">${t.status === 'active' ? 'Tournament in progress' : t.status === 'draft' ? 'Setup in progress' : 'Tournament completed'}</div><div class="t-op-intel-sub">${t.status === 'draft' ? 'No teams registered yet' : 'View bracket for details'}</div></div>
+            <div>
+              <div class="t-op-intel-text">${tTeamCount} team${tTeamCount !== 1 ? 's' : ''} registered</div>
+              <div class="t-op-intel-sub">${tTeamCount > 0 ? 'Across all categories' : 'No teams added yet'}</div>
+            </div>
           </div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:rgba(198,242,33,0.2);">${crwnSVG}</div>
-            <div><div class="t-op-intel-text">${catCount} categor${catCount !== 1 ? 'ies' : 'y'} set up</div><div class="t-op-intel-sub">${t.status === 'draft' ? 'Add teams to start' : 'Ready to play'}</div></div>
+            <div>
+              <div class="t-op-intel-text">${catCount} categor${catCount !== 1 ? 'ies' : 'y'}</div>
+              <div class="t-op-intel-sub">${catCount > 0 ? tCatNames : 'No categories yet'}</div>
+            </div>
           </div>
           <div class="t-op-intel-item">
             <div class="t-op-intel-icon" style="background:#d4f5ed;">${trendSVG}</div>
-            <div><div class="t-op-intel-text">${t.status === 'draft' ? 'Not yet published' : 'Visible to players'}</div><div class="t-op-intel-sub">${t.status === 'draft' ? 'Draft — players cannot see this' : 'Share link available'}</div></div>
+            <div>
+              <div class="t-op-intel-text">${t.status === 'draft' ? 'Draft — not published' : t.status === 'active' ? 'Active — visible to players' : 'Completed'}</div>
+              <div class="t-op-intel-sub">${t.status === 'draft' ? 'Players cannot see this yet' : t.status === 'active' ? 'Share link available' : 'Season finished'}</div>
+            </div>
           </div>
         </div>
         <!-- RIGHT -->
@@ -657,7 +692,7 @@ async function renderTournamentList() {
       </div>
       <div class="stat stat-orange" style="display:flex;flex-direction:column;">
         <div class="stat-label">Total Teams</div>
-        <div class="stat-value">—</div>
+        <div class="stat-value">${totalTeamsActive || '—'}</div>
         <div class="stat-ctx ctx-orange" style="margin-top:auto;display:flex;align-items:center;gap:4px;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Across active
@@ -689,7 +724,7 @@ async function renderTournamentList() {
       <div class="t-panel-body">
         <form id="t-create-form" onsubmit="createTournament(event)">
           <!-- Name + Date -->
-          <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px;">
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:10px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
               <div class="t-new-field-lbl">Tournament Name</div>
               <input class="t-new-input" type="text" id="t-name" required placeholder="e.g. Spring Doubles Open 2026">
@@ -699,7 +734,7 @@ async function renderTournamentList() {
               <input class="t-new-input" type="date" id="t-date">
             </div>
           </div>
-          <div class="t-new-divider"></div>
+          <div class="t-new-divider" style="margin:10px 0;"></div>
           <!-- Categories -->
           <div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -716,7 +751,7 @@ async function renderTournamentList() {
               </button>
             </div>
           </div>
-          <div class="t-new-divider"></div>
+          <div class="t-new-divider" style="margin:10px 0;"></div>
           <!-- Submit -->
           <div style="display:flex;justify-content:center;">
             <button type="submit" class="t-new-submit-btn">
@@ -746,7 +781,7 @@ async function renderTournamentList() {
 
     <!-- Tournament cards -->
     <div id="t-tournament-list">
-      ${filtered.length ? tournamentCards : `<div class="t-empty">No tournaments found.</div>`}
+      ${filtered.length ? tournamentCards : `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:10px;padding:32px;text-align:center;box-shadow:0 1px 4px rgba(23,76,204,0.06);"><div class="t-empty" style="padding:0;">No tournaments found.</div></div>`}
     </div>`;
 
   // Wire Enter key on category input
@@ -781,16 +816,237 @@ function tOpTab(e, tournamentId, tab) {
 }
 
 async function tToggleStatus(id, currentStatus) {
-  const newStatus = currentStatus === 'active' ? 'completed' : 'active';
-  const label = newStatus === 'active' ? 'activate' : 'close';
-  const confirmed = await tConfirm({ title: `${label.charAt(0).toUpperCase() + label.slice(1)} Tournament?`, message: `Are you sure you want to ${label} this tournament?`, okLabel: label.charAt(0).toUpperCase() + label.slice(1) });
-  if (!confirmed) return;
-  await tApi(`tournaments?id=eq.${id}`, 'PATCH', { status: newStatus });
+  if (currentStatus === 'active') {
+    // Use full validation flow — same as completeTournament() inside openTournament view
+    await completeTournamentFromList(id);
+  } else if (currentStatus === 'draft') {
+    // Draft → Activate
+    const confirmed = await tConfirm({ title: 'Activate Tournament?', message: 'Start this tournament? Players will be able to see it.', okLabel: 'Activate' });
+    if (!confirmed) return;
+    await tApi(`tournaments?id=eq.${id}`, 'PATCH', { status: 'active' });
+    tToast('Tournament activated!');
+    renderTournamentList();
+  } else {
+    // Completed → Reopen
+    const confirmed = await tConfirm({ title: 'Reopen Tournament?', message: 'Reopen this tournament as active?', okLabel: 'Reopen' });
+    if (!confirmed) return;
+    await tApi(`tournaments?id=eq.${id}`, 'PATCH', { status: 'active' });
+    tToast('Tournament reopened.');
+    renderTournamentList();
+  }
+}
+
+// Full validation before completing — same logic as completeTournament() but returns to list
+async function completeTournamentFromList(id) {
+  const categories = await tApi(`tournament_categories?tournament_id=eq.${id}&select=id,name`);
+  const errors = [];
+  const validations = await Promise.all(categories.map(async (cat) => {
+    const [teams, rrMatches, bracketMatches] = await Promise.all([
+      tApi(`tournament_teams?category_id=eq.${cat.id}&select=*`),
+      tApi(`tournament_rr_matches?category_id=eq.${cat.id}&status=eq.pending&select=id`),
+      tApi(`tournament_bracket_matches?category_id=eq.${cat.id}&status=eq.pending&select=id`),
+    ]);
+    return { cat, teams, rrMatches, bracketMatches };
+  }));
+  for (const { cat, teams, rrMatches, bracketMatches } of validations) {
+    if (teams.filter(t => !t.player1_id).length) errors.push(`"${cat.name}": some teams have no players.`);
+    if (rrMatches.length) errors.push(`"${cat.name}": ${rrMatches.length} round robin match(es) still pending.`);
+    if (bracketMatches.length) errors.push(`"${cat.name}": ${bracketMatches.length} finals match(es) still pending.`);
+  }
+  if (errors.length) {
+    document.getElementById('t-modal-title').textContent = 'Cannot Complete Tournament';
+    document.getElementById('t-modal-body').innerHTML = `
+      <div style="padding:8px 0 16px;">
+        <p style="font-size:13px;color:#0d1f4a;margin-bottom:14px;font-weight:600;">Please fix the following before completing:</p>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+          ${errors.map(e => `<li style="font-size:13px;color:#F26024;padding:8px 12px;background:#fde8d8;border-radius:6px;">⚠️ ${e}</li>`).join('')}
+        </ul>
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">OK</button>
+      </div>`;
+    openTModal();
+    return;
+  }
+  document.getElementById('t-modal-title').textContent = 'Complete Tournament';
+  document.getElementById('t-modal-body').innerHTML = `
+    <div style="padding:8px 0 16px;">
+      <p style="font-size:14px;color:#0d1f4a;line-height:1.6;">Mark this tournament as completed? No further edits will be possible.</p>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">Cancel</button>
+      <button type="button" class="t-new-submit-btn" style="padding:8px 20px;background:linear-gradient(180deg,#24BC96,#1a9e7a);" onclick="confirmCompleteTournamentFromList(${id})">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Complete
+      </button>
+    </div>`;
+  openTModal();
+}
+
+async function confirmCompleteTournamentFromList(id) {
+  await tApi(`tournaments?id=eq.${id}`, 'PATCH', { status: 'completed' });
+  closeTModal();
+  tToast('Tournament completed! 🏆');
   renderTournamentList();
 }
 
 async function tEditTournament(id) {
-  openTournament(id);
+  const [t] = await tApi(`tournaments?id=eq.${id}&select=*`);
+  const cats = await tApi(`tournament_categories?tournament_id=eq.${id}&select=id,name&order=id`);
+  const isActive = t.status === 'active';
+  const catEmojis = ['🏆','🎾','🏅','⚡','🔥','👑','🎯','🥇'];
+  const editSVGsm = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+  const trashSVGsm = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`;
+  // Store edit state
+  window._tEditId = id;
+  window._tEditCats = cats.map(c => ({ id: c.id, name: c.name, isNew: false }));
+
+  const renderEditCats = () => {
+    const listEl = document.getElementById('t-edit-cat-list');
+    const badge  = document.getElementById('t-edit-cat-count');
+    if (!listEl) return;
+    if (badge) badge.textContent = `${window._tEditCats.length} Added`;
+    listEl.innerHTML = window._tEditCats.map((c, i) => `
+      <div class="t-cat-card">
+        <div class="t-cat-card-icon">${catEmojis[i % catEmojis.length]}</div>
+        <div class="t-cat-card-name">${tEsc(c.name)}</div>
+        ${isActive ? '' : `
+          <button type="button" class="t-cat-ghost-btn" onclick="tEditExistingCat(${i})">${editSVGsm} Edit</button>
+          <div class="t-cat-ghost-sep"></div>
+          <button type="button" class="t-cat-ghost-btn remove" onclick="tRemoveExistingCat(${i})">${trashSVGsm} Remove</button>`}
+      </div>`).join('');
+    window._renderEditCats = renderEditCats;
+  };
+
+  document.getElementById('t-modal-title').textContent = 'Tournament Settings';
+  document.getElementById('t-modal-body').innerHTML = `
+    <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Update tournament information and categories.</div>
+    ${isActive ? `<div style="padding:8px 12px;background:#fde8d8;border-radius:7px;font-size:12px;font-weight:600;color:#c04a0e;margin-bottom:14px;">⚠️ Tournament is active — categories are locked to protect team data. You can still update the name and date.</div>` : ''}
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:10px;">
+      <div>
+        <div class="t-new-field-lbl">Tournament Name</div>
+        <input id="t-edit-name" class="t-new-input" type="text" value="${tEsc(t.name)}" required>
+      </div>
+      <div>
+        <div class="t-new-field-lbl">Date</div>
+        <input id="t-edit-date" class="t-new-input" type="date" value="${t.date || ''}">
+      </div>
+    </div>
+    <div class="t-new-divider" style="margin:10px 0;"></div>
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div class="t-new-field-lbl" style="margin:0;">Tournament Categories</div>
+        <span class="t-cat-count-badge" id="t-edit-cat-count">${cats.length} Added</span>
+      </div>
+      <div id="t-edit-cat-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+      ${isActive ? '' : `
+        <div class="t-cat-add-wrap">
+          <input class="t-cat-add-input" type="text" id="t-edit-cat-input" placeholder="Type a category name and press Add...">
+          <button type="button" class="t-cat-add-btn" onclick="tAddEditCat()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add
+          </button>
+        </div>`}
+    </div>
+    <div class="t-new-divider" style="margin:10px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">Cancel</button>
+      <button type="button" class="t-new-submit-btn" style="padding:8px 20px;" onclick="tSaveEditTournament()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Apply Updates
+      </button>
+    </div>`;
+  openTModal();
+  renderEditCats();
+
+  // Wire Enter key on cat input
+  const catIn = document.getElementById('t-edit-cat-input');
+  if (catIn) catIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tAddEditCat(); }});
+}
+
+function tAddEditCat() {
+  const input = document.getElementById('t-edit-cat-input');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) return;
+  window._tEditCats.push({ id: null, name, isNew: true });
+  input.value = '';
+  input.focus();
+  if (window._renderEditCats) window._renderEditCats();
+}
+
+function tRemoveExistingCat(idx) {
+  window._tEditCats.splice(idx, 1);
+  if (window._renderEditCats) window._renderEditCats();
+}
+
+function tEditExistingCat(idx) {
+  const current = window._tEditCats[idx].name;
+  document.getElementById('t-modal-title').textContent = 'Edit Category';
+  document.getElementById('t-modal-body').innerHTML = `
+    <div style="padding:8px 0 16px;">
+      <div class="t-new-field-lbl">Category Name</div>
+      <input id="t-edit-cat-name-input" class="t-new-input" type="text" value="${tEsc(current)}" style="width:100%;">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" class="t-op-btn" onclick="tEditTournament(window._tEditId)" style="width:auto;padding:8px 16px;">Cancel</button>
+      <button type="button" class="t-new-submit-btn" style="padding:8px 20px;" onclick="tSaveExistingCatName(${idx})">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Apply
+      </button>
+    </div>`;
+}
+
+function tSaveExistingCatName(idx) {
+  const input = document.getElementById('t-edit-cat-name-input');
+  const val = input ? input.value.trim() : '';
+  if (!val) return;
+  window._tEditCats[idx].name = val;
+  tEditTournament(window._tEditId); // reopen modal with updated data
+}
+
+async function tSaveEditTournament() {
+  const name = document.getElementById('t-edit-name')?.value.trim();
+  const date = document.getElementById('t-edit-date')?.value || null;
+  const id = window._tEditId;
+  if (!name) { tToast('Tournament name is required.', true); return; }
+  try {
+    // Update tournament name + date
+    await tApi(`tournaments?id=eq.${id}`, 'PATCH', { name, date });
+    // Handle categories (skip if active — locked)
+    const [t] = await tApi(`tournaments?id=eq.${id}&select=status`);
+    if (t.status !== 'active') {
+      const existing = await tApi(`tournament_categories?tournament_id=eq.${id}&select=id,name&order=id`);
+      const keepIds  = window._tEditCats.filter(c => !c.isNew && c.id).map(c => c.id);
+      // Delete removed categories
+      for (const ec of existing) {
+        if (!keepIds.includes(ec.id)) {
+          await tApi(`tournament_teams?category_id=eq.${ec.id}`, 'DELETE').catch(()=>{});
+          await tApi(`tournament_rr_matches?category_id=eq.${ec.id}`, 'DELETE').catch(()=>{});
+          await tApi(`tournament_bracket_matches?category_id=eq.${ec.id}`, 'DELETE').catch(()=>{});
+          await tApi(`tournament_groups?category_id=eq.${ec.id}`, 'DELETE').catch(()=>{});
+          await tApi(`tournament_categories?id=eq.${ec.id}`, 'DELETE');
+        }
+      }
+      // Update renamed existing cats
+      for (const c of window._tEditCats.filter(c => !c.isNew && c.id)) {
+        const orig = existing.find(e => e.id === c.id);
+        if (orig && orig.name !== c.name) {
+          await tApi(`tournament_categories?id=eq.${c.id}`, 'PATCH', { name: c.name });
+        }
+      }
+      // Add new categories
+      const newCats = window._tEditCats.filter(c => c.isNew);
+      if (newCats.length) {
+        await tApi('tournament_categories', 'POST',
+          newCats.map(c => ({ tournament_id: id, name: c.name, status: 'setup' }))
+        );
+      }
+    }
+    closeTModal();
+    tToast('Tournament updated!');
+    renderTournamentList();
+  } catch(err) { tToast(`Error: ${err.message}`, true); }
 }
 
 function tAddCategory() {
@@ -831,11 +1087,34 @@ function _renderCategoryCards() {
 }
 
 function tEditCategory(idx) {
-  const newName = prompt('Edit category name:', _tCategories[idx]);
-  if (newName !== null && newName.trim()) {
-    _tCategories[idx] = newName.trim();
-    _renderCategoryCards();
-  }
+  const current = _tCategories[idx];
+  document.getElementById('t-modal-title').textContent = 'Edit Category';
+  document.getElementById('t-modal-body').innerHTML = `
+    <div style="padding:8px 0 16px;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Category Name</div>
+      <input id="t-edit-cat-input" class="t-new-input" type="text" value="${tEsc(current)}" placeholder="e.g. Mixed Doubles 3.5" style="width:100%;">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">Cancel</button>
+      <button type="button" class="t-new-submit-btn" style="padding:8px 20px;" onclick="tSaveEditCategory(${idx})">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Apply
+      </button>
+    </div>`;
+  openTModal();
+  setTimeout(() => {
+    const input = document.getElementById('t-edit-cat-input');
+    if (input) { input.focus(); input.select(); }
+  }, 100);
+}
+
+function tSaveEditCategory(idx) {
+  const input = document.getElementById('t-edit-cat-input');
+  const val = input ? input.value.trim() : '';
+  if (!val) return;
+  _tCategories[idx] = val;
+  closeTModal();
+  _renderCategoryCards();
 }
 
 // ─── CREATE TOURNAMENT — now handled inline via collapsible panel ─────────
@@ -879,17 +1158,45 @@ async function createTournament(e) {
 
 // ─── DELETE TOURNAMENT ──────────────────────────────────────
 async function deleteTournament(id) {
-  const [t] = await tApi(`tournaments?id=eq.${id}&select=name`);
+  const [t] = await tApi(`tournaments?id=eq.${id}&select=name,status`);
   const name = t?.name || 'this tournament';
+  const status = t?.status || 'draft';
+
+  // Block delete on active tournaments
+  if (status === 'active') {
+    document.getElementById('t-modal-title').textContent = 'Cannot Delete Active Tournament';
+    document.getElementById('t-modal-body').innerHTML = `
+      <div style="padding:8px 0 16px;">
+        <p style="font-size:13px;color:#0d1f4a;line-height:1.6;">
+          <strong>${tEsc(name)}</strong> is currently <strong>active</strong> and cannot be deleted.
+          Please close the tournament first before deleting it.
+        </p>
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">OK</button>
+      </div>`;
+    openTModal();
+    return;
+  }
+
+  const warningMsg = status === 'completed'
+    ? 'This tournament is completed. Deleting it will permanently remove all categories, teams, and match results.'
+    : 'All categories, teams and matches will be permanently removed.';
+
   document.getElementById('t-modal-title').textContent = 'Delete Tournament';
-  document.getElementById('t-modal-body').innerHTML =
-    '<div style="padding:8px 0 24px;">'
-    + '<p style="font-size:14px;color:#0d1f4a;line-height:1.6;">Are you sure you want to delete tournament <strong>'
-    + name + '</strong>? All categories, teams and matches will be permanently removed.</p></div>'
-    + '<div class="t-form-actions">'
-    + '<button type="button" class="t-btn t-btn-ghost" onclick="closeTModal()">Cancel</button>'
-    + '<button type="button" class="t-btn t-btn-danger" onclick="confirmDeleteTournament(' + id + ')">Delete</button>'
-    + '</div>';
+  document.getElementById('t-modal-body').innerHTML = `
+    <div style="padding:8px 0 16px;">
+      <p style="font-size:14px;color:#0d1f4a;line-height:1.6;">
+        Are you sure you want to delete <strong>${tEsc(name)}</strong>?
+      </p>
+      <p style="font-size:12px;color:#F26024;font-weight:600;margin-top:8px;padding:8px 12px;background:#fde8d8;border-radius:7px;">
+        ⚠️ ${warningMsg}
+      </p>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">Cancel</button>
+      <button type="button" class="t-op-btn t-op-btn-danger" onclick="confirmDeleteTournament(${id})" style="width:auto;padding:8px 16px;">Delete</button>
+    </div>`;
   openTModal();
 }
 
