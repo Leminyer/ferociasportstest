@@ -4,18 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ferocia Sports Center — Ladder Hub</title>
-<meta property="og:type"        content="website">
-<meta property="og:site_name"   content="Ferocia Sports Center">
-<meta property="og:title"       content="Ladder Hub — Ferocia Sports Center">
-<meta property="og:description" content="Track standings, sessions, and season activity at Ferocia Sports Center.">
-<meta property="og:image"       content="https://ferociasports.com/og-preview.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height"content="630">
-<meta property="og:url"         content="https://ferociasports.com/players.html">
-<meta name="twitter:card"       content="summary_large_image">
-<meta name="twitter:title"      content="Ladder Hub — Ferocia Sports Center">
-<meta name="twitter:description"content="Track standings, sessions, and season activity at Ferocia Sports Center.">
-<meta name="twitter:image"      content="https://ferociasports.com/og-preview.png">
+<meta property="og:type"         content="website">
+<meta property="og:site_name"    content="Ferocia Sports Center">
+<meta property="og:title"        content="Ladder Hub — Ferocia Sports Center">
+<meta property="og:description"  content="Track standings, sessions, and season activity at Ferocia Sports Center.">
+<meta property="og:image"        content="https://ferociasports.com/og-preview.png">
+<meta property="og:image:width"  content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url"          content="https://ferociasports.com/players.html">
+<meta name="twitter:card"        content="summary_large_image">
+<meta name="twitter:title"       content="Ladder Hub — Ferocia Sports Center">
+<meta name="twitter:description" content="Track standings, sessions, and season activity at Ferocia Sports Center.">
+<meta name="twitter:image"       content="https://ferociasports.com/og-preview.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -27,7 +27,6 @@
     --teal:#24BC96; --teal-light:#d4f5ed;
     --lime:#C6F221; --lime-dark:#7a9200;
     --orange:#F26024; --orange-light:#fde8d8;
-    --gray:#EFEFEF; --gray-dk:#888;
     --white:#ffffff; --text:#0d1f4a; --text-muted:#6b7a99;
     --border:#e0e7f5; --bg:#f0f2f8;
     --gold:#FFD700; --silver:#C0C0C0; --bronze:#CD7F32;
@@ -36,7 +35,7 @@
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Montserrat',sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
 
-  /* ── HEADER ─────────────────────────────────── */
+  /* HEADER */
   header{background:#080f2e;padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:68px;border-bottom:3px solid var(--lime);position:sticky;top:0;z-index:100;}
   .header-left{display:flex;align-items:center;gap:16px;}
   .header-logo{height:30px;max-width:140px;width:auto;object-fit:contain;display:block;}
@@ -44,44 +43,51 @@
   .header-tagline{font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.4);}
   .ladder-pill{font-size:11px;font-weight:700;color:var(--blue-light);background:rgba(156,227,255,0.12);padding:6px 14px;border-radius:99px;border:1px solid rgba(156,227,255,0.2);white-space:nowrap;}
 
-  /* ── NAV TABS — updated style ─────────────────── */
-  nav{background:white;border-bottom:1.5px solid var(--border);display:flex;padding:0 28px;position:sticky;top:68px;z-index:99;box-shadow:0 2px 8px rgba(23,76,204,0.06);}
+  /* NAV — matches admin style */
+  nav{background:white;border-bottom:1.5px solid var(--border);display:flex;padding:0 32px;position:sticky;top:68px;z-index:99;box-shadow:0 2px 8px rgba(23,76,204,0.06);}
   nav button{background:none;border:none;padding:13px 18px;font-size:10px;font-family:'Montserrat',sans-serif;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1.5px;white-space:nowrap;transition:color .15s,border-color .15s;}
   nav button.active{color:var(--blue);border-bottom-color:var(--lime);}
   nav button:hover:not(.active){color:var(--text);background:#f8f9ff;}
 
-  /* ── LAYOUT ──────────────────────────────────── */
+  /* LAYOUT — same as admin: no max-width */
   main{padding:28px 32px 100px;}
-  .page{display:none;} .page.active{display:block;}
+  .page{display:none;}.page.active{display:block;}
 
-  /* ── PAGE TITLE ──────────────────────────────── */
-  .page-title-area{margin-bottom:20px;}
+  /* PAGE TITLE */
   .page-title{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:4px;}
-  .page-sub{font-size:12px;font-weight:600;color:#6b7a99;}
+  .page-sub{font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:20px;}
 
-  /* ── STAT CARDS (sessions summary) ───────────── */
-  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+  /* STAT CARDS — exact admin style */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
   .stat{background:white;border:0.5px solid var(--border);border-radius:10px;padding:16px 18px 14px;border-top:3px solid transparent;box-shadow:0 1px 4px rgba(23,76,204,0.06);display:flex;flex-direction:column;}
   .stat.stat-blue{border-top-color:#174CCC;}
   .stat.stat-green{border-top-color:#24BC96;}
-  .stat.stat-orange{border-top-color:#F26024;}
-  .stat.stat-gold{border-top-color:#FFD700;}
   .stat.stat-lime{border-top-color:#C6F221;}
-  .ctx-blue{color:#174CCC;}
-  .ctx-green{color:#24BC96;}
-  .ctx-lime{color:#7a9200;}
+  .stat.stat-gold{border-top-color:#FFD700;}
   .stat-label{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:6px;}
   .stat-value{font-family:'Bebas Neue',sans-serif;font-size:40px;color:#0d1f4a;line-height:1;margin-bottom:5px;}
   .stat-ctx{font-size:11px;font-weight:600;margin-top:auto;}
+  .ctx-blue{color:#174CCC;}.ctx-green{color:#24BC96;}.ctx-lime{color:#7a9200;}
   .stat-leader-name{font-family:'Bebas Neue',sans-serif;font-size:24px;color:#0d1f4a;line-height:1.1;margin-bottom:4px;}
   .stat-leader-pts{font-family:'Bebas Neue',sans-serif;font-size:30px;color:#174CCC;line-height:1;margin-bottom:3px;}
   .stat-leader-week{font-size:11px;font-weight:700;color:#24BC96;margin-bottom:2px;}
   .stat-leader-streak{font-size:11px;font-weight:600;color:#F26024;display:flex;align-items:center;gap:4px;}
 
-  /* ── CARD ────────────────────────────────────── */
+  /* MOMENTUM WATCH */
+  .mom-item{display:flex;align-items:center;gap:8px;}
+  .mom-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .mom-text{font-size:12px;font-weight:700;color:#0d1f4a;}
+  .mom-sub{font-size:11px;font-weight:600;color:var(--text-muted);}
+  .mom-divider{width:1px;height:28px;background:#e0e7f5;flex-shrink:0;}
+
+  /* CARD */
   .card{background:white;border:0.5px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;box-shadow:0 2px 12px rgba(23,76,204,0.05);}
 
-  /* ── PODIUM ──────────────────────────────────── */
+  /* SECTION HEADER — exact admin */
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+  .dash-section-title{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;}
+
+  /* PODIUM — exact admin */
   .podium-row{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:0.5px solid #e0e7f5;}
   .podium-row.single{grid-template-columns:1fr;}
   .podium-half{padding:20px 20px 0;}
@@ -103,11 +109,9 @@
   .podium-bar.silver{background:rgba(192,192,192,0.1);border:1.5px solid rgba(192,192,192,0.3);border-bottom:none;height:46px;}
   .podium-bar.bronze{background:rgba(205,127,50,0.1);border:1.5px solid rgba(205,127,50,0.25);border-bottom:none;height:34px;}
 
-  /* ── STANDINGS TABLE ──────────────────────────── */
+  /* STANDINGS TABLE — exact admin */
   .rank-num{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text-muted);min-width:32px;display:inline-block;text-align:center;}
-  .rank-num.top1{color:#c8920a;}
-  .rank-num.top2{color:#888;}
-  .rank-num.top3{color:#9e6229;}
+  .rank-num.top1{color:#c8920a;}.rank-num.top2{color:#888;}.rank-num.top3{color:#9e6229;}
   .player-cell{display:flex;align-items:center;gap:10px;}
   .player-initials{width:32px;height:32px;border-radius:50%;background:var(--blue-pale);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;}
   .player-initials.top1{background:rgba(255,215,0,0.15);color:#9a6e00;}
@@ -116,9 +120,7 @@
   .player-name{font-size:13px;font-weight:700;color:var(--text);}
   .player-sub{font-size:11px;font-weight:600;color:var(--text-muted);margin-top:1px;}
   .points-display{font-family:'Bebas Neue',sans-serif;font-size:24px;font-weight:800;color:var(--blue);}
-  .dash-section-title{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;}
-  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
-  .filter-select{font-size:12px;padding:7px 12px;font-family:'Montserrat',sans-serif;font-weight:700;border:0.5px solid var(--border);border-radius:99px;background:white;color:var(--text);cursor:pointer;outline:none;}
+  .filter-select{font-size:12px;padding:6px 12px;font-family:'Montserrat',sans-serif;font-weight:700;border:0.5px solid var(--border);border-radius:99px;background:white;color:var(--text);cursor:pointer;outline:none;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th{text-align:left;padding:10px 14px;font-size:9px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;border-bottom:0.5px solid var(--border);background:#fafbff;}
   td{padding:11px 14px;border-bottom:0.5px solid #f4f5f8;}
@@ -128,35 +130,21 @@
   .trend-fire{display:flex;align-items:center;gap:4px;color:#F26024;font-size:11px;font-weight:700;justify-content:center;}
   .trend-neu{color:var(--text-muted);font-size:11px;font-weight:600;text-align:center;}
 
-  /* ── MOMENTUM WATCH ────────────────────────────── */
-  .mom-item{display:flex;align-items:center;gap:8px;}
-  .mom-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .mom-text{font-size:12px;font-weight:700;color:#0d1f4a;}
-  .mom-sub{font-size:11px;font-weight:600;color:var(--text-muted);}
-  .mom-divider{width:1px;height:28px;background:#e0e7f5;flex-shrink:0;}
-
-  /* ── SESSION SUMMARY CARDS ─────────────────────── */
+  /* SESSION CARDS — exact admin */
   .sess-summary-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;}
   .sess-sum-card{background:white;border:0.5px solid #e0e7f5;border-radius:10px;padding:16px 18px 14px;border-top:3px solid transparent;box-shadow:0 1px 4px rgba(23,76,204,0.06);display:flex;flex-direction:column;}
-  .sess-sum-card.sc-blue{border-top-color:#174CCC;}
-  .sess-sum-card.sc-gold{border-top-color:#FFD700;}
-  .sess-sum-card.sc-teal{border-top-color:#24BC96;}
-  .sess-sum-card.sc-orange{border-top-color:#F26024;}
+  .sess-sum-card.sc-blue{border-top-color:#174CCC;}.sess-sum-card.sc-gold{border-top-color:#FFD700;}
+  .sess-sum-card.sc-teal{border-top-color:#24BC96;}.sess-sum-card.sc-orange{border-top-color:#F26024;}
   .sess-sum-label{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:6px;}
   .sess-sum-val{font-family:'Bebas Neue',sans-serif;font-size:40px;color:#0d1f4a;line-height:1;margin-bottom:6px;}
-  .sess-sum-val-text{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:#0d1f4a;line-height:1.2;margin-bottom:6px;}
+  .sess-sum-val-text{font-size:18px;font-weight:800;color:#0d1f4a;line-height:1.2;margin-bottom:6px;}
   .sess-sum-ctx{font-size:11px;font-weight:600;color:var(--text-muted);margin-top:auto;}
-  .sess-sum-ctx.scc-blue{color:#174CCC;}
-  .sess-sum-ctx.scc-green{color:#24BC96;}
-  .sess-sum-ctx.scc-orange{color:#F26024;}
-  .sess-sum-ctx.scc-gold{color:#9a6e00;}
+  .scc-blue{color:#174CCC;}.scc-green{color:#24BC96;}.scc-orange{color:#F26024;}.scc-gold{color:#9a6e00;}
 
-  /* ── COURT BLOCK ────────────────────────────────── */
+  /* COURT BLOCKS — exact admin */
   .court-block{border:0.5px solid #e0e7f5;border-radius:8px;overflow:hidden;margin-bottom:10px;}
-  .court-block-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;}
+  .court-block-hdr{display:flex;align-items:center;padding:9px 14px;background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;}
   .court-block-label{font-size:11px;font-weight:800;color:#174CCC;letter-spacing:.5px;text-transform:uppercase;}
-
-  /* ── GAME ROW ───────────────────────────────────── */
   .sess-game-row{padding:10px 14px;border-bottom:0.5px solid #f4f5f8;display:flex;align-items:center;gap:8px;}
   .sess-game-row:last-child{border-bottom:none;}
   .sess-game-label{font-size:11px;font-weight:800;color:#0d1f4a;min-width:60px;letter-spacing:.3px;}
@@ -166,33 +154,28 @@
   .sess-team-lose{background:#fafafa;border:0.5px solid #f0f2f8;opacity:0.75;}
   .sess-team-pending{background:#fffbf0;border:0.5px solid #f0e0b0;}
   .sess-team-names{flex:1;font-size:12px;font-weight:700;color:#0d1f4a;line-height:1.5;}
-  .sess-team-names.lose{color:#6b7a99;font-weight:600;}
-  .sess-team-names.pending{color:#9a7000;}
+  .sess-team-names.lose{color:#6b7a99;font-weight:600;}.sess-team-names.pending{color:#9a7000;}
   .sess-team-score{text-align:right;flex-shrink:0;}
-  .sess-score-num{font-family:'Bebas Neue',sans-serif;font-size:24px;font-weight:800;line-height:1;display:block;}
-  .sess-score-win{color:#24BC96;}
-  .sess-score-lose{color:#6b7a99;}
-  .sess-score-pending{color:#c8a000;}
+  .sess-score-num{font-family:'Bebas Neue',sans-serif;font-size:24px;line-height:1;display:block;}
+  .sess-score-win{color:#24BC96;}.sess-score-lose{color:#6b7a99;}.sess-score-pending{color:#c8a000;}
   .sess-score-pts{font-size:10px;font-weight:700;display:block;margin-top:1px;}
-  .sess-pts-win{color:#24BC96;}
-  .sess-pts-lose{color:#6b7a99;}
-  .sess-pts-pending{color:#c8a000;}
+  .sess-pts-win{color:#24BC96;}.sess-pts-lose{color:#6b7a99;}.sess-pts-pending{color:#c8a000;}
   .sess-vs{font-size:10px;font-weight:800;color:rgba(23,76,204,0.3);flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px;}
   .sess-vs-line{width:1px;height:16px;background:rgba(23,76,204,0.15);}
   .sub-pill-blue{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:#e8f0ff;color:#174CCC;padding:1px 5px;border-radius:99px;margin-left:4px;vertical-align:middle;}
 
-  /* ── LOADING / EMPTY / ERROR ───────────────────── */
+  /* LOADING / EMPTY / ERROR */
   .loading,.empty{text-align:center;padding:48px 16px;color:var(--text-muted);font-weight:600;font-size:13px;}
   .error-screen{text-align:center;padding:80px 24px;}
   .error-screen h2{font-size:20px;margin:12px 0 8px;color:var(--orange);font-weight:800;}
   .error-screen p{color:var(--text-muted);font-weight:500;}
 
-  /* ── FOOTER ─────────────────────────────────────── */
+  /* FOOTER */
   footer{text-align:center;padding:28px 16px;margin-top:8px;border-top:3px solid var(--lime);background:#080f2e;}
   .footer-tag{display:block;font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:rgba(156,227,255,0.5);margin-bottom:10px;}
   .footer-logo{height:26px;width:auto;}
 
-  /* ── MOBILE ──────────────────────────────────────── */
+  /* MOBILE */
   @media(max-width:600px){
     main{padding:16px 16px 80px;}
     header{padding:0 16px;height:60px;}
@@ -227,71 +210,33 @@
 
 <main>
 
-  <!-- STANDINGS PAGE -->
+  <!-- STANDINGS -->
   <div id="page-standings" class="page active">
-    <div class="page-title-area">
-      <div class="page-title">Ladder Hub</div>
-      <div class="page-sub">Track standings, sessions, and season activity.</div>
-    </div>
+    <div class="page-title">Ladder Hub</div>
+    <div class="page-sub">Track standings, sessions, and season activity.</div>
 
-    <!-- Stat cards — exact same as admin standings: Players | Sessions | Games | Leader -->
-    <div class="stats-grid" id="standings-stats" style="display:none;">
-      <div class="stat stat-blue" style="display:flex;flex-direction:column;">
-        <div class="stat-label">Players</div>
-        <div class="stat-value" id="st-total">—</div>
-        <div class="stat-ctx ctx-blue" style="margin-top:auto;">Active this season</div>
-      </div>
-      <div class="stat stat-green" style="display:flex;flex-direction:column;">
-        <div class="stat-label">Sessions</div>
-        <div class="stat-value" id="st-sessions">—</div>
-        <div class="stat-ctx ctx-green" style="margin-top:auto;">Recorded</div>
-      </div>
-      <div class="stat stat-lime" style="display:flex;flex-direction:column;">
-        <div class="stat-label">Games</div>
-        <div class="stat-value" id="st-games">—</div>
-        <div class="stat-ctx ctx-lime" style="margin-top:auto;">Total played</div>
-      </div>
-      <div class="stat stat-gold" style="display:flex;flex-direction:column;">
-        <div class="stat-label">Leader</div>
-        <div class="stat-leader-name" id="st-leader-name">—</div>
-        <div class="stat-leader-pts" id="st-leader-pts">—</div>
-        <div class="stat-leader-week">↑ Season leader</div>
-        <div class="stat-leader-streak">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          Top of the ladder
-        </div>
-      </div>
-    </div>
+    <!-- Stat cards — populated by renderStandings() -->
+    <div class="stats-grid" id="ladder-stats" style="display:none;"></div>
 
-    <!-- Momentum Watch -->
+    <!-- Momentum Watch — populated by renderMomentumWatch() -->
     <div id="momentum-watch" style="display:none;background:white;border:0.5px solid #e0e7f5;border-radius:10px;padding:14px 18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(23,76,204,0.06);"></div>
 
-    <!-- Podium + Table -->
-    <div class="card">
-      <div class="section-header">
-        <div class="dash-section-title">Season Standings</div>
-        <select class="filter-select" id="gender-filter">
-          <option value="all">All players</option>
-          <option value="Male">Men</option>
-          <option value="Female">Women</option>
-        </select>
-      </div>
-      <div id="ladder-table"><div class="loading">Loading standings...</div></div>
+    <!-- Podium + Table card — populated by renderStandings() -->
+    <div class="card" id="standings-card">
+      <div id="standings-content"><div class="loading">Loading standings...</div></div>
     </div>
   </div>
 
-  <!-- SESSIONS PAGE -->
+  <!-- SESSIONS -->
   <div id="page-sessions" class="page">
-    <div class="page-title-area">
-      <div class="page-title">Ladder Hub</div>
-      <div class="page-sub">Track standings, sessions, and season activity.</div>
-    </div>
-    <div class="card" style="padding:20px;">
-      <div style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+    <div class="page-title">Ladder Hub</div>
+    <div class="page-sub">Track standings, sessions, and season activity.</div>
+    <div class="card">
+      <div class="dash-section-title" style="margin-bottom:16px;display:flex;align-items:center;gap:8px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0d1f4a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Session History
       </div>
-      <div id="sessions-list"><div class="loading">Loading sessions...</div></div>
+      <div id="sessions-content"><div class="loading">Loading sessions...</div></div>
     </div>
   </div>
 
@@ -311,12 +256,12 @@
   let ladderId  = null;
   try { ladderId = encoded ? atob(encoded) : null; } catch (_) { ladderId = null; }
 
-  let ladderData    = null;
-  let allMatches    = [];
-  let ladderPlayers = [];
+  let ladderData        = null;
+  let allMatches        = [];
+  let ladderPlayers     = [];
   let currentGenderFilter = 'all';
 
-  // ── Tab navigation ─────────────────────────────────────────
+  // Tab navigation
   document.querySelectorAll('nav button[data-tab]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const name = btn.dataset.tab;
@@ -327,36 +272,43 @@
     });
   });
 
-  // ── Gender filter ──────────────────────────────────────────
+  // Gender filter
   document.addEventListener('change', (e) => {
     if (e.target && e.target.id === 'gender-filter') {
       currentGenderFilter = e.target.value;
-      renderLadder();
+      renderTable();
     }
   });
 
   const getInitials = (first, last) =>
     ((first || '')[0] || '').toUpperCase() + ((last || '')[0] || '').toUpperCase();
 
-  // ── Momentum Watch ─────────────────────────────────────────
-  const renderMomentumWatch = (ranked, matches) => {
+  // ── EXACT same as old players.html ─────────────────────────────────────
+  const calcPlayerPoints = () => {
+    const pm = {};
+    ladderPlayers.forEach((p) => (pm[p.id] = 0));
+    allMatches.forEach((m) => {
+      if (pm[m.player_id] !== undefined) pm[m.player_id] += m.points_earned || 0;
+    });
+    return pm;
+  };
+
+  // ── Momentum Watch — same as admin ────────────────────────────────────
+  const renderMomentumWatch = (ranked) => {
     const el = document.getElementById('momentum-watch');
     if (!el || !ranked.length) return;
-    const sessions   = [...new Set(matches.map(m => m.session_date))].sort().reverse();
+    const sessions    = [...new Set(allMatches.map(m => m.session_date))].sort().reverse();
     const lastSession = sessions[0];
-    const lastMatches = lastSession ? matches.filter(m => m.session_date === lastSession) : [];
-    const recentPts  = {};
+    const lastMatches = lastSession ? allMatches.filter(m => m.session_date === lastSession) : [];
+    const recentPts   = {};
     lastMatches.forEach(m => { recentPts[m.player_id] = (recentPts[m.player_id] || 0) + (m.points_earned || 0); });
-    const gameCounts = {};
-    matches.forEach(m => { gameCounts[m.player_id] = (gameCounts[m.player_id] || 0) + 1; });
-    const hottest   = ranked.slice().sort((a,b) => (recentPts[b.id]||0) - (recentPts[a.id]||0))[0];
-    const climber   = ranked.slice().sort((a,b) => (recentPts[b.id]||0) - (recentPts[a.id]||0))[1] || ranked[0];
-    const consistent= ranked.slice().sort((a,b) => (gameCounts[b.id]||0) - (gameCounts[a.id]||0))[0];
-
-    el.style.display = 'flex';
-    el.style.alignItems = 'center';
-    el.style.gap = '20px';
-    el.style.flexWrap = 'wrap';
+    const gameCounts  = {};
+    allMatches.forEach(m => { gameCounts[m.player_id] = (gameCounts[m.player_id] || 0) + 1; });
+    const hottest    = ranked.slice().sort((a,b) => (recentPts[b.id]||0) - (recentPts[a.id]||0))[0];
+    const climber    = ranked.slice().sort((a,b) => (recentPts[b.id]||0) - (recentPts[a.id]||0))[1] || ranked[0];
+    const consistent = ranked.slice().sort((a,b) => (gameCounts[b.id]||0) - (gameCounts[a.id]||0))[0];
+    const n = (p) => p ? `${esc(p.first_name)} ${esc(p.last_name)}` : '—';
+    el.style.cssText = 'display:flex;align-items:center;gap:20px;flex-wrap:wrap;';
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);flex-shrink:0;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -367,26 +319,26 @@
         <div class="mom-icon" style="background:var(--orange-light);">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         </div>
-        <div><div class="mom-text">${esc(hottest ? `${hottest.first_name} ${hottest.last_name}` : '—')}</div><div class="mom-sub">Hottest Player</div></div>
+        <div><div class="mom-text">${n(hottest)}</div><div class="mom-sub">Hottest Player</div></div>
       </div>
       <div class="mom-divider"></div>
       <div class="mom-item">
         <div class="mom-icon" style="background:var(--teal-light);">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
         </div>
-        <div><div class="mom-text">${esc(climber ? `${climber.first_name} ${climber.last_name}` : '—')}</div><div class="mom-sub">Biggest Climber</div></div>
+        <div><div class="mom-text">${n(climber)}</div><div class="mom-sub">Biggest Climber</div></div>
       </div>
       <div class="mom-divider"></div>
       <div class="mom-item">
         <div class="mom-icon" style="background:var(--blue-pale);">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
-        <div><div class="mom-text">${esc(consistent ? `${consistent.first_name} ${consistent.last_name}` : '—')}</div><div class="mom-sub">Most Consistent</div></div>
+        <div><div class="mom-text">${n(consistent)}</div><div class="mom-sub">Most Consistent</div></div>
       </div>`;
   };
 
-  // ── Podium ─────────────────────────────────────────────────
-  const renderLadderPodium = (players, label) => {
+  // ── Podium — same style as admin ──────────────────────────────────────
+  const renderPodium = (players, label) => {
     const medals = ['gold', 'silver', 'bronze'];
     const top    = players.slice(0, 3);
     const order  = top.length === 1 ? [0] : top.length === 2 ? [1, 0] : [1, 0, 2];
@@ -396,9 +348,7 @@
       <div class="podium">
         ${order.map((idx) => {
           if (idx >= top.length) return '';
-          const p      = top[idx];
-          const medal  = medals[idx];
-          const isGold = idx === 0;
+          const p = top[idx]; const medal = medals[idx]; const isGold = idx === 0;
           return `<div class="podium-slot">
             <div class="podium-avatar ${medal}${isGold ? ' podium-avatar gold-first' : ''}">
               ${esc(getInitials(p.first_name, p.last_name))}
@@ -413,16 +363,20 @@
     </div>`;
   };
 
-  // ── Standings table ────────────────────────────────────────
-  const renderLadder = () => {
-    const filter   = document.getElementById('gender-filter').value;
-    const all      = ladderPlayers.filter(p => p.ladder_status === 'active');
-    const men      = all.filter(p => p.gender === 'Male');
-    const women    = all.filter(p => p.gender === 'Female');
-    const filtered = all.filter(p => filter === 'all' || p.gender === filter);
+  // ── Table — same as admin renderLadder() ──────────────────────────────
+  const renderTable = () => {
+    const pm     = calcPlayerPoints();
+    const active = ladderPlayers.filter(p => p.ladder_status === 'active');
+    active.sort((a,b) => (pm[b.id]||0) - (pm[a.id]||0));
+    active.forEach((p,i) => { p._rank = i+1; p._points = pm[p.id]||0; });
+
+    const filter   = currentGenderFilter;
+    const men      = active.filter(p => p.gender === 'Male');
+    const women    = active.filter(p => p.gender === 'Female');
+    const filtered = active.filter(p => filter === 'all' || p.gender === filter);
 
     if (!filtered.length) {
-      document.getElementById('ladder-table').innerHTML = '<div class="empty">No players enrolled yet.</div>';
+      document.getElementById('standings-content').innerHTML = '<div class="empty">No players found.</div>';
       return;
     }
 
@@ -432,19 +386,18 @@
     let podiumHTML  = '';
     if (showMen || showWomen) {
       podiumHTML = `<div class="podium-row${isSingle ? ' single' : ''}">`;
-      if (showMen)   podiumHTML += renderLadderPodium(men,   'Men');
-      if (showWomen) podiumHTML += renderLadderPodium(women, 'Women');
+      if (showMen)   podiumHTML += renderPodium(men,   'Men');
+      if (showWomen) podiumHTML += renderPodium(women, 'Women');
       podiumHTML += `</div>`;
     }
 
     const rows = filtered.map((p, i) => {
       const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
-      const pts = p._points || 0;
-      let trendHTML = '';
+      let trendHTML;
       if (i === 0) {
         trendHTML = `<div class="trend-fire"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Season leader</div>`;
-      } else if (pts > 0) {
-        trendHTML = `<div class="trend-up"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>${pts} pts earned</div>`;
+      } else if (p._points > 0) {
+        trendHTML = `<div class="trend-up"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>${p._points} pts earned</div>`;
       } else {
         trendHTML = `<div class="trend-neu">—</div>`;
       }
@@ -459,147 +412,183 @@
             </div>
           </div>
         </td>
-        <td style="text-align:right;padding-right:24px;"><span class="points-display">${pts}</span><span style="font-size:11px;color:var(--text-muted);font-weight:600;margin-left:2px;">pts</span></td>
+        <td style="text-align:right;padding-right:24px;"><span class="points-display">${p._points}</span><span style="font-size:11px;color:var(--text-muted);font-weight:600;margin-left:2px;">pts</span></td>
         <td style="width:160px;">${trendHTML}</td>
       </tr>`;
     }).join('');
 
-    const tableHTML = `<table>
-      <thead>
-        <tr>
-          <th style="width:48px;">Rank</th>
-          <th>Player</th>
-          <th style="text-align:right;width:100px;">Points</th>
-          <th style="text-align:center;width:160px;">Trend</th>
-        </tr>
-      </thead>
+    const tableHTML = `<div class="section-header">
+      <div class="dash-section-title">Season Standings</div>
+      <select class="filter-select" id="gender-filter">
+        <option value="all" ${filter==='all'?'selected':''}>All players</option>
+        <option value="Male" ${filter==='Male'?'selected':''}>Men</option>
+        <option value="Female" ${filter==='Female'?'selected':''}>Women</option>
+      </select>
+    </div>
+    <table>
+      <thead><tr>
+        <th style="width:48px;">Rank</th><th>Player</th>
+        <th style="text-align:right;width:100px;">Points</th>
+        <th style="text-align:center;width:160px;">Trend</th>
+      </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 
-    document.getElementById('ladder-table').innerHTML = podiumHTML + `<div style="padding:0 4px;">${tableHTML}</div>`;
+    document.getElementById('standings-content').innerHTML = podiumHTML + `<div style="padding:0 4px;">${tableHTML}</div>`;
   };
 
-  // ── Sessions ───────────────────────────────────────────────
+  // ── renderStandings: stats cards + momentum + table ───────────────────
+  const renderStandings = () => {
+    const pm     = calcPlayerPoints();
+    const active = ladderPlayers.filter(p => p.ladder_status === 'active');
+    active.sort((a,b) => (pm[b.id]||0) - (pm[a.id]||0));
+    active.forEach((p,i) => { p._rank = i+1; p._points = pm[p.id]||0; });
+
+    // Stat cards — same as admin
+    const leader      = active[0];
+    const sessions    = [...new Set(allMatches.map(m => m.session_date))];
+    const uniqueGames = new Set(allMatches.map(m => `${m.session_date}__${m.court_group}__${m.game_number}`)).size;
+    const leaderName  = leader ? `${leader.first_name} ${leader.last_name}` : '—';
+    const leaderPts   = leader ? leader._points : 0;
+
+    const statsEl = document.getElementById('ladder-stats');
+    statsEl.style.display = 'grid';
+    statsEl.innerHTML = `
+      <div class="stat stat-blue">
+        <div class="stat-label">Players</div>
+        <div class="stat-value">${ladderPlayers.length}</div>
+        <div class="stat-ctx ctx-blue">Active this season</div>
+      </div>
+      <div class="stat stat-green">
+        <div class="stat-label">Sessions</div>
+        <div class="stat-value">${sessions.length}</div>
+        <div class="stat-ctx ctx-green">Recorded</div>
+      </div>
+      <div class="stat stat-lime">
+        <div class="stat-label">Games</div>
+        <div class="stat-value">${uniqueGames}</div>
+        <div class="stat-ctx ctx-lime">Total played</div>
+      </div>
+      <div class="stat stat-gold">
+        <div class="stat-label">Leader</div>
+        <div class="stat-leader-name">${esc(leaderName)}</div>
+        <div class="stat-leader-pts">${leaderPts} PTS</div>
+        <div class="stat-leader-week">↑ Season leader</div>
+        <div class="stat-leader-streak">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Top of the ladder
+        </div>
+      </div>`;
+
+    renderMomentumWatch(active);
+    renderTable();
+  };
+
+  // ── Sessions — exact same logic as old players.html ───────────────────
+  // (same grouping, filtering completed only, same name lookup from ladderPlayers)
   const buildTeams = (players) => {
     const allPending = players.every(p => p.score_for === null && !p.default_no_show);
     if (allPending) return [players.slice(0, 2), players.slice(2)];
     const teamMap = {};
-    players.forEach((p) => {
-      const key = p.default_no_show ? `ns_${p.player_id}` : (p.score_for !== null ? String(p.score_for) : 'pending');
+    players.forEach(p => {
+      const key = p.default_no_show ? `ns_${p.player_id}` : p.score_for !== null ? String(p.score_for) : 'pending';
       if (!teamMap[key]) teamMap[key] = [];
       teamMap[key].push(p);
     });
-    const sorted = Object.keys(teamMap).sort((a, b) => {
-      const na = parseFloat(a), nb = parseFloat(b);
-      if (isNaN(na) || isNaN(nb)) return 0;
-      return nb - na;
-    });
-    return [teamMap[sorted[0]] || [], teamMap[sorted[1]] || []];
+    const sorted = Object.keys(teamMap).sort((a,b) => { const na=parseFloat(a),nb=parseFloat(b); return isNaN(na)||isNaN(nb)?0:nb-na; });
+    return [teamMap[sorted[0]]||[], teamMap[sorted[1]]||[]];
   };
 
-  const computeSummary = (courts, matches) => {
-    const dateMatches = matches.filter(m =>
-      courts.some(c => c.date === m.session_date && c.group === m.court_group)
-    );
+  const computeSummary = (courts) => {
+    const dateMatches = courts.flatMap(c => Object.values(c.games).flat());
     const gameKeys    = new Set(dateMatches.map(m => `${m.session_date}__${m.court_group}__${m.game_number}`));
-    const totalGames  = gameKeys.size;
-    const totalCourts = courts.length;
     const ptsByPlayer = {}, nameByPlayer = {};
     dateMatches.forEach(m => {
       if (m.score_for !== null && !m.default_no_show) {
-        ptsByPlayer[m.player_id] = (ptsByPlayer[m.player_id] || 0) + (m.points_earned || 0);
+        ptsByPlayer[m.player_id] = (ptsByPlayer[m.player_id]||0) + (m.points_earned||0);
         const lp = ladderPlayers.find(x => x.id === m.player_id);
         if (lp) nameByPlayer[m.player_id] = `${lp.first_name} ${lp.last_name}`;
       }
     });
-    const mvpId   = Object.keys(ptsByPlayer).sort((a,b) => ptsByPlayer[b] - ptsByPlayer[a])[0];
-    const mvpName = mvpId ? (nameByPlayer[mvpId] || 'Unknown') : '—';
+    const mvpId   = Object.keys(ptsByPlayer).sort((a,b)=>ptsByPlayer[b]-ptsByPlayer[a])[0];
+    const mvpName = mvpId ? (nameByPlayer[mvpId]||'Unknown') : '—';
     const mvpPts  = mvpId ? ptsByPlayer[mvpId] : 0;
     const scoredGames = [];
     gameKeys.forEach(key => {
-      const gMatches = dateMatches.filter(m =>
-        `${m.session_date}__${m.court_group}__${m.game_number}` === key && m.score_for !== null
-      );
-      if (gMatches.length >= 2) {
-        const scores = [...new Set(gMatches.map(m => m.score_for))].sort((a,b) => b-a);
-        if (scores.length === 2) {
-          const parts = key.split('__');
-          scoredGames.push({ diff: scores[0]-scores[1], score: `${scores[0]}–${scores[1]}`, court: parts[1], game: parts[2] });
-        }
+      const gm = dateMatches.filter(m => `${m.session_date}__${m.court_group}__${m.game_number}`===key && m.score_for!==null);
+      if (gm.length >= 2) {
+        const scores = [...new Set(gm.map(m=>m.score_for))].sort((a,b)=>b-a);
+        if (scores.length===2) { const p=key.split('__'); scoredGames.push({diff:scores[0]-scores[1],score:`${scores[0]}–${scores[1]}`,court:p[1],game:p[2]}); }
       }
     });
-    scoredGames.sort((a,b) => a.diff - b.diff);
-    const closest = scoredGames[0] || null;
-    const biggest = scoredGames[scoredGames.length-1] || null;
-    const courtDiffs = {}, courtCounts = {};
-    scoredGames.forEach(g => {
-      courtDiffs[g.court]  = (courtDiffs[g.court]  || 0) + g.diff;
-      courtCounts[g.court] = (courtCounts[g.court] || 0) + 1;
-    });
-    const bestCourt = Object.keys(courtDiffs).sort((a,b) =>
-      (courtDiffs[a]/courtCounts[a]) - (courtDiffs[b]/courtCounts[b])
-    )[0];
-    return { totalGames, totalCourts, mvpName, mvpPts, closest, biggest, bestCourt };
+    scoredGames.sort((a,b)=>a.diff-b.diff);
+    const closest=scoredGames[0]||null, biggest=scoredGames[scoredGames.length-1]||null;
+    const courtDiffs={},courtCounts={};
+    scoredGames.forEach(g=>{courtDiffs[g.court]=(courtDiffs[g.court]||0)+g.diff;courtCounts[g.court]=(courtCounts[g.court]||0)+1;});
+    const bestCourt=Object.keys(courtDiffs).sort((a,b)=>(courtDiffs[a]/courtCounts[a])-(courtDiffs[b]/courtCounts[b]))[0];
+    return {totalGames:gameKeys.size,totalCourts:courts.length,mvpName,mvpPts,closest,biggest,bestCourt};
   };
 
   const renderSessions = () => {
-    const calSVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-    const calSm  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-    const plrSm  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;
-    const subSm  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
-    const gameSm = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.56 13.9l-1.56 6.1 5-3 5 3-1.56-6.1"/></svg>`;
+    const calSVG=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const calSm=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const plrSm=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;
+    const subSm=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+    const gameSm=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.56 13.9l-1.56 6.1 5-3 5 3-1.56-6.1"/></svg>`;
 
     if (!allMatches.length) {
-      document.getElementById('sessions-list').innerHTML = '<div class="empty">No sessions recorded yet.</div>';
+      document.getElementById('sessions-content').innerHTML = '<div class="empty">No sessions recorded yet.</div>';
       return;
     }
 
+    // Group — same as old players.html
     const grouped = {};
-    allMatches.forEach((m) => {
+    allMatches.forEach(m => {
       const key = `${m.session_date}__${m.court_group}`;
-      if (!grouped[key]) grouped[key] = { date: m.session_date, group: m.court_group, games: {} };
+      if (!grouped[key]) grouped[key] = { date:m.session_date, group:m.court_group, games:{} };
       if (!grouped[key].games[m.game_number]) grouped[key].games[m.game_number] = [];
       grouped[key].games[m.game_number].push(m);
     });
 
+    // Filter completed only — same as old players.html
+    const completed = Object.values(grouped).filter(s =>
+      Object.values(s.games).flat().every(m => m.default_no_show || m.score_for !== null)
+    );
+    if (!completed.length) {
+      document.getElementById('sessions-content').innerHTML = '<div class="empty">No completed sessions yet.</div>';
+      return;
+    }
+
     const byDate = {};
-    Object.values(grouped).forEach((s) => {
-      if (!byDate[s.date]) byDate[s.date] = [];
-      byDate[s.date].push(s);
-    });
-    const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
+    completed.forEach(s => { if (!byDate[s.date]) byDate[s.date]=[]; byDate[s.date].push(s); });
+    const sortedDates = Object.keys(byDate).sort((a,b) => b.localeCompare(a));
 
     let html = '';
     sortedDates.forEach((date, dateIdx) => {
-      const courts   = byDate[date].sort((a,b) => a.group - b.group);
+      const courts   = byDate[date].sort((a,b)=>a.group-b.group);
       const isFirst  = dateIdx === 0;
-      const groupId  = `sdg-${date.replace(/-/g, '')}`;
-      const d        = new Date(date + 'T00:00:00');
-      const weekday  = d.toLocaleDateString('en-US', { weekday: 'long' });
-      const dateFmt  = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const groupId  = `sdg-${date.replace(/-/g,'')}`;
+      const d        = new Date(date+'T00:00:00');
+      const weekday  = d.toLocaleDateString('en-US',{weekday:'long'});
+      const dateFmt  = d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
       const dateLabel= `${weekday} Session — ${dateFmt}`;
-      const allDateMatches = courts.flatMap(c => Object.values(c.games).flat());
-      const courtCount    = courts.length;
-      const totalGames    = new Set(allDateMatches.map(m => `${m.court_group}__${m.game_number}`)).size;
-      const uniquePlayers = new Set(allDateMatches.map(m => m.player_id)).size;
-      const subCount      = allDateMatches.filter(m => m.is_sub).length;
-      const sum           = computeSummary(courts, allMatches);
+      const allDM    = courts.flatMap(c=>Object.values(c.games).flat());
+      const courtCount   = courts.length;
+      const totalGames   = new Set(allDM.map(m=>`${m.court_group}__${m.game_number}`)).size;
+      const uniquePlayers= new Set(allDM.map(m=>m.player_id)).size;
+      const subCount     = allDM.filter(m=>m.is_sub).length;
+      const sum          = computeSummary(courts);
 
       html += `<div class="session-date-group" id="${groupId}">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-          <div class="session-date-header ${isFirst ? 'open' : ''}"
+        <div style="margin-bottom:10px;">
+          <div class="session-date-header ${isFirst?'open':''}"
                onclick="toggleSessionGroup('${groupId}')"
-               style="display:flex;align-items:center;gap:12px;flex:1;
-                      padding:12px 16px;border-radius:8px;cursor:pointer;
-                      background:#e8f0ff;border:0.5px solid #c5d6f5;user-select:none;">
-            <span class="sdg-chevron ${isFirst ? 'sdg-chevron-open' : ''}"
-                  style="font-size:11px;font-weight:800;color:#174CCC;transition:transform .2s;">▼</span>
+               style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:8px;cursor:pointer;background:#e8f0ff;border:0.5px solid #c5d6f5;user-select:none;">
+            <span class="sdg-chevron ${isFirst?'sdg-chevron-open':''}" style="font-size:11px;font-weight:800;color:#174CCC;transition:transform .2s;">▼</span>
             <div style="flex:1;min-width:0;">
-              <div style="font-size:13px;font-weight:800;color:#174CCC;display:flex;align-items:center;gap:8px;">
-                ${calSVG} ${esc(dateLabel)}
-              </div>
+              <div style="font-size:13px;font-weight:800;color:#174CCC;display:flex;align-items:center;gap:8px;">${calSVG} ${esc(dateLabel)}</div>
               <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
-                <span style="font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:4px;">${calSm} ${courtCount} Court${courtCount !== 1 ? 's' : ''}</span>
+                <span style="font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:4px;">${calSm} ${courtCount} Court${courtCount!==1?'s':''}</span>
                 <span style="font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:4px;">${gameSm} ${totalGames} Games</span>
                 <span style="font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:4px;">${plrSm} ${uniquePlayers} Players</span>
                 <span style="font-size:11px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:4px;">${subSm} ${subCount} Subs</span>
@@ -607,87 +596,50 @@
             </div>
           </div>
         </div>
-
-        <div class="session-date-body" style="display:${isFirst ? 'block' : 'none'};margin-bottom:8px;">
+        <div class="session-date-body" style="display:${isFirst?'block':'none'};margin-bottom:8px;">
           <div class="sess-summary-row">
-            <div class="sess-sum-card sc-blue">
-              <div class="sess-sum-label">Total Games</div>
-              <div class="sess-sum-val">${sum.totalGames}</div>
-              <div class="sess-sum-ctx scc-blue">${sum.totalCourts} court${sum.totalCourts !== 1 ? 's' : ''}</div>
-            </div>
-            <div class="sess-sum-card sc-gold">
-              <div class="sess-sum-label">MVP</div>
-              <div class="sess-sum-val-text">${esc(sum.mvpName)}</div>
-              <div class="sess-sum-ctx scc-gold">+${sum.mvpPts} pts this session</div>
-            </div>
-            <div class="sess-sum-card sc-teal">
-              <div class="sess-sum-label">Closest Match</div>
-              <div class="sess-sum-val">${sum.closest ? sum.closest.score : '—'}</div>
-              <div class="sess-sum-ctx scc-green">${sum.closest ? `Court ${sum.closest.court}, Game ${sum.closest.game}` : 'No scores yet'}</div>
-            </div>
-            <div class="sess-sum-card sc-orange">
-              <div class="sess-sum-label">Biggest Win</div>
-              <div class="sess-sum-val">${sum.biggest ? sum.biggest.score : '—'}</div>
-              <div class="sess-sum-ctx scc-orange">${sum.biggest ? `Court ${sum.biggest.court}, Game ${sum.biggest.game}` : 'No scores yet'}</div>
-            </div>
-            <div class="sess-sum-card sc-blue">
-              <div class="sess-sum-label">Court Highlight</div>
-              <div class="sess-sum-val-text">${sum.bestCourt ? `Court ${sum.bestCourt}` : '—'}</div>
-              <div class="sess-sum-ctx scc-blue">Most competitive</div>
-            </div>
+            <div class="sess-sum-card sc-blue"><div class="sess-sum-label">Total Games</div><div class="sess-sum-val">${sum.totalGames}</div><div class="sess-sum-ctx scc-blue">${sum.totalCourts} court${sum.totalCourts!==1?'s':''}</div></div>
+            <div class="sess-sum-card sc-gold"><div class="sess-sum-label">MVP</div><div class="sess-sum-val-text">${esc(sum.mvpName)}</div><div class="sess-sum-ctx scc-gold">+${sum.mvpPts} pts this session</div></div>
+            <div class="sess-sum-card sc-teal"><div class="sess-sum-label">Closest Match</div><div class="sess-sum-val">${sum.closest?sum.closest.score:'—'}</div><div class="sess-sum-ctx scc-green">${sum.closest?`Court ${sum.closest.court}, Game ${sum.closest.game}`:'No scores yet'}</div></div>
+            <div class="sess-sum-card sc-orange"><div class="sess-sum-label">Biggest Win</div><div class="sess-sum-val">${sum.biggest?sum.biggest.score:'—'}</div><div class="sess-sum-ctx scc-orange">${sum.biggest?`Court ${sum.biggest.court}, Game ${sum.biggest.game}`:'No scores yet'}</div></div>
+            <div class="sess-sum-card sc-blue"><div class="sess-sum-label">Court Highlight</div><div class="sess-sum-val-text">${sum.bestCourt?`Court ${sum.bestCourt}`:'—'}</div><div class="sess-sum-ctx scc-blue">Most competitive</div></div>
           </div>
-
           ${courts.map(s => {
-            const courtGames   = Object.values(s.games).flat();
-            const courtPending = courtGames.some(m => !m.default_no_show && m.score_for === null);
-            const gamesHTML    = Object.entries(s.games).sort((a,b) => a[0]-b[0]).map(([gnum, players]) => {
-              const [teamA, teamB] = buildTeams(players);
-              const scoreA = teamA[0] ? teamA[0].score_for : null;
-              const scoreB = teamB[0] ? teamB[0].score_for : null;
-              const aWins  = scoreA !== null && scoreB !== null && scoreA > scoreB;
-              const bWins  = scoreA !== null && scoreB !== null && scoreB > scoreA;
-
-              const renderTeam = (team, isWinner) => {
-                if (!team || !team.length) return '';
-                const p0     = team[0];
-                const score  = p0.default_no_show ? '-1' : p0.score_for !== null ? String(p0.score_for) : '—';
-                const pts    = p0.default_no_show ? '-1 pt' : p0.score_for !== null ? `+${p0.points_earned} pts` : 'pending';
-                const isPend = p0.score_for === null && !p0.default_no_show;
-                let blockClass = 'sess-team-block ';
-                let scoreClass = 'sess-score-num ';
-                let ptsClass   = 'sess-score-pts ';
-                let nameClass  = 'sess-team-names';
-                if (isPend) { blockClass += 'sess-team-pending'; scoreClass += 'sess-score-pending'; ptsClass += 'sess-pts-pending'; nameClass += ' pending'; }
-                else if (isWinner) { blockClass += 'sess-team-win'; scoreClass += 'sess-score-win'; ptsClass += 'sess-pts-win'; }
-                else { blockClass += 'sess-team-lose'; scoreClass += 'sess-score-lose'; ptsClass += 'sess-pts-lose'; nameClass += ' lose'; }
-                const names = team.map(p => {
-                  const lp  = ladderPlayers.find(x => x.id === p.player_id);
-                  const nm  = lp ? `${esc(lp.first_name)} ${esc(lp.last_name)}` : 'Unknown';
-                  const sub = p.is_sub ? '<span class="sub-pill-blue">SUB</span>' : '';
-                  return nm + sub;
+            const gamesHTML = Object.entries(s.games).sort((a,b)=>a[0]-b[0]).map(([gnum,players])=>{
+              const [teamA,teamB] = buildTeams(players);
+              const scoreA = teamA[0]?teamA[0].score_for:null, scoreB=teamB[0]?teamB[0].score_for:null;
+              const aWins = scoreA!==null&&scoreB!==null&&scoreA>scoreB;
+              const bWins = scoreA!==null&&scoreB!==null&&scoreB>scoreA;
+              const renderTeam = (team,isWinner) => {
+                if (!team||!team.length) return '';
+                const p0=team[0];
+                const score=p0.default_no_show?'-1':p0.score_for!==null?String(p0.score_for):'—';
+                const pts=p0.default_no_show?'-1 pt':p0.score_for!==null?`+${p0.points_earned} pts`:'pending';
+                const isPend=p0.score_for===null&&!p0.default_no_show;
+                let bc='sess-team-block ',sc='sess-score-num ',pc='sess-score-pts ',nc='sess-team-names';
+                if(isPend){bc+='sess-team-pending';sc+='sess-score-pending';pc+='sess-pts-pending';nc+=' pending';}
+                else if(isWinner){bc+='sess-team-win';sc+='sess-score-win';pc+='sess-pts-win';}
+                else{bc+='sess-team-lose';sc+='sess-score-lose';pc+='sess-pts-lose';nc+=' lose';}
+                const names=team.map(p=>{
+                  const lp=ladderPlayers.find(x=>x.id===p.player_id);
+                  const nm=lp?`${esc(lp.first_name)} ${esc(lp.last_name)}`:'Unknown';
+                  return nm+(p.is_sub?'<span class="sub-pill-blue">SUB</span>':'');
                 }).join('<br>');
-                return `<div class="${blockClass}">
-                  <div class="${nameClass}">${names}</div>
-                  <div class="sess-team-score">
-                    <span class="${scoreClass}">${score}</span>
-                    <span class="${ptsClass}">${pts}</span>
-                  </div>
-                </div>`;
+                return `<div class="${bc}"><div class="${nc}">${names}</div><div class="sess-team-score"><span class="${sc}">${score}</span><span class="${pc}">${pts}</span></div></div>`;
               };
-
               return `<div class="sess-game-row">
                 <span class="sess-game-label">Game ${gnum}</span>
                 <div class="sess-game-body">
-                  ${renderTeam(teamA, aWins)}
+                  ${renderTeam(teamA,aWins)}
                   <div class="sess-vs"><div class="sess-vs-line"></div><span>VS</span><div class="sess-vs-line"></div></div>
-                  ${renderTeam(teamB, bWins)}
+                  ${renderTeam(teamB,bWins)}
                 </div>
               </div>`;
             }).join('');
-
+            const courtPending = Object.values(s.games).flat().some(m=>!m.default_no_show&&m.score_for===null);
             return `<div class="court-block">
               <div class="court-block-hdr">
-                <span class="court-block-label">Court ${s.group}${courtPending ? ' <span style="font-size:9px;font-weight:800;color:var(--orange);background:var(--orange-light);padding:1px 6px;border-radius:99px;text-transform:uppercase;margin-left:6px;">Pending</span>' : ''}</span>
+                <span class="court-block-label">Court ${s.group}${courtPending?` <span style="font-size:9px;font-weight:800;color:var(--orange);background:var(--orange-light);padding:1px 6px;border-radius:99px;margin-left:6px;">Pending</span>`:''}</span>
               </div>
               ${gamesHTML}
             </div>`;
@@ -695,32 +647,26 @@
         </div>
       </div>`;
     });
-
-    document.getElementById('sessions-list').innerHTML = html;
+    document.getElementById('sessions-content').innerHTML = html;
   };
 
   window.toggleSessionGroup = (groupId) => {
-    const group  = document.getElementById(groupId);
+    const group = document.getElementById(groupId);
     if (!group) return;
-    const body    = group.querySelector('.session-date-body');
-    const header  = group.querySelector('.session-date-header');
-    const chevron = group.querySelector('.sdg-chevron');
-    const isOpen  = header.classList.contains('open');
-    // Close all
-    document.querySelectorAll('.session-date-group').forEach(g => {
-      g.querySelector('.session-date-body').style.display = 'none';
+    const body=group.querySelector('.session-date-body');
+    const header=group.querySelector('.session-date-header');
+    const chev=group.querySelector('.sdg-chevron');
+    const isOpen=header.classList.contains('open');
+    document.querySelectorAll('.session-date-group').forEach(g=>{
+      g.querySelector('.session-date-body').style.display='none';
       g.querySelector('.session-date-header').classList.remove('open');
-      const ch = g.querySelector('.sdg-chevron');
-      if (ch) { ch.classList.remove('sdg-chevron-open'); ch.style.transform = ''; }
+      const ch=g.querySelector('.sdg-chevron');
+      if(ch){ch.classList.remove('sdg-chevron-open');ch.style.transform='';}
     });
-    if (!isOpen) {
-      body.style.display    = 'block';
-      header.classList.add('open');
-      if (chevron) { chevron.classList.add('sdg-chevron-open'); chevron.style.transform = 'rotate(90deg)'; }
-    }
+    if(!isOpen){body.style.display='block';header.classList.add('open');if(chev){chev.classList.add('sdg-chevron-open');chev.style.transform='rotate(90deg)';}}
   };
 
-  // ── Init ───────────────────────────────────────────────────
+  // ── Init — IDENTICAL to old players.html ─────────────────────────────
   const init = async () => {
     if (!ladderId) {
       document.querySelector('main').innerHTML = `
@@ -743,58 +689,29 @@
       document.getElementById('ladder-name').textContent = ladderData.name;
       document.title = `${ladderData.name} — Ferocia Ladder Hub`;
 
+      // EXACT same fetch as old players.html
       const enrolled  = await api(`ladder_players?select=player_id,status&ladder_id=eq.${ladderId}`);
       const playerIds = enrolled.map(r => r.player_id);
       if (!playerIds.length) {
-        document.getElementById('ladder-table').innerHTML = '<div class="empty">No players enrolled in this ladder yet.</div>';
+        document.getElementById('standings-content').innerHTML =
+          '<div class="empty">No players enrolled in this ladder yet.</div>';
         return;
       }
 
+      // EXACT same parallel fetch as old players.html
       const [players, matches] = await Promise.all([
         api(`public_players?id=in.(${playerIds.join(',')})&select=*&order=first_name`),
-        // Fetch plain matches (no join) — same as old players.html, guarantees correct player_id type
         api(`matches?ladder_id=eq.${ladderId}&select=*`),
       ]);
 
+      // EXACT same mapping as old players.html
       ladderPlayers = players.map((p) => {
         const row = enrolled.find((r) => r.player_id === p.id);
         return { ...p, ladder_status: row?.status || 'active' };
       });
       allMatches = matches;
 
-      // Points map — exact same logic as old players.html calcPlayerPoints()
-      const pm = {};
-      ladderPlayers.forEach(p => (pm[p.id] = 0));
-      allMatches.forEach(m => {
-        if (pm[m.player_id] !== undefined) pm[m.player_id] += m.points_earned || 0;
-      });
-
-      // ranked = active only — same as old players.html
-      const active = ladderPlayers.filter(p => p.ladder_status === 'active');
-      active.sort((a,b) => (pm[b.id]||0) - (pm[a.id]||0));
-      active.forEach((p,i) => { p._rank = i+1; p._points = pm[p.id] || 0; });
-      const men   = active.filter(p => p.gender === 'Male');
-      const women = active.filter(p => p.gender === 'Female');
-      men.forEach((p,i)   => p._grank = i+1);
-      women.forEach((p,i) => p._grank = i+1);
-
-      // Stat cards — exact same as admin loadLadder()
-      const leader       = active[0];
-      const totalSess    = new Set(allMatches.map(m => m.session_date)).size;
-      const totalGames   = new Set(allMatches.map(m => `${m.session_date}__${m.court_group}__${m.game_number}`)).size;
-      const totalPlayers = ladderPlayers.length;
-
-      if (ladderPlayers.length) {
-        document.getElementById('standings-stats').style.display = 'grid';
-        document.getElementById('st-total').textContent       = totalPlayers;
-        document.getElementById('st-sessions').textContent    = totalSess;
-        document.getElementById('st-games').textContent       = totalGames;
-        document.getElementById('st-leader-name').textContent = leader ? `${leader.first_name} ${leader.last_name}` : '—';
-        document.getElementById('st-leader-pts').textContent  = leader ? `${leader._points} PTS` : '—';
-      }
-
-      renderMomentumWatch(active, allMatches);
-      renderLadder();
+      renderStandings();
       renderSessions();
 
     } catch (e) {
