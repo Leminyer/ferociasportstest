@@ -66,6 +66,10 @@
   .stat.stat-green{border-top-color:#24BC96;}
   .stat.stat-orange{border-top-color:#F26024;}
   .stat.stat-gold{border-top-color:#FFD700;}
+  .stat.stat-lime{border-top-color:#C6F221;}
+  .ctx-blue{color:#174CCC;}
+  .ctx-green{color:#24BC96;}
+  .ctx-lime{color:#7a9200;}
   .stat-label{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:6px;}
   .stat-value{font-family:'Bebas Neue',sans-serif;font-size:40px;color:#0d1f4a;line-height:1;margin-bottom:5px;}
   .stat-ctx{font-size:11px;font-weight:600;margin-top:auto;}
@@ -228,12 +232,22 @@
       <div class="page-sub">Track standings, sessions, and season activity.</div>
     </div>
 
-    <!-- Stat cards -->
+    <!-- Stat cards — exact same as admin standings: Players | Sessions | Games | Leader -->
     <div class="stats-grid" id="standings-stats" style="display:none;">
       <div class="stat stat-blue" style="display:flex;flex-direction:column;">
-        <div class="stat-label">Total Players</div>
+        <div class="stat-label">Players</div>
         <div class="stat-value" id="st-total">—</div>
-        <div class="stat-ctx" style="color:#174CCC;margin-top:auto;" id="st-total-ctx">Active this season</div>
+        <div class="stat-ctx ctx-blue" style="margin-top:auto;">Active this season</div>
+      </div>
+      <div class="stat stat-green" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Sessions</div>
+        <div class="stat-value" id="st-sessions">—</div>
+        <div class="stat-ctx ctx-green" style="margin-top:auto;">Recorded</div>
+      </div>
+      <div class="stat stat-lime" style="display:flex;flex-direction:column;">
+        <div class="stat-label">Games</div>
+        <div class="stat-value" id="st-games">—</div>
+        <div class="stat-ctx ctx-lime" style="margin-top:auto;">Total played</div>
       </div>
       <div class="stat stat-gold" style="display:flex;flex-direction:column;">
         <div class="stat-label">Leader</div>
@@ -244,16 +258,6 @@
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           Top of the ladder
         </div>
-      </div>
-      <div class="stat stat-green" style="display:flex;flex-direction:column;">
-        <div class="stat-label">Total Games</div>
-        <div class="stat-value" id="st-games">—</div>
-        <div class="stat-ctx" style="color:#24BC96;margin-top:auto;">Played this season</div>
-      </div>
-      <div class="stat stat-orange" style="display:flex;flex-direction:column;">
-        <div class="stat-label">Sessions</div>
-        <div class="stat-value" id="st-sessions">—</div>
-        <div class="stat-ctx" style="color:#F26024;margin-top:auto;">Completed sessions</div>
       </div>
     </div>
 
@@ -746,10 +750,13 @@
       });
       allMatches = matches;
 
-      // Rank players by points
+      // Rank players by points — match admin logic exactly
+      // pm uses ALL enrolled players (active + sub), same as admin's ladderPlayers
       const pm = {};
       ladderPlayers.forEach(p => (pm[p.id] = 0));
       allMatches.forEach(m => { if (pm[m.player_id] !== undefined) pm[m.player_id] += m.points_earned || 0; });
+
+      // ranked = active only (same as admin: .filter(p => p.ladder_status === 'active'))
       const active = ladderPlayers.filter(p => p.ladder_status === 'active');
       active.sort((a,b) => (pm[b.id]||0) - (pm[a.id]||0));
       active.forEach((p,i) => { p._rank = i+1; p._points = pm[p.id] || 0; });
@@ -758,17 +765,22 @@
       men.forEach((p,i) => p._grank = i+1);
       women.forEach((p,i) => p._grank = i+1);
 
-      // Stat cards
-      const leader      = active[0];
-      const totalGames  = new Set(allMatches.map(m => `${m.session_date}__${m.court_group}__${m.game_number}`)).size;
-      const totalSess   = new Set(allMatches.map(m => `${m.session_date}__${m.court_group}`)).size;
-      if (active.length) {
+      // Stat cards — exact same calculation as admin loadLadder()
+      const leader     = active[0];
+      // Sessions = unique session_date values (same as admin: new Set(matches.map(m => m.session_date)))
+      const totalSess  = new Set(allMatches.map(m => m.session_date)).size;
+      // Games = unique date__court__game combos (same as admin uniqueGames)
+      const totalGames = new Set(allMatches.map(m => `${m.session_date}__${m.court_group}__${m.game_number}`)).size;
+      // Players = ALL enrolled (active + sub), same as admin's ladderPlayers.length
+      const totalPlayers = ladderPlayers.length;
+
+      if (ladderPlayers.length) {
         document.getElementById('standings-stats').style.display = 'grid';
-        document.getElementById('st-total').textContent     = active.length;
-        document.getElementById('st-leader-name').textContent = leader ? `${leader.first_name} ${leader.last_name}` : '—';
-        document.getElementById('st-leader-pts').textContent  = leader ? `${leader._points} PTS` : '—';
-        document.getElementById('st-games').textContent    = totalGames;
-        document.getElementById('st-sessions').textContent = totalSess;
+        document.getElementById('st-total').textContent         = totalPlayers;
+        document.getElementById('st-sessions').textContent      = totalSess;
+        document.getElementById('st-games').textContent         = totalGames;
+        document.getElementById('st-leader-name').textContent   = leader ? `${leader.first_name} ${leader.last_name}` : '—';
+        document.getElementById('st-leader-pts').textContent    = leader ? `${leader._points} PTS` : '—';
       }
 
       renderMomentumWatch(active, allMatches);
