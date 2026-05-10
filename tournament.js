@@ -1321,37 +1321,39 @@ async function deleteTournament(id) {
   const teamCount  = teamsData.length;
   const matchCount = rrData.length + bracketData.length;
 
-  // Metadata rows — only show non-zero counts
-  const metaRows = [
-    catCount   > 0 ? `<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:18px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:#0d1f4a;">${catCount}</span><span style="font-size:12px;font-weight:600;color:#6b7a99;">Categor${catCount !== 1 ? 'ies' : 'y'}</span></div>` : '',
-    teamCount  > 0 ? `<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:18px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:#0d1f4a;">${teamCount}</span><span style="font-size:12px;font-weight:600;color:#6b7a99;">Teams</span></div>` : '',
-    matchCount > 0 ? `<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:18px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:#0d1f4a;">${matchCount}</span><span style="font-size:12px;font-weight:600;color:#6b7a99;">Matches</span></div>` : '',
-  ].filter(Boolean).join('');
-
   document.getElementById('t-modal-title').textContent = 'Delete Tournament Permanently';
   // Add orange top border to modal
   const modalEl = document.querySelector('.t-modal');
   if (modalEl) modalEl.style.borderTop = '3px solid #F26024';
 
   document.getElementById('t-modal-body').innerHTML = `
-    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.borderTop='';closeTModal();})()" 
+    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.borderTop='';closeTModal();})()"
       style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
       onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
       onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
 
-    <!-- Tournament name — subtle card with gray bg -->
-    <div style="background:#f4f5f8;border:0.5px solid #e0e7f5;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Tournament</div>
+    <!-- Tournament name — subtle card, no label above -->
+    <div style="background:#f4f5f8;border:0.5px solid #e0e7f5;border-radius:8px;padding:12px 16px;margin-bottom:14px;">
       <div style="font-size:15px;font-weight:800;color:#0d1f4a;">${tEsc(name)}</div>
     </div>
 
-    <!-- Tournament metadata -->
-    ${metaRows ? `
-    <div style="display:flex;gap:24px;margin-bottom:16px;padding:12px 16px;background:#fafbff;border:0.5px solid #e0e7f5;border-radius:8px;">
-      ${metaRows}
-    </div>` : ''}
+    <!-- Tournament metadata — vertical stacked rows -->
+    <div style="background:#fafbff;border:0.5px solid #e0e7f5;border-radius:8px;padding:12px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;min-width:36px;text-align:right;">${catCount}</span>
+        <span style="font-size:12px;font-weight:600;color:#6b7a99;">Categor${catCount !== 1 ? 'ies' : 'y'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;min-width:36px;text-align:right;">${teamCount}</span>
+        <span style="font-size:12px;font-weight:600;color:#6b7a99;">Teams</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;min-width:36px;text-align:right;">${matchCount}</span>
+        <span style="font-size:12px;font-weight:600;color:#6b7a99;">Matches</span>
+      </div>
+    </div>
 
     <!-- Warning box -->
     <div style="background:#fde8d8;border:0.5px solid rgba(242,96,36,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;">
