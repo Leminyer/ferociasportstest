@@ -1283,14 +1283,20 @@ async function createTournament(e) {
 // ─── DELETE TOURNAMENT ──────────────────────────────────────
 async function deleteTournament(id) {
   const [t] = await tApi(`tournaments?id=eq.${id}&select=name,status`);
-  const name = t?.name || 'this tournament';
+  const name   = t?.name   || 'this tournament';
   const status = t?.status || 'draft';
 
   // Block delete on active tournaments
   if (status === 'active') {
     document.getElementById('t-modal-title').textContent = 'Cannot Delete Active Tournament';
     document.getElementById('t-modal-body').innerHTML = `
-      <div style="padding:8px 0 16px;">
+      <button onclick="closeTModal()"
+        style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+        onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+        onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div style="padding:8px 0 20px;">
         <p style="font-size:13px;color:#0d1f4a;line-height:1.6;">
           <strong>${tEsc(name)}</strong> is currently <strong>active</strong> and cannot be deleted.
           Please close the tournament first before deleting it.
@@ -1303,25 +1309,75 @@ async function deleteTournament(id) {
     return;
   }
 
-  const warningMsg = status === 'completed'
-    ? 'This tournament is completed. Deleting it will permanently remove all categories, teams, and match results.'
-    : 'All categories, teams and matches will be permanently removed.';
+  // Fetch categories first, then teams + matches using their IDs
+  const categories = await tApi(`tournament_categories?tournament_id=eq.${id}&select=id`).catch(() => []);
+  const catIds = categories.length ? categories.map(c => c.id).join(',') : '0';
+  const [teamsData, rrData, bracketData] = await Promise.all([
+    tApi(`tournament_teams?category_id=in.(${catIds})&select=id`).catch(() => []),
+    tApi(`tournament_rr_matches?category_id=in.(${catIds})&select=id`).catch(() => []),
+    tApi(`tournament_bracket_matches?category_id=in.(${catIds})&select=id`).catch(() => []),
+  ]);
+  const catCount   = categories.length;
+  const teamCount  = teamsData.length;
+  const matchCount = rrData.length + bracketData.length;
 
-  document.getElementById('t-modal-title').textContent = 'Delete Tournament';
+  // Metadata rows — only show non-zero counts
+  const metaRows = [
+    catCount   > 0 ? `<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:18px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:#0d1f4a;">${catCount}</span><span style="font-size:12px;font-weight:600;color:#6b7a99;">Categor${catCount !== 1 ? 'ies' : 'y'}</span></div>` : '',
+    teamCount  > 0 ? `<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:18px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:#0d1f4a;">${teamCount}</span><span style="font-size:12px;font-weight:600;color:#6b7a99;">Teams</span></div>` : '',
+    matchCount > 0 ? `<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:18px;font-weight:800;font-family:'Bebas Neue',sans-serif;color:#0d1f4a;">${matchCount}</span><span style="font-size:12px;font-weight:600;color:#6b7a99;">Matches</span></div>` : '',
+  ].filter(Boolean).join('');
+
+  document.getElementById('t-modal-title').textContent = 'Delete Tournament Permanently';
+  // Add orange top border to modal
+  const modalEl = document.querySelector('.t-modal');
+  if (modalEl) modalEl.style.borderTop = '3px solid #F26024';
+
   document.getElementById('t-modal-body').innerHTML = `
-    <div style="padding:8px 0 16px;">
-      <p style="font-size:14px;color:#0d1f4a;line-height:1.6;">
-        Are you sure you want to delete <strong>${tEsc(name)}</strong>?
-      </p>
-      <p style="font-size:12px;color:#F26024;font-weight:600;margin-top:8px;padding:8px 12px;background:#fde8d8;border-radius:7px;">
-        ⚠️ ${warningMsg}
-      </p>
+    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.borderTop='';closeTModal();})()" 
+      style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+      onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+      onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <!-- Tournament name — subtle card with gray bg -->
+    <div style="background:#f4f5f8;border:0.5px solid #e0e7f5;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Tournament</div>
+      <div style="font-size:15px;font-weight:800;color:#0d1f4a;">${tEsc(name)}</div>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">Cancel</button>
-      <button type="button" class="t-op-btn t-op-btn-danger" onclick="confirmDeleteTournament(${id})" style="width:auto;padding:8px 16px;">Delete</button>
+
+    <!-- Tournament metadata -->
+    ${metaRows ? `
+    <div style="display:flex;gap:24px;margin-bottom:16px;padding:12px 16px;background:#fafbff;border:0.5px solid #e0e7f5;border-radius:8px;">
+      ${metaRows}
+    </div>` : ''}
+
+    <!-- Warning box -->
+    <div style="background:#fde8d8;border:0.5px solid rgba(242,96,36,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:800;color:#c04a0e;margin-bottom:4px;">This action cannot be undone</div>
+      <div style="font-size:12px;font-weight:600;color:#9a3a0a;line-height:1.5;">All categories, teams, and matches will be permanently removed.</div>
+    </div>
+
+    <!-- CTA -->
+    <div style="display:flex;justify-content:flex-end;">
+      <button type="button" class="t-op-btn t-op-btn-danger" onclick="confirmDeleteTournament(${id})" style="width:auto;padding:10px 20px;font-size:12px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        Delete Tournament
+      </button>
     </div>`;
   openTModal();
+
+  // Remove orange border when modal closes
+  const origClose = window._origCloseTModal;
+  if (!origClose) {
+    window._origCloseTModal = closeTModal;
+    window.closeTModalWithReset = () => {
+      const m = document.querySelector('.t-modal');
+      if (m) m.style.borderTop = '';
+      closeTModal();
+    };
+  }
 }
 
 async function confirmDeleteTournament(id) {
@@ -1343,6 +1399,8 @@ async function confirmDeleteTournament(id) {
     }
     await tApi(`tournament_categories?tournament_id=eq.${id}`, 'DELETE');
     await tApi(`tournaments?id=eq.${id}`, 'DELETE');
+    const m = document.querySelector('.t-modal');
+    if (m) m.style.borderTop = '';
     closeTModal();
     tToast('Tournament deleted.');
     renderTournamentList();
