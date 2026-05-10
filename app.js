@@ -1045,44 +1045,15 @@
   };
 
   // Segmented status pill click
-  window.lpSegClick = async (btn, newStatus, pid) => {
+  window.lpSegClick = (btn, newStatus, pid) => {
+    // UI only — no DB save. Status is saved when Update Participants is clicked.
     const seg = btn.closest('.lp-seg');
     if (!seg) return;
-
-    // Update UI immediately
     seg.querySelectorAll('.lp-seg-btn').forEach(b => {
       b.classList.remove('lp-seg-active', 'lp-seg-sub');
     });
     btn.classList.add(newStatus === 'active' ? 'lp-seg-active' : 'lp-seg-sub');
-
-    // Guard: ensure we have a ladder context
-    if (!modalLadderId) {
-      toast('Error: no ladder selected. Please close and reopen the modal.', true);
-      return;
-    }
-
-    // Disable seg while saving
-    seg.style.opacity = '0.6';
-    seg.style.pointerEvents = 'none';
-
-    try {
-      await api(
-        `ladder_players?ladder_id=eq.${modalLadderId}&player_id=eq.${pid}`,
-        'PATCH',
-        { status: newStatus }
-      );
-      toast(`Player status updated to ${newStatus === 'active' ? 'Active' : 'Sub'}.`);
-    } catch(e) {
-      // Revert UI on failure
-      seg.querySelectorAll('.lp-seg-btn').forEach(b => b.classList.remove('lp-seg-active','lp-seg-sub'));
-      const prev = newStatus === 'active' ? 'sub' : 'active';
-      seg.querySelector(`.lp-seg-btn:${prev === 'active' ? 'first-child' : 'last-child'}`)?.classList.add(prev === 'active' ? 'lp-seg-active' : 'lp-seg-sub');
-      toast(`Error updating status: ${e.message || 'Unknown error'}`, true);
-    } finally {
-      seg.style.opacity = '';
-      seg.style.pointerEvents = '';
-    }
-  };
+  };;
 
   const lpChangeStatus = async (sel) => { /* now handled by lpSegClick */ };
 
@@ -1098,38 +1069,62 @@
     const toAdd    = nowCheckedIds.filter(id => !prevEnrolledIds.includes(id));
     const toRemove = prevEnrolledIds.filter(id => !nowCheckedIds.includes(id));
 
-    if (!toAdd.length && !toRemove.length) {
-      toast('No participant changes to save.');
+    // Still proceed even if only status changed (no enrollment changes)
+    // Only bail if nothing at all is selected
+    if (!nowCheckedIds.length && !prevEnrolledIds.length) {
+      toast('No participants selected.');
       return;
     }
     const saveBtn = document.getElementById('lp-save-btn');
     const origHTML = saveBtn?.innerHTML;
     if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = 'Saving...'; }
 
+    // Helper: read seg pill status from row
+    const getSegStatus = (pid) => {
+      const row = document.querySelector(`.lp-player-row-new[data-pid="${pid}"]`);
+      if (!row) return 'active';
+      return row.querySelector('.lp-seg-btn.lp-seg-sub') ? 'sub' : 'active';
+    };
+
     try {
+      // 1. Add newly enrolled players with their chosen status
       if (toAdd.length) {
-        // Read the actual seg pill status for each newly added player
-        const getSegStatus = (pid) => {
-          const row = document.querySelector(`.lp-player-row-new[data-pid="${pid}"]`);
-          if (!row) return 'active';
-          const subBtn = row.querySelector('.lp-seg-btn.lp-seg-sub');
-          return subBtn ? 'sub' : 'active';
-        };
         await api('ladder_players', 'POST',
           toAdd.map(pid => ({
-            ladder_id:  parseInt(modalLadderId, 10),
-            player_id:  pid,
-            status:     getSegStatus(pid),
+            ladder_id: parseInt(modalLadderId, 10),
+            player_id: pid,
+            status:    getSegStatus(pid),
           }))
         );
       }
+
+      // 2. Remove de-enrolled players
       if (toRemove.length) {
         await api(
           `ladder_players?ladder_id=eq.${modalLadderId}&player_id=in.(${toRemove.join(',')})`,
           'DELETE'
         );
       }
-      toast(`Participants updated! ${toAdd.length} added, ${toRemove.length} removed.`);
+
+      // 3. Update status for players that stayed enrolled but changed status
+      const stayedIds = nowCheckedIds.filter(id => prevEnrolledIds.includes(id));
+      const statusUpdates = stayedIds.map(pid => ({
+        pid,
+        status: getSegStatus(pid),
+      }));
+      for (const { pid, status } of statusUpdates) {
+        await api(
+          `ladder_players?ladder_id=eq.${modalLadderId}&player_id=eq.${pid}`,
+          'PATCH',
+          { status }
+        );
+      }
+
+      const changes = toAdd.length + toRemove.length;
+      toast(changes > 0
+        ? `Participants updated! ${toAdd.length} added, ${toRemove.length} removed.`
+        : 'Participant statuses saved successfully.'
+      );
       await loadLadderPlayers();
       closeLpModal();
     } catch (e) {
