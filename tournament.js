@@ -664,18 +664,27 @@ async function renderTournamentList() {
 
     // ── Intelligence item 2: Champion or leading team ─────────────────────
     let leaderText, leaderSub;
+    // Helper: resolve player names for a team object
+    const resolvePlayerNames = (team) => {
+      if (!team) return '';
+      return getTeamPlayerNames(team) || team.name || '';
+    };
+
     if (bracketComplete && finalMatch.winner_id) {
-      // We have a champion — show their name
-      const championName = tTeamMap[finalMatch.winner_id] || 'Champion';
-      leaderText = tEsc(championName) + ' 🏆';
+      // Champion — show player names of winning team
+      const champTeam = tTeams.find(tm => tm.id === finalMatch.winner_id);
+      const champNames = champTeam ? resolvePlayerNames(champTeam) : '';
+      leaderText = tEsc(champNames || (champTeam && champTeam.name) || 'Champion') + ' 🏆';
       leaderSub  = 'Tournament champion';
     } else if (tRR.length > 0 && tTeams.length > 0) {
-      // Compute standings from RR matches
+      // Compute standings from RR matches — show leading team's player names
       const standings = tCalcStandings(tTeams, tRR);
-      const leader = standings[0];
-      if (leader && (leader.w > 0 || leader.pts_for > 0)) {
-        leaderText = tEsc(leader.name);
-        leaderSub  = `${leader.w}W ${leader.l}L · Leading`;
+      const leaderStanding = standings[0];
+      if (leaderStanding && (leaderStanding.w > 0 || leaderStanding.pts_for > 0)) {
+        const leaderTeam = tTeams.find(tm => tm.id === leaderStanding.id);
+        const leaderNames = leaderTeam ? resolvePlayerNames(leaderTeam) : leaderStanding.name;
+        leaderText = tEsc(leaderNames);
+        leaderSub  = `${leaderStanding.w}W ${leaderStanding.l}L · Leading`;
       } else {
         leaderText = tTeamCount > 0 ? `${tTeamCount} team${tTeamCount !== 1 ? 's' : ''} enrolled` : 'No teams yet';
         leaderSub  = tTeamCount > 0 ? 'Scores not recorded yet' : 'Add teams to start bracket';
@@ -719,7 +728,7 @@ async function renderTournamentList() {
           <div class="t-op-stats-row">
             <div><div class="t-op-stat-val">${tTeamCount}</div><div class="t-op-stat-lbl">Teams</div></div>
             <div><div class="t-op-stat-val">${catCount}</div><div class="t-op-stat-lbl">Categories</div></div>
-            <div><div class="t-op-stat-val">—</div><div class="t-op-stat-lbl">Rounds</div></div>
+            <div><div class="t-op-stat-val">${totalRounds || '—'}</div><div class="t-op-stat-lbl">Rounds</div></div>
           </div>
         </div>
         <!-- CENTER — Tournament Intelligence: EXACTLY as proposal -->
