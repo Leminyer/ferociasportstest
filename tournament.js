@@ -1478,6 +1478,7 @@ function renderTournamentDetail(t, categories) {
   }).join('');
 
   el.innerHTML = `
+    <div style="padding:20px 28px 0;">
     <div class="td-header">
       <div class="td-identity">
         <div class="td-name">${tEsc(t.name)}</div>
@@ -1507,6 +1508,7 @@ function renderTournamentDetail(t, categories) {
           <div class="td-meta-lbl">Progress</div>
         </div>
       </div>
+    </div>
     </div>
 
     <div class="td-action-bar">
@@ -2084,6 +2086,8 @@ async function showAddTeam(catId) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
 
+    <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:10px;">Add team identity and assign players.</div>
+
     <div style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#174CCC;background:#e8f0ff;padding:3px 10px;border-radius:99px;border:0.5px solid #c5d6f5;margin-bottom:14px;">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
       Division: ${tEsc(catName)}
@@ -2430,20 +2434,91 @@ async function saveEditTeam(e, teamId, catId) {
 }
 
 async function deleteTeam(teamId, catId) {
-  const [team] = await tApi(`tournament_teams?id=eq.${teamId}&select=name`);
-  const teamName = team?.name || 'this player/team';
-  document.getElementById('t-modal-title').textContent = 'Remove Team';
-  document.getElementById('t-modal-body').innerHTML =
-    '<div style="padding:8px 0 24px;">'
-    + '<p style="font-size:14px;color:#0d1f4a;line-height:1.6;">Are you sure you want to remove <strong>'
-    + teamName + '</strong> from this category? This cannot be undone.</p></div>'
-    + '<div class="t-form-actions">'
-    + '<button type="button" class="t-btn t-btn-ghost" onclick="closeTModal()">Cancel</button>'
-    + '<button type="button" class="t-btn t-btn-danger" onclick="confirmDeleteTeam(' + teamId + ',' + catId + ')">Remove</button>'
-    + '</div>';
+  // Fetch team with player info
+  const [team] = await tApi(`tournament_teams?id=eq.${teamId}&select=*`);
+  const teamName = team?.name || 'this team';
+
+  // Fetch category + tournament names
+  const [cat] = await tApi(`tournament_categories?id=eq.${catId}&select=name,tournament_id`);
+  const tournId = cat?.tournament_id || tCurrentTournamentId;
+  const [tourn] = await tApi(`tournaments?id=eq.${tournId}&select=name`);
+  const catName = cat?.name || '';
+  const tournName = tourn?.name || '';
+
+  // Check if any matches exist for this team in this category
+  const allRR = await tApi(`tournament_rr_matches?category_id=eq.${catId}&select=id,team_a_id,team_b_id`).catch(() => []);
+  const allBracket = await tApi(`tournament_bracket_matches?category_id=eq.${catId}&select=id,team_a_id,team_b_id`).catch(() => []);
+  const hasMatches = allRR.some(m => m.team_a_id === teamId || m.team_b_id === teamId)
+                  || allBracket.some(m => m.team_a_id === teamId || m.team_b_id === teamId);
+
+  // Resolve player names
+  const playerIds = [team?.player1_id, team?.player2_id, team?.player3_id, team?.player4_id].filter(Boolean);
+  const players = playerIds.map(id => {
+    const p = tAllPlayers.find(x => x.id === id);
+    return p ? { initials: ((p.first_name||'')[0]||'').toUpperCase() + ((p.last_name||'')[0]||'').toUpperCase(), name: `${p.first_name} ${p.last_name}` } : null;
+  }).filter(Boolean);
+
+  const playerRowsHTML = players.map(p => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="width:26px;height:26px;border-radius:50%;background:#e8f0ff;color:#174CCC;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${p.initials}</div>
+      <div style="font-size:12px;font-weight:700;color:#0d1f4a;">${tEsc(p.name)}</div>
+    </div>`).join('');
+
+  const consequenceHTML = hasMatches
+    ? `<div style="background:rgba(242,96,36,0.08);border:1px solid rgba(242,96,36,0.18);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:12px;font-weight:800;color:#c04a0e;margin-bottom:4px;">This action cannot be undone.</div>
+        <div style="font-size:12px;font-weight:600;color:#9a3a0a;line-height:1.5;">The team will be permanently removed from this category and all generated matches may be affected.</div>
+      </div>`
+    : `<div style="background:rgba(36,188,150,0.06);border:1px solid rgba(36,188,150,0.2);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#085041" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div style="font-size:11px;font-weight:700;color:#085041;">No matches generated yet — no matches will be affected.</div>
+      </div>`;
+
+  // Add orange top border to modal
+  const modalEl = document.querySelector('.t-modal');
+  if (modalEl) modalEl.style.borderTop = '3px solid #F26024';
+
+  document.getElementById('t-modal-title').textContent = 'Remove Team From Tournament';
+  document.getElementById('t-modal-body').innerHTML = `
+    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.borderTop='';closeTModal();})()"
+      style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+      onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+      onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:14px;">Review the team before removing.</div>
+
+    <div style="background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:#174CCC;color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${tEsc(teamName.substring(0,3))}</div>
+        <div style="font-size:15px;font-weight:800;color:#0d1f4a;">${tEsc(teamName)}</div>
+      </div>
+      ${playerRowsHTML || '<div style="font-size:11px;color:#b0bbd6;">No players assigned</div>'}
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:#6b7a99;">
+        <div style="width:5px;height:5px;border-radius:50%;background:#174CCC;flex-shrink:0;"></div>
+        <span><strong>Division:</strong> ${tEsc(catName)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:#6b7a99;">
+        <div style="width:5px;height:5px;border-radius:50%;background:#174CCC;flex-shrink:0;"></div>
+        <span><strong>Tournament:</strong> ${tEsc(tournName)}</span>
+      </div>
+    </div>
+
+    ${consequenceHTML}
+
+    <div style="display:flex;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:0.5px solid #e0e7f5;">
+      <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.borderTop='';confirmDeleteTeam(${teamId},${catId});})()"
+        style="display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#F26024,#d44e10);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Remove Team
+      </button>
+    </div>`;
   openTModal();
 }
-
 async function confirmDeleteTeam(teamId, catId) {
   try {
     await tApi(`tournament_teams?id=eq.${teamId}`, 'DELETE');
@@ -3452,7 +3527,8 @@ function calcBestOfWinner(bestOf, teamAId, teamBId, gameScores) {
 
 /* ─── PRINT TOURNAMENT ROSTER ─────────────────────────── */
 async function printTournamentRoster(btn) {
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating...'; }
+  const printBtnOrigHTML = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>'; }
 
   try {
     // Read all data from button attributes — safe, no JSON injection risk
@@ -3746,6 +3822,6 @@ async function printTournamentRoster(btn) {
     tToast(`Error generating PDF: ${err.message}`, true);
     console.error('[printTournamentRoster]', err);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📄 Print Roster'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = printBtnOrigHTML; }
   }
 }

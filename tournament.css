@@ -13,7 +13,7 @@
 
 /* ─── HEADER BAR ──────────────────────────────────────────── */
 /* ── TOURNAMENT DETAIL PAGE ─────────────────────────────── */
-.td-header{background:white;border-bottom:0.5px solid #e0e7f5;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;gap:20px;}
+.td-header{background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 1px 4px rgba(23,76,204,0.06);}
 .td-identity{flex:1;}
 .td-name{font-family:'Bebas Neue',sans-serif;font-size:30px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:4px;}
 .td-date{font-size:12px;font-weight:600;color:#6b7a99;display:flex;align-items:center;gap:5px;}
