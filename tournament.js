@@ -1557,14 +1557,23 @@ async function switchCategory(catId, tId) {
 
 async function loadCategory(catId, t) {
   const [cat] = await tApi(`tournament_categories?id=eq.${catId}&select=*`);
-  const teams = await tApi(`tournament_teams?category_id=eq.${catId}&select=*&order=id`);
-  const rrMatches = await tApi(`tournament_rr_matches?category_id=eq.${catId}&select=*&order=round,court`);
-  const bracketMatches = await tApi(`tournament_bracket_matches?category_id=eq.${catId}&select=*&order=id`);
-  const groups = await tApi(`tournament_groups?category_id=eq.${catId}&select=*&order=position`);
-  renderCategory(cat, teams, rrMatches, bracketMatches, t, groups);
+  const [teams, rrMatches, bracketMatches, groups, allTournCats] = await Promise.all([
+    tApi(`tournament_teams?category_id=eq.${catId}&select=*&order=id`),
+    tApi(`tournament_rr_matches?category_id=eq.${catId}&select=*&order=round,court`),
+    tApi(`tournament_bracket_matches?category_id=eq.${catId}&select=*&order=id`),
+    tApi(`tournament_groups?category_id=eq.${catId}&select=*&order=position`),
+    tApi(`tournament_categories?tournament_id=eq.${t.id}&select=id`),
+  ]);
+  // Fetch team counts for all categories in this tournament (for cross-category Start button validation)
+  const allCatIds = allTournCats.map(c => c.id).join(',') || '0';
+  const allTeams = await tApi(`tournament_teams?category_id=in.(${allCatIds})&select=id,category_id`);
+  const teamCountByCat = {};
+  allTeams.forEach(tm => { teamCountByCat[tm.category_id] = (teamCountByCat[tm.category_id] || 0) + 1; });
+  const allCatsHave4 = allTournCats.every(c => (teamCountByCat[c.id] || 0) >= 4);
+  renderCategory(cat, teams, rrMatches, bracketMatches, t, groups, allCatsHave4);
 }
 
-function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, groups = []) {
+function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, groups = [], allCatsHave4 = false) {
   const el = document.getElementById('t-category-content');
   const useGroups = groups.length > 0;
   const standings = useGroups ? null : tCalcStandings(teams, rrMatches);
@@ -1601,7 +1610,8 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   // ── Setup progression ─────────────────────────────────────────────────
   const rrTotal2 = rrMatches.filter(m => m.status !== 'bye').length;
   const rrDone2  = rrMatches.filter(m => m.status === 'completed').length;
-  const step1Done = teams.length >= 4;
+  // step1Done: ALL categories in this tournament must have >= 4 teams
+  const step1Done = allCatsHave4;
   const step2Done = rrComplete;
   const step3Done = bracketMatches.length > 0 && bracketMatches.every(m => m.status === 'completed');
   const step4Done = tournament.status === 'completed';
