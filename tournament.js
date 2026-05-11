@@ -1867,9 +1867,15 @@ function renderRRRounds(matches, tMap, tournament) {
                 onclick="${tournament.status !== 'completed' ? `openScoreModal('rr',${m.id},${m.team_a_id},${m.team_b_id},${m.category_id})` : ''}">
                 <div class="t-match-court" title="Court ${m.court || '?'}">${m.court ? 'C'+m.court : '—'}</div>
                 <div class="t-match-teams">
-                  <span class="t-match-team ${winA ? 't-winner' : ''}">${tEsc(teamA?.name || '?')}</span>
+                  <span class="t-match-team ${winA ? 't-winner' : ''}">
+                    ${tEsc(teamA?.name || '?')}
+                    ${getTeamPlayerNames(teamA) ? `<span style="font-size:10px;font-weight:500;color:#6b7a99;"> (${tEsc(getTeamPlayerNames(teamA))})</span>` : ''}
+                  </span>
                   <span class="t-match-vs">vs</span>
-                  <span class="t-match-team ${winB ? 't-winner' : ''}">${tEsc(teamB?.name || '?')}</span>
+                  <span class="t-match-team ${winB ? 't-winner' : ''}">
+                    ${tEsc(teamB?.name || '?')}
+                    ${getTeamPlayerNames(teamB) ? `<span style="font-size:10px;font-weight:500;color:#6b7a99;"> (${tEsc(getTeamPlayerNames(teamB))})</span>` : ''}
+                  </span>
                 </div>
                 <div class="t-match-score">
                   ${isDone ? `<span class="t-score ${winA ? 't-score-win' : ''}">${m.score_a}</span>
@@ -3532,7 +3538,7 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <span style="font-size:11px;font-weight:700;color:#6b7a99;">Court:</span>
       <input type="number" min="1" id="t-court-num" value="${match.court || ''}"
-        style="width:52px;height:36px;text-align:center;border:1px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;color:#0d1f4a;outline:none;"
+        style="width:72px;height:36px;text-align:center;border:1px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;color:#0d1f4a;outline:none;"
         onfocus="this.style.borderColor='#174CCC';this.style.boxShadow='0 0 0 4px rgba(23,76,204,0.08)'"
         onblur="this.style.borderColor='#e0e7f5';this.style.boxShadow='none'">
     </div>
