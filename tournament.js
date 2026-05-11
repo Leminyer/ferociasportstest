@@ -3431,6 +3431,7 @@ function buildBracketMatches(advancing, catId, format) {
 // ─── SCORE ENTRY MODAL ──────────────────────────────────────
 async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
   if (!teamAId || !teamBId) { tToast('This match is waiting for previous results.', true); return; }
+
   let match;
   if (type === 'rr') {
     [match] = await tApi(`tournament_rr_matches?id=eq.${matchId}&select=*`);
@@ -3443,20 +3444,46 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
   const teamA = tMap[teamAId];
   const teamB = tMap[teamBId];
   const isFinals = type === 'bracket';
-
-  document.getElementById('t-modal-title').textContent = isFinals ? `Finals — ${match.round_name}` : `Round ${match.round} — Court ${match.court}`;
   const bestOf = cat.best_of || 1;
-  // Show game-by-game entry when best_of > 1 (works for singles AND finals best-of formats)
   const singlesMatch = bestOf > 1;
   const existingGames = match.games || [];
-  document.getElementById('t-modal-body').innerHTML = `
-    <div class="t-score-modal">
-      <div class="t-score-rule">${isFinals ? '🏆 Finals: ' + (T_FORMATS[cat.finals_format_score] || 'Play to 11, win by 2') : '🏓 Round Robin: ' + (T_FORMATS[cat.rr_format] || 'Play to 11, win by 1')}${singlesMatch ? ' · Best of ' + bestOf : ''}</div>
+
+  // ── Format label ─────────────────────────────────────────────────────
+  const formatLabel = isFinals
+    ? (T_FORMATS[cat.finals_format_score] || 'Play to 11, win by 2')
+    : (T_FORMATS[cat.rr_format] || 'Play to 11, win by 1');
+  // Convert "Play to 11, win by 1" → "Play to 11 • Win by 1"
+  const formatDisplay = formatLabel.replace(', win by ', ' • Win by ').replace(', win by ', ' • Win by ');
+
+  // ── Subtitle: Round X • Court Y • Round Robin / Finals ───────────────
+  const subtitleText = isFinals
+    ? `${match.round_name} • Finals`
+    : `Round ${match.round} • Court ${match.court} • Round Robin`;
+
+  // ── Player names ──────────────────────────────────────────────────────
+  const teamAPlayers = getTeamPlayerNames(teamA) || '';
+  const teamBPlayers = getTeamPlayerNames(teamB) || '';
+
+  // ── Set modal title + subtitle ────────────────────────────────────────
+  document.getElementById('t-modal-title').textContent = 'Record Match Result';
+  tSetModalSubtitle(subtitleText);
+
+  // ── singlesMatch path — preserved unchanged ───────────────────────────
+  if (singlesMatch) {
+    document.getElementById('t-modal-body').innerHTML = `
+      <button onclick="tSetModalSubtitle('');closeTModal()"
+        style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+        onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+        onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div style="font-size:12px;font-weight:600;color:#6b7a99;text-align:center;margin-bottom:16px;padding:8px;background:#f4f6fc;border-radius:8px;">
+        ${isFinals ? '🏆 Finals: ' : '🏓 Round Robin: '}${tEsc(formatLabel)} · Best of ${bestOf}
+      </div>
       <div class="t-form-group" style="margin-bottom:16px;">
         <label class="t-label">Court number</label>
         <input class="t-input" type="number" min="1" id="t-court-num" value="${match.court || ''}" placeholder="e.g. 5" style="max-width:120px;">
       </div>
-      ${singlesMatch ? `
       <div class="t-singles-header">
         <span class="t-singles-player-col">${tEsc(teamA?.name || '?')}</span>
         <span></span>
@@ -3469,47 +3496,169 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
         <label class="t-forfeit-check-label"><input type="checkbox" id="t-forfeit-a" onchange="onForfeitCheck('a','b')"> ${tEsc(teamA?.name || '?')} Forfeit</label>
         <label class="t-forfeit-check-label"><input type="checkbox" id="t-forfeit-b" onchange="onForfeitCheck('b','a')"> ${tEsc(teamB?.name || '?')} Forfeit</label>
       </div>
-      <div id="t-score-preview" class="t-score-preview" style="margin-top:12px;"></div>
-      ` : `
-      <div class="t-score-teams">
-        <div class="t-score-team">
-          <div class="t-score-team-name">${tEsc(teamA?.name || '?')}</div>
-          <input class="t-score-input" type="number" min="0" max="25" id="t-score-a" value="${match.score_a ?? ''}" placeholder="0">
-          <label class="t-forfeit-check-label">
-            <input type="checkbox" id="t-forfeit-a" onchange="onForfeitCheck('a','b')"> Forfeit
-          </label>
+      <div id="t-score-preview" style="text-align:center;min-height:28px;margin-top:12px;"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:0.5px solid #e0e7f5;">
+        <button type="button" onclick="saveMatch('${type}',${matchId},${teamAId},${teamBId},${catId})"
+          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save Result
+        </button>
+      </div>`;
+    openTModal();
+    return;
+  }
+
+  // ── Standard RR / bracket doubles modal — new design ─────────────────
+  const scoreAVal = match.score_a ?? '';
+  const scoreBVal = match.score_b ?? '';
+
+  document.getElementById('t-modal-body').innerHTML = `
+    <button onclick="tSetModalSubtitle('');closeTModal()"
+      style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+      onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+      onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <!-- Format badge -->
+    <div style="margin-bottom:14px;">
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;background:rgba(23,76,204,0.06);border:1px solid rgba(23,76,204,0.12);color:#174CCC;font-size:11px;font-weight:700;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Format: ${tEsc(formatDisplay)}
+      </span>
+    </div>
+
+    <!-- Court number -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <span style="font-size:11px;font-weight:700;color:#6b7a99;">Court:</span>
+      <input type="number" min="1" id="t-court-num" value="${match.court || ''}"
+        style="width:52px;height:36px;text-align:center;border:1px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;color:#0d1f4a;outline:none;"
+        onfocus="this.style.borderColor='#174CCC';this.style.boxShadow='0 0 0 4px rgba(23,76,204,0.08)'"
+        onblur="this.style.borderColor='#e0e7f5';this.style.boxShadow='none'">
+    </div>
+
+    <div style="border-top:0.5px solid #e0e7f5;margin-bottom:16px;"></div>
+
+    <!-- Match card: 3-column grid -->
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:16px;">
+
+      <!-- Team A -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="font-size:13px;font-weight:800;color:#0d1f4a;text-align:center;">${tEsc(teamA?.name || '?')}</div>
+        ${teamAPlayers ? `<div style="font-size:10px;font-weight:600;color:#6b7a99;text-align:center;line-height:1.4;">${tEsc(teamAPlayers).replace(' & ','<br>')}</div>` : ''}
+        <input type="number" min="0" max="99" id="t-score-a" value="${scoreAVal}" placeholder="0"
+          oninput="smLiveUpdate('${tEsc(teamA?.name || '?')}','${tEsc(teamB?.name || '?')}')"
+          style="width:96px;height:72px;font-size:36px;font-weight:800;text-align:center;border-radius:16px;border:1px solid rgba(23,76,204,0.14);background:white;font-family:'Montserrat',sans-serif;color:#0d1f4a;outline:none;"
+          onfocus="this.style.borderColor='#174CCC';this.style.boxShadow='0 0 0 4px rgba(23,76,204,0.08)'"
+          onblur="this.style.borderColor=document.getElementById('sm-score-a-winner')?'rgba(36,188,150,0.22)':'rgba(23,76,204,0.14)';this.style.boxShadow='none'">
+        <div id="sm-forfeit-a"
+          onclick="smToggleForfeit('a')"
+          style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;border:1px solid #e0e7f5;background:#f8f9ff;font-size:10px;font-weight:700;color:#6b7a99;cursor:pointer;user-select:none;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          Forfeit
         </div>
-        <div class="t-score-divider">VS</div>
-        <div class="t-score-team">
-          <div class="t-score-team-name">${tEsc(teamB?.name || '?')}</div>
-          <input class="t-score-input" type="number" min="0" max="25" id="t-score-b" value="${match.score_b ?? ''}" placeholder="0">
-          <label class="t-forfeit-check-label">
-            <input type="checkbox" id="t-forfeit-b" onchange="onForfeitCheck('b','a')"> Forfeit
-          </label>
-        </div>
+        <!-- Hidden checkbox for saveMatch compatibility -->
+        <input type="checkbox" id="t-forfeit-a" onchange="onForfeitCheck('a','b')" style="display:none;">
       </div>
-      <div id="t-score-preview" class="t-score-preview"></div>
-      `}
+
+      <!-- VS -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:24px;">
+        <div style="font-size:12px;font-weight:800;color:#b0bbd6;letter-spacing:1px;">VS</div>
+      </div>
+
+      <!-- Team B -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="font-size:13px;font-weight:800;color:#0d1f4a;text-align:center;">${tEsc(teamB?.name || '?')}</div>
+        ${teamBPlayers ? `<div style="font-size:10px;font-weight:600;color:#6b7a99;text-align:center;line-height:1.4;">${tEsc(teamBPlayers).replace(' & ','<br>')}</div>` : ''}
+        <input type="number" min="0" max="99" id="t-score-b" value="${scoreBVal}" placeholder="0"
+          oninput="smLiveUpdate('${tEsc(teamA?.name || '?')}','${tEsc(teamB?.name || '?')}')"
+          style="width:96px;height:72px;font-size:36px;font-weight:800;text-align:center;border-radius:16px;border:1px solid rgba(23,76,204,0.14);background:white;font-family:'Montserrat',sans-serif;color:#0d1f4a;outline:none;"
+          onfocus="this.style.borderColor='#174CCC';this.style.boxShadow='0 0 0 4px rgba(23,76,204,0.08)'"
+          onblur="this.style.borderColor=document.getElementById('sm-score-b-winner')?'rgba(36,188,150,0.22)':'rgba(23,76,204,0.14)';this.style.boxShadow='none'">
+        <div id="sm-forfeit-b"
+          onclick="smToggleForfeit('b')"
+          style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;border:1px solid #e0e7f5;background:#f8f9ff;font-size:10px;font-weight:700;color:#6b7a99;cursor:pointer;user-select:none;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          Forfeit
+        </div>
+        <!-- Hidden checkbox for saveMatch compatibility -->
+        <input type="checkbox" id="t-forfeit-b" onchange="onForfeitCheck('b','a')" style="display:none;">
+      </div>
+
     </div>
-    <div class="t-form-actions">
-      <button type="button" class="t-btn t-btn-ghost" onclick="closeTModal()">Cancel</button>
-      <button type="button" class="t-btn t-btn-primary" onclick="saveMatch('${type}', ${matchId}, ${teamAId}, ${teamBId}, ${catId})">Save</button>
+
+    <div style="border-top:0.5px solid #e0e7f5;margin-bottom:14px;"></div>
+
+    <!-- Winner feedback — shown when scores differ -->
+    <div id="sm-winner-feedback" style="display:none;background:rgba(36,188,150,0.08);border:1px solid rgba(36,188,150,0.22);border-radius:10px;padding:10px 14px;display:none;align-items:center;gap:8px;margin-bottom:14px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#085041" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <div id="sm-winner-text" style="font-size:12px;font-weight:800;color:#085041;"></div>
     </div>
-  `;
-    // Live score preview
-  ['t-score-a', 't-score-b'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', () => {
-      const sa = parseInt(document.getElementById('t-score-a').value);
-      const sb = parseInt(document.getElementById('t-score-b').value);
-      const prev = document.getElementById('t-score-preview');
-      if (!isNaN(sa) && !isNaN(sb)) {
-        const winner = sa > sb ? teamA?.name : teamB?.name;
-        prev.innerHTML = `<span class="t-preview-winner">🏆 Winner: <strong>${winner}</strong></span>`;
-      } else { prev.innerHTML = ''; }
-    });
-  });
+
+    <!-- Footer -->
+    <div style="display:flex;justify-content:flex-end;">
+      <button onclick="saveMatch('${type}',${matchId},${teamAId},${teamBId},${catId})"
+        style="display:inline-flex;align-items:center;gap:7px;padding:11px 28px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Save Result
+      </button>
+    </div>`;
+
   openTModal();
+
+  // Trigger live update if existing scores are present
+  if (scoreAVal !== '' || scoreBVal !== '') {
+    smLiveUpdate(teamA?.name || '?', teamB?.name || '?');
+  }
 }
+
+// ── Score modal live helpers ──────────────────────────────────────────────
+function smLiveUpdate(nameA, nameB) {
+  const sa = parseInt(document.getElementById('t-score-a')?.value);
+  const sb = parseInt(document.getElementById('t-score-b')?.value);
+  const inputA = document.getElementById('t-score-a');
+  const inputB = document.getElementById('t-score-b');
+  const fb = document.getElementById('sm-winner-feedback');
+  const ft = document.getElementById('sm-winner-text');
+
+  // Reset score input colors
+  if (inputA) { inputA.style.background = 'white'; inputA.style.borderColor = 'rgba(23,76,204,0.14)'; }
+  if (inputB) { inputB.style.background = 'white'; inputB.style.borderColor = 'rgba(23,76,204,0.14)'; }
+
+  if (!isNaN(sa) && !isNaN(sb) && sa !== sb) {
+    const winnerName = sa > sb ? nameA : nameB;
+    const winScore = Math.max(sa, sb);
+    const loseScore = Math.min(sa, sb);
+    if (ft) ft.textContent = `🏆 ${winnerName} wins · ${winScore} – ${loseScore}`;
+    if (fb) fb.style.display = 'flex';
+    // Highlight winner score input in green
+    const winInput = sa > sb ? inputA : inputB;
+    if (winInput) { winInput.style.background = 'rgba(36,188,150,0.08)'; winInput.style.borderColor = 'rgba(36,188,150,0.22)'; }
+  } else {
+    if (fb) fb.style.display = 'none';
+  }
+}
+
+function smToggleForfeit(side) {
+  const pill = document.getElementById(`sm-forfeit-${side}`);
+  const cb   = document.getElementById(`t-forfeit-${side}`);
+  if (!pill || !cb) return;
+  const isActive = cb.checked;
+  // Toggle
+  cb.checked = !isActive;
+  cb.dispatchEvent(new Event('change'));
+  // Update pill visual
+  if (!isActive) {
+    pill.style.background = 'rgba(242,96,36,0.12)';
+    pill.style.border = '1px solid rgba(242,96,36,0.24)';
+    pill.style.color = '#F26024';
+  } else {
+    pill.style.background = '#f8f9ff';
+    pill.style.border = '1px solid #e0e7f5';
+    pill.style.color = '#6b7a99';
+  }
+}
+
 
 async function saveMatch(type, matchId, teamAId, teamBId, catId) {
   // ── Court number ─────────────────────────────────────────────────────
