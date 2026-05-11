@@ -1753,7 +1753,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
 
   let rrActionHTML = '';
   if (!rrLocked && rrMatches.length === 0 && tournament.status !== 'draft') {
-    rrActionHTML = `<button onclick="showRRFormatModal(${cat.id})" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-size:11px;font-weight:700;cursor:pointer;">Generate Schedule</button>`;
+    rrActionHTML = `<button onclick="showRRFormatModal(${cat.id})" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-size:11px;font-weight:700;cursor:pointer;">Generate Round Robin</button>`;
   } else if (!rrLocked && rrMatches.length === 0 && tournament.status === 'draft') {
     rrActionHTML = `<span style="font-size:10px;font-weight:700;color:#b0bbd6;">Start tournament first</span>`;
   } else if (rrMatches.length > 0) {
@@ -2838,79 +2838,192 @@ async function confirmDeleteTeam(teamId, catId) {
 
 // ─── GENERATE ROUND ROBIN ───────────────────────────────────
 async function showRRFormatModal(catId) {
-  // Look up team count for this category to decide whether to show group config.
-  const teams = await tApi(`tournament_teams?category_id=eq.${catId}&select=id`);
+  const [teams, cat] = await Promise.all([
+    tApi(`tournament_teams?category_id=eq.${catId}&select=id`),
+    tApi(`tournament_categories?id=eq.${catId}&select=*`).then(r => r[0]),
+  ]);
   const numTeams = teams.length;
   const useGroups = numTeams > GROUP_TRIGGER_THRESHOLD;
+  const catName = cat?.name || '';
 
+  // Compute match count: N*(N-1)/2
+  const matchCount = Math.round(numTeams * (numTeams - 1) / 2);
+
+  // Format cards definition — ordered as approved
+  const FORMAT_CARDS = [
+    { value: 'play11_win1', emoji: '⚡', title: 'Play to 11 — Win by 1',
+      desc: 'Fast and dynamic format optimized for high match volume and efficient tournament flow. Ideal for social events, ladders, and quick-paced round robin sessions.' },
+    { value: 'play11_win2', emoji: '🏆', title: 'Play to 11 — Win by 2',
+      desc: 'Classic competitive format that rewards consistency and clutch performance under pressure. Commonly used in organized tournament play and elimination rounds.' },
+    { value: 'play15_win1', emoji: '🏓', title: 'Play to 15 — Win by 1',
+      desc: 'Fast-paced competitive format with longer rallies and quick match turnover. Ideal for round robin play with multiple teams and limited court time.' },
+    { value: 'play15_win2', emoji: '🔥', title: 'Play to 15 — Win by 2',
+      desc: 'Balanced competitive format with extended rallies and a true winning margin. Great for tournaments seeking stronger competitive integrity without excessively long matches.' },
+    { value: 'play21_win1', emoji: '⚡', title: 'Play to 21 — Win by 1',
+      desc: 'Long-format gameplay with faster match completion. Balances endurance and scheduling efficiency while keeping matches highly competitive.' },
+    { value: 'play21_win2', emoji: '🔥', title: 'Play to 21 — Win by 2',
+      desc: 'Traditional extended competition format designed for high-intensity matches and deeper strategic play. Best for premium divisions and championship-level competition.' },
+  ];
+
+  const formatCardsHTML = FORMAT_CARDS.map((f, i) => `
+    <div class="rr-format-card ${i === 0 ? 'rr-format-selected' : ''}"
+      onclick="rrSelectFormatCard(this, '${f.value}')"
+      style="border:${i === 0 ? '2px solid #174CCC;background:rgba(23,76,204,0.05);box-shadow:0 0 0 4px rgba(23,76,204,0.08)' : '1px solid #e0e7f5;background:white'};
+             border-radius:10px;padding:12px 14px;cursor:pointer;position:relative;transition:all .15s;">
+      <div style="position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:#174CCC;
+                  display:${i === 0 ? 'flex' : 'none'};align-items:center;justify-content:center;" class="rr-check-icon">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div style="font-size:18px;margin-bottom:6px;">${f.emoji}</div>
+      <div style="font-size:12px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">${f.title}</div>
+      <div style="font-size:10px;font-weight:600;color:#6b7a99;line-height:1.45;">${f.desc}</div>
+    </div>`).join('');
+
+  // Group section — preserved exactly as before
   let groupSection = '';
+  let groupScript = '';
   if (useGroups) {
     const suggestions = tSuggestGroupSizes(numTeams);
     if (!suggestions.length) {
-      // No valid split possible (shouldn't happen unless team count is wild).
       tToast(`Cannot split ${numTeams} teams into valid groups (each group must be ${GROUP_MIN_SIZE}-${GROUP_MAX_SIZE} teams).`, true);
       return;
     }
-    // Default to the suggestion closest to 4 per group (a sensible mid-range pick).
     const defaultIdx = suggestions.reduce((bestIdx, s, i, arr) =>
       Math.abs(s.size - 4) < Math.abs(arr[bestIdx].size - 4) ? i : bestIdx, 0);
 
     groupSection = `
-      <div class="t-info-banner" style="background:#e8f0ff;border:1px solid #174CCC;border-radius:6px;padding:10px 12px;margin-bottom:14px;">
+      <div style="background:#e8f0ff;border:1px solid #174CCC;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
         <div style="font-size:12px;font-weight:700;color:#174CCC;margin-bottom:2px;">${numTeams} teams — group stage required</div>
         <div style="font-size:11px;color:#6b7a99;">Teams will be randomly split into groups for round-robin play. Top finishers from each group advance to a single-elimination bracket.</div>
       </div>
-      <div class="t-form-group">
-        <label class="t-label">Teams per group (target)</label>
-        <select class="t-input" id="t-group-size">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Teams per group (target)</div>
+        <select class="t-input" id="t-group-size" style="width:100%;">
           ${suggestions.map((s, i) => `
             <option value="${s.size}" ${i === defaultIdx ? 'selected' : ''}>
               ~${s.size} per group → ${s.groups} groups (${s.distribution.join(', ')})
             </option>`).join('')}
         </select>
       </div>
-      <div class="t-form-group">
-        <label class="t-label">Teams advancing per group</label>
-        <select class="t-input" id="t-finals-per-group"></select>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Teams advancing per group</div>
+        <select class="t-input" id="t-finals-per-group" style="width:100%;"></select>
         <div style="font-size:11px;color:#6b7a99;margin-top:4px;">Top N from each group go to the bracket.</div>
       </div>`;
   }
 
-  document.getElementById('t-modal-title').textContent =
-    useGroups ? 'Group Stage Setup' : 'Round Robin Format';
+  // Widen modal
+  const modalEl = document.querySelector('.t-modal');
+  if (modalEl) modalEl.style.maxWidth = '680px';
+
+  document.getElementById('t-modal-title').textContent = useGroups ? 'Group Stage Setup' : 'Round Robin Setup';
+  tSetModalSubtitle('Configure the match format for this division.');
+
   document.getElementById('t-modal-body').innerHTML = `
+    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.maxWidth='';tSetModalSubtitle('');closeTModal();})()"
+      style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+      onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+      onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <div style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#174CCC;background:#e8f0ff;padding:3px 10px;border-radius:99px;border:0.5px solid #c5d6f5;margin-bottom:14px;">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+      Division: ${tEsc(catName)}
+    </div>
+
     ${groupSection}
-    <div class="t-form-group">
-      <label class="t-label">Score format (round robin)</label>
-      <select class="t-input" id="t-rr-format">${RR_FORMAT_OPTIONS}</select>
+
+    <div style="display:grid;grid-template-columns:1fr 200px;gap:20px;">
+
+      <!-- LEFT: Format cards -->
+      <div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+          <span style="width:3px;height:13px;border-radius:99px;background:#174CCC;display:inline-block;flex-shrink:0;"></span>Format Options
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          ${formatCardsHTML}
+        </div>
+      </div>
+
+      <!-- RIGHT: Intel + Info + Preview -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+
+        <!-- Division Intel -->
+        <div>
+          <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+            <span style="width:3px;height:13px;border-radius:99px;background:#174CCC;display:inline-block;flex-shrink:0;"></span>Division Intel
+          </div>
+          <div style="background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:10px;padding:14px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;line-height:1;min-width:32px;">${numTeams}</div>
+              <div style="font-size:10px;font-weight:700;color:#6b7a99;">Teams</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;line-height:1;min-width:32px;">${matchCount}</div>
+              <div style="font-size:10px;font-weight:700;color:#6b7a99;">Matches to Generate</div>
+            </div>
+            <div style="border-top:0.5px solid #e0e7f5;margin:8px 0;"></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;color:#24BC96;">
+              <div style="width:6px;height:6px;border-radius:50%;background:#24BC96;"></div>
+              Round Robin Ready
+            </div>
+          </div>
+        </div>
+
+        <!-- Info card -->
+        <div style="background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:10px;padding:12px 14px;">
+          <div style="font-size:10px;font-weight:800;color:#0d1f4a;margin-bottom:5px;">Format applies to all RR matches</div>
+          <div style="font-size:10px;font-weight:600;color:#6b7a99;line-height:1.5;margin-bottom:4px;">This format will apply to all round robin matches in this division.</div>
+          <div style="font-size:10px;font-weight:600;color:#6b7a99;line-height:1.5;">Finals can later be configured independently.</div>
+        </div>
+
+        <!-- Preview card -->
+        <div style="background:#f0f4ff;border:1px solid #c5d6f5;border-radius:10px;padding:12px 14px;">
+          <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#174CCC;margin-bottom:8px;">This will generate</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:10px;font-weight:600;color:#0d1f4a;margin-bottom:5px;">
+            <div style="width:5px;height:5px;border-radius:50%;background:#174CCC;flex-shrink:0;margin-top:3px;"></div>
+            ${matchCount} round robin matches
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:10px;font-weight:600;color:#0d1f4a;margin-bottom:5px;">
+            <div style="width:5px;height:5px;border-radius:50%;background:#174CCC;flex-shrink:0;margin-top:3px;"></div>
+            Court rotation schedule
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:10px;font-weight:600;color:#0d1f4a;">
+            <div style="width:5px;height:5px;border-radius:50%;background:#174CCC;flex-shrink:0;margin-top:3px;"></div>
+            Initial standings
+          </div>
+        </div>
+
+      </div>
     </div>
-    <p style="font-size:12px;color:#6b7a99;margin-bottom:20px;">
-      ${useGroups
-        ? 'This format applies to all matches inside each group.'
-        : 'This format applies to all round robin matches in this category.'}
-      Best of 3 / Best of 5 formats are available in the Finals section.
-    </p>
-    <div class="t-form-actions">
-      <button type="button" class="t-btn t-btn-ghost" onclick="closeTModal()">Cancel</button>
-      <button type="button" class="t-btn t-btn-primary" onclick="generateRR(${catId})">
-        Generate Schedule${useGroups ? ' & Groups' : ''}
+
+    <!-- Hidden input for generateRR to read — updated by card selection -->
+    <input type="hidden" id="t-rr-format" value="play11_win1">
+
+    <!-- Footer -->
+    <div style="display:flex;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:0.5px solid #e0e7f5;">
+      <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.maxWidth='';tSetModalSubtitle('');generateRR(${catId});})()"
+        style="display:inline-flex;align-items:center;gap:7px;padding:11px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Generate Round Robin${useGroups ? ' & Groups' : ''}
       </button>
-    </div>
-  `;
-  // Populate the "advancing per group" dropdown based on chosen group size.
+    </div>`;
+
+  openTModal();
+
+  // Wire group advancing dropdown if group stage
   if (useGroups) {
     const refreshAdvancing = () => {
       const sizeEl = document.getElementById('t-group-size');
-      const advEl = document.getElementById('t-finals-per-group');
+      const advEl  = document.getElementById('t-finals-per-group');
       if (!sizeEl || !advEl) return;
       const chosenSize = parseInt(sizeEl.value, 10);
       const chosen = tSuggestGroupSizes(numTeams).find(s => s.size === chosenSize);
       const minGroupSize = chosen ? Math.min(...chosen.distribution) : chosenSize;
-      // Can advance 1 to (minGroupSize - 1), with a sane cap of 5.
       const maxAdvance = Math.min(minGroupSize - 1, 5);
       let opts = '';
       for (let n = 1; n <= maxAdvance; n++) {
-        // Default to 2 if available, otherwise 1
         const isDefault = n === Math.min(2, maxAdvance);
         opts += `<option value="${n}" ${isDefault ? 'selected' : ''}>Top ${n} per group (${n * chosen.groups} total to bracket)</option>`;
       }
@@ -2919,8 +3032,29 @@ async function showRRFormatModal(catId) {
     refreshAdvancing();
     document.getElementById('t-group-size').addEventListener('change', refreshAdvancing);
   }
-  openTModal();
 }
+
+// ── Format card selection helper ──────────────────────────────────────────
+function rrSelectFormatCard(el, value) {
+  // Update all card styles
+  document.querySelectorAll('.rr-format-card').forEach(card => {
+    card.style.border = '1px solid #e0e7f5';
+    card.style.background = 'white';
+    card.style.boxShadow = 'none';
+    const check = card.querySelector('.rr-check-icon');
+    if (check) check.style.display = 'none';
+  });
+  // Apply selected style
+  el.style.border = '2px solid #174CCC';
+  el.style.background = 'rgba(23,76,204,0.05)';
+  el.style.boxShadow = '0 0 0 4px rgba(23,76,204,0.08)';
+  const check = el.querySelector('.rr-check-icon');
+  if (check) check.style.display = 'flex';
+  // Update hidden input for generateRR
+  const input = document.getElementById('t-rr-format');
+  if (input) input.value = value;
+}
+
 
 async function generateRR(catId) {
   const formatEl = document.getElementById('t-rr-format');
