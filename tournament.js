@@ -1511,6 +1511,7 @@ function renderTournamentDetail(t, categories) {
     </div>
     </div>
 
+    <div style="padding:8px 28px 0;">
     <div class="td-action-bar">
       <span class="td-start-hint" id="td-start-hint" style="display:none;font-size:10px;font-weight:700;color:#b0bbd6;padding:0 6px;"></span>
       ${startBtnHTML}
@@ -1526,6 +1527,7 @@ function renderTournamentDetail(t, categories) {
         style="min-width:34px;height:34px;padding:0 10px;border:0.5px solid #e0e7f5;border-radius:8px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#6b7a99;white-space:nowrap;" title="Print Roster">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       </button>
+    </div>
     </div>
 
     <div style="padding:16px 28px 0;">
@@ -1599,7 +1601,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   // ── Setup progression ─────────────────────────────────────────────────
   const rrTotal2 = rrMatches.filter(m => m.status !== 'bye').length;
   const rrDone2  = rrMatches.filter(m => m.status === 'completed').length;
-  const step1Done = teams.length >= 3;
+  const step1Done = teams.length >= 4;
   const step2Done = rrComplete;
   const step3Done = bracketMatches.length > 0 && bracketMatches.every(m => m.status === 'completed');
   const step4Done = tournament.status === 'completed';
@@ -1661,7 +1663,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   const startBtn = document.getElementById('td-start-btn');
   if (hintEl && startBtn && tournament.status === 'draft') {
     if (!step1Done) {
-      hintEl.textContent = 'Add at least 3 teams to start tournament';
+      hintEl.textContent = 'Add at least 4 teams to start tournament';
       hintEl.style.display = 'inline';
       startBtn.style.opacity = '0.45';
       startBtn.style.cursor = 'not-allowed';
@@ -1741,7 +1743,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   const rrTotal = rrMatches.filter(m => m.status !== 'bye').length;
   const rrDone  = rrMatches.filter(m => m.status === 'completed').length;
   const rrPct   = rrTotal > 0 ? Math.round((rrDone / rrTotal) * 100) : 0;
-  const rrLocked = teams.length < 3;
+  const rrLocked = teams.length < 4;
 
   let rrActionHTML = '';
   if (!rrLocked && rrMatches.length === 0 && tournament.status !== 'draft') {
@@ -1759,7 +1761,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
         <div style="width:36px;height:36px;border-radius:8px;background:#f0f2f8;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${lockSVG}</div>
         <div>
           <div style="font-size:12px;font-weight:800;color:#6b7a99;margin-bottom:2px;">Round Robin Available After Team Setup</div>
-          <div style="font-size:11px;font-weight:600;color:#b0bbd6;">Add at least 3 ${singlesMode ? 'players' : 'teams'} to generate the round robin schedule.</div>
+          <div style="font-size:11px;font-weight:600;color:#b0bbd6;">Add at least 4 ${singlesMode ? 'players' : 'teams'} to generate the round robin schedule.</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
             <div style="width:6px;height:6px;border-radius:50%;background:${step1Done ? '#24BC96' : '#e0e7f5'};"></div>
             <div style="width:6px;height:6px;border-radius:50%;background:#174CCC;"></div>
@@ -2078,15 +2080,14 @@ async function showAddTeam(catId) {
   if (modalEl) modalEl.style.maxWidth = '740px';
 
   document.getElementById('t-modal-title').textContent = 'Create Team';
+  tSetModalSubtitle('Add team identity and assign players.');
   document.getElementById('t-modal-body').innerHTML = `
-    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.maxWidth='';closeTModal();})()"
+    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.maxWidth='';tSetModalSubtitle('');closeTModal();})()"
       style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
       onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
       onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-
-    <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:10px;">Add team identity and assign players.</div>
 
     <div style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#174CCC;background:#e8f0ff;padding:3px 10px;border-radius:99px;border:0.5px solid #c5d6f5;margin-bottom:14px;">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
@@ -2323,6 +2324,7 @@ async function ctSaveTeam() {
     // Reset modal size
     const modalEl = document.querySelector('.t-modal');
     if (modalEl) modalEl.style.maxWidth = '';
+    tSetModalSubtitle('');
     tToast(`Team "${name}" created!`);
     closeTModal();
     tCurrentCategoryId = catId;
@@ -2479,15 +2481,14 @@ async function deleteTeam(teamId, catId) {
   if (modalEl) modalEl.style.borderTop = '3px solid #F26024';
 
   document.getElementById('t-modal-title').textContent = 'Remove Team From Tournament';
+  tSetModalSubtitle('Review the team before removing.');
   document.getElementById('t-modal-body').innerHTML = `
-    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.borderTop='';closeTModal();})()"
+    <button onclick="(function(){const m=document.querySelector('.t-modal');if(m)m.style.borderTop='';tSetModalSubtitle('');closeTModal();})()"
       style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
       onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
       onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-
-    <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:14px;">Review the team before removing.</div>
 
     <div style="background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
@@ -2522,6 +2523,9 @@ async function deleteTeam(teamId, catId) {
 async function confirmDeleteTeam(teamId, catId) {
   try {
     await tApi(`tournament_teams?id=eq.${teamId}`, 'DELETE');
+    const mEl = document.querySelector('.t-modal');
+    if (mEl) mEl.style.borderTop = '';
+    tSetModalSubtitle('');
     closeTModal();
     tToast('Team removed.');
     tCurrentCategoryId = catId;
@@ -3422,6 +3426,12 @@ function restoreScoreModal(title, body) {
 // ─── MODAL HELPERS ──────────────────────────────────────────
 function openTModal() { document.getElementById('t-modal').classList.add('t-modal-open'); }
 function closeTModal() { document.getElementById('t-modal').classList.remove('t-modal-open'); }
+function tSetModalSubtitle(text) {
+  const el = document.getElementById('t-modal-subtitle');
+  if (!el) return;
+  if (text) { el.textContent = text; el.style.display = 'block'; }
+  else { el.textContent = ''; el.style.display = 'none'; }
+}
 // (tToast is defined at the top of this file as a shim around the shared toast.)
 
 // ─── SINGLES HELPERS ────────────────────────────────────────
