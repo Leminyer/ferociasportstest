@@ -3650,6 +3650,12 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
 
   openTModal();
 
+  // Pre-activate forfeit pill if this match already has a forfeit recorded
+  if (match.forfeit_team_id) {
+    if (match.forfeit_team_id === teamAId) smToggleForfeit('a');
+    else if (match.forfeit_team_id === teamBId) smToggleForfeit('b');
+  }
+
   // Trigger live update if existing scores are present
   if (scoreAVal !== '' || scoreBVal !== '') {
     smLiveUpdate(teamA?.name || '?', teamB?.name || '?');
