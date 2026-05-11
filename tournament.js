@@ -1757,7 +1757,8 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   } else if (!rrLocked && rrMatches.length === 0 && tournament.status === 'draft') {
     rrActionHTML = `<span style="font-size:10px;font-weight:700;color:#b0bbd6;">Start tournament first</span>`;
   } else if (rrMatches.length > 0) {
-    rrActionHTML = `<span style="font-size:10px;font-weight:700;color:#6b7a99;">${rrDone}/${rrTotal} matches</span>`;
+    const rrPctLabel = rrTotal > 0 ? Math.round((rrDone / rrTotal) * 100) : 0;
+    rrActionHTML = `<span style="font-size:10px;font-weight:700;color:#6b7a99;">${rrDone} of ${rrTotal} Matches Reported <span style="margin-left:6px;font-size:10px;font-weight:800;color:${rrPctLabel === 100 ? '#24BC96' : '#174CCC'};">${rrPctLabel}% Complete</span></span>`;
   }
 
   let rrBody = '';
@@ -1788,7 +1789,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   }
 
   html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;${rrLocked ? 'opacity:0.75;' : ''}">
-    ${sectionHdr(2, 'Round Robin Setup', rrMatches.length > 0 ? `${useGroups ? groups.length + ' groups' : ''}` : null, rrLocked ? lockedHdr('Available after team setup') : rrActionHTML, rrLocked)}
+    ${sectionHdr(2, 'Round Robin Live Board', rrMatches.length > 0 ? `${useGroups ? groups.length + ' groups' : ''}` : null, rrLocked ? lockedHdr('Available after team setup') : rrActionHTML, rrLocked)}
     ${rrBody}
   </div>`;
 
@@ -1915,9 +1916,46 @@ function renderGroupedRR(groupViews, tMap, tournament, cat) {
 
 function tRenderStandings(standings, catName) {
   const singlesMode = isSingles(catName);
+
+  // ── Mini summary data ─────────────────────────────────────────────────
+  const leader = standings.length > 0 ? standings[0] : null;
+  const leaderName = leader ? tEsc(leader.name) : '—';
+
+  const bestDiffVal = standings.length > 0
+    ? Math.max(...standings.map(s => s.pts_for - s.pts_against))
+    : 0;
+  const bestDiffLabel = bestDiffVal > 0 ? `+${bestDiffVal}` : `${bestDiffVal}`;
+
+  const matchesRemaining = standings.reduce((sum, s) => sum + (s.played !== undefined ? 0 : 0), 0);
+  // Matches remaining = total possible - played. Each team plays N-1 matches.
+  const totalTeams = standings.length;
+  const totalPossible = totalTeams * (totalTeams - 1) / 2;
+  const totalPlayed = standings.reduce((sum, s) => sum + (s.w + s.l), 0) / 2;
+  const remaining = Math.max(0, totalPossible - Math.round(totalPlayed));
+
+  const miniSummary = `
+    <div style="display:flex;gap:16px;padding:10px 14px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Leader</span>
+        <span style="font-size:11px;font-weight:800;color:#0d1f4a;">${leaderName}</span>
+      </div>
+      <div style="width:1px;background:#e0e7f5;"></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Best Diff</span>
+        <span style="font-size:11px;font-weight:800;color:${bestDiffVal >= 0 ? '#24BC96' : '#e53935'};">${bestDiffLabel}</span>
+      </div>
+      <div style="width:1px;background:#e0e7f5;"></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matches Remaining</span>
+        <span style="font-size:11px;font-weight:800;color:#0d1f4a;">${remaining}</span>
+      </div>
+    </div>`;
+
   return `
     <div class="t-standings-table">
-      <div class="t-standings-title">Standings</div>
+      <div class="t-standings-title">Live Standings</div>
+      <div style="font-size:10px;font-weight:600;color:#6b7a99;margin-bottom:10px;">Updated automatically as scores are reported.</div>
+      ${miniSummary}
       <table class="t-table">
         <thead><tr><th>#</th><th>${singlesMode ? 'Player' : 'Team'}</th><th>Wins</th><th>Losses</th><th>Pts For</th><th>Diff</th></tr></thead>
         <tbody>

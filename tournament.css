@@ -106,7 +106,7 @@
 .t-match-teams  { flex:1; display:flex; align-items:center; gap:8px; }
 .t-match-team   { font-size:13px; font-weight:600; color:#0d1f4a; }
 .t-match-vs     { font-size:10px; color:#6b7a99; font-weight:700; }
-.t-winner       { color:#174CCC; font-weight:800; }
+.t-winner       { color:#24BC96; font-weight:800; }
 .t-match-score  { display:flex; align-items:center; gap:4px; min-width:60px; justify-content:flex-end; }
 .t-score        { font-size:14px; font-weight:800; color:#6b7a99; }
 .t-score-win    { color:#174CCC; }
