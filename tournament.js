@@ -3722,30 +3722,76 @@ async function saveMatch(type, matchId, teamAId, teamBId, catId) {
 
   if (forfeitA || forfeitB) {
     const forfeitTeamId = forfeitA ? teamAId : teamBId;
-    const teams = await tApi(`tournament_teams?category_id=eq.${catId}&select=id,name`);
-    const tMap = {}; teams.forEach(t => tMap[t.id] = t);
-    const forfeitTeamName = tMap[forfeitTeamId]?.name || 'This team';
 
-    document.getElementById('t-modal-title').textContent = 'Confirm Forfeit';
+    // Fetch full team data (with players) + match round/court for subtitle
+    const [forfeitTeamData, matchData] = await Promise.all([
+      tApi(`tournament_teams?id=eq.${forfeitTeamId}&select=*`).then(r => r[0]),
+      type === 'rr'
+        ? tApi(`tournament_rr_matches?id=eq.${matchId}&select=round,court`).then(r => r[0])
+        : tApi(`tournament_bracket_matches?id=eq.${matchId}&select=round_name`).then(r => r[0]),
+    ]);
+
+    const forfeitTeamName = forfeitTeamData?.name || 'This team';
+    const playerNames = getTeamPlayerNames(forfeitTeamData) || '';
+
+    // Subtitle: "Round 2 • Court 2 • Round Robin" or "Finals • Semifinals"
+    const subtitleText = type === 'rr'
+      ? `Round ${matchData?.round || '?'} • Court ${courtNum} • Round Robin`
+      : `${matchData?.round_name || 'Finals'}`;
+
+    document.getElementById('t-modal-title').textContent = 'Confirm Team Withdrawal';
+    tSetModalSubtitle(subtitleText);
+
     document.getElementById('t-modal-body').innerHTML = `
-      <div style="padding:8px 0 20px;">
-        <div style="background:#fde8d8;border-left:4px solid #F26024;border-radius:0 8px 8px 0;padding:14px 16px;margin-bottom:16px;">
-          <div style="font-size:13px;font-weight:800;color:#F26024;margin-bottom:4px;">⚠️ Forfeit — Full Withdrawal</div>
-          <div style="font-size:13px;color:#0d1f4a;line-height:1.6;">
-            <strong>${forfeitTeamName}</strong> will be marked as forfeited and withdrawn from this tournament.
-            All their remaining matches will be automatically scored in favor of their opponents.
-            This action cannot be undone.
-          </div>
+      <button onclick="tSetModalSubtitle('');closeTModal()"
+        style="position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;"
+        onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+        onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <!-- Warning box -->
+      <div style="background:rgba(242,96,36,0.06);border:1px solid rgba(242,96,36,0.18);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+
+        <!-- Warning title -->
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#c04a0e;margin-bottom:10px;">
+          <span style="font-size:14px;">⚠</span> Team Withdrawal
         </div>
-        <p style="font-size:13px;color:#6b7a99;line-height:1.6;">
-          Are you sure you want to proceed with the forfeit for <strong>${forfeitTeamName}</strong>?
-        </p>
+
+        <!-- Team badge -->
+        <div style="background:rgba(242,96,36,0.06);border:1px solid rgba(242,96,36,0.14);border-radius:8px;padding:10px 14px;margin-bottom:10px;">
+          <div style="font-size:14px;font-weight:800;color:#c04a0e;margin-bottom:3px;">${tEsc(forfeitTeamName)}</div>
+          ${playerNames ? `<div style="font-size:11px;font-weight:600;color:#9a3a0a;">${tEsc(playerNames)}</div>` : ''}
+        </div>
+
+        <!-- Body text -->
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;line-height:1.55;margin-bottom:6px;">
+          <strong>${tEsc(forfeitTeamName)}</strong> will be withdrawn from this category.
+        </div>
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;line-height:1.55;margin-bottom:6px;">
+          Remaining matches will be automatically recorded as forfeits in favor of their opponents.
+        </div>
+        <div style="font-size:11px;font-weight:700;color:#c04a0e;margin-top:4px;">
+          This action cannot be undone.
+        </div>
       </div>
-      <div class="t-form-actions">
-        <button type="button" class="t-btn t-btn-ghost" onclick="openScoreModal('${type}', ${matchId}, ${teamAId}, ${teamBId}, ${catId})">Go Back</button>
-        <button type="button" class="t-btn t-btn-danger" onclick="processForfeit('${type}', ${matchId}, ${teamAId}, ${teamBId}, ${catId}, ${forfeitTeamId}, ${courtNum})">Confirm Forfeit</button>
+
+      <!-- Bottom note -->
+      <div style="font-size:10px;font-weight:600;color:#b0bbd6;text-align:center;margin-bottom:4px;">
+        Standings and remaining matches will update automatically.
       </div>
-    `;
+
+      <!-- Footer -->
+      <div style="display:flex;justify-content:center;padding-top:10px;border-top:0.5px solid #e0e7f5;margin-top:6px;">
+        <button
+          onclick="tSetModalSubtitle('');processForfeit('${type}', ${matchId}, ${teamAId}, ${teamBId}, ${catId}, ${forfeitTeamId}, ${courtNum})"
+          style="display:inline-flex;align-items:center;gap:7px;padding:11px 32px;border:none;border-radius:99px;background:#F26024;color:white;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;"
+          onmouseover="this.style.background='#db531d'"
+          onmouseout="this.style.background='#F26024'">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          Confirm Withdrawal
+        </button>
+      </div>`;
     return;
   }
 
