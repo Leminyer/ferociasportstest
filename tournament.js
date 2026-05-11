@@ -1659,28 +1659,34 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   }
 
   // ── Update Start button hint ──────────────────────────────────────────
-  const hintEl = document.getElementById('td-start-hint');
+  const hintEl  = document.getElementById('td-start-hint');
   const startBtn = document.getElementById('td-start-btn');
-  if (hintEl && startBtn && tournament.status === 'draft') {
-    if (!step1Done) {
+  if (hintEl && startBtn) {
+    if (tournament.status !== 'draft') {
+      // Active or completed — button already shows Complete Tournament, always enabled
+      hintEl.style.display = 'none';
+      startBtn.style.opacity = '1';
+      startBtn.style.cursor = 'pointer';
+    } else if (!step1Done) {
       hintEl.textContent = 'Add at least 4 teams to start tournament';
       hintEl.style.display = 'inline';
       startBtn.style.opacity = '0.45';
       startBtn.style.cursor = 'not-allowed';
       startBtn.onclick = null;
     } else if (!step2Done) {
-      hintEl.textContent = 'Complete round robin to start tournament';
+      hintEl.textContent = 'Generate round robin before starting tournament';
       hintEl.style.display = 'inline';
       startBtn.style.opacity = '0.45';
       startBtn.style.cursor = 'not-allowed';
       startBtn.onclick = null;
     } else if (!bracketMatches.length) {
-      hintEl.textContent = 'Generate bracket to start tournament';
+      hintEl.textContent = 'Generate bracket before starting tournament';
       hintEl.style.display = 'inline';
       startBtn.style.opacity = '0.45';
       startBtn.style.cursor = 'not-allowed';
       startBtn.onclick = null;
     } else {
+      // All conditions met — enable Start Tournament
       hintEl.style.display = 'none';
       startBtn.style.opacity = '1';
       startBtn.style.cursor = 'pointer';
