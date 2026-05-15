@@ -1793,7 +1793,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
     ${rrBody}
   </div>`;
 
-  // ── SECTION 3: Bracket Setup ──────────────────────────────────────────
+  // ── SECTION 3: Bracket Builder / Finals Bracket ──────────────────────
   const bracketLocked = !rrComplete && bracketMatches.length === 0;
   if (rrComplete || bracketMatches.length > 0) {
     let seededPreview = null, lockedFinalsSize = null;
@@ -1801,24 +1801,165 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
       seededPreview = tBuildSeededAdvancement(groupViews.map(gv => gv.standings), cat.finals_per_group);
       lockedFinalsSize = seededPreview.length;
     }
-    const ssOpts = !useGroups ? `<option value="2">Top 2</option><option value="3">Top 3</option><option value="4" selected>Top 4</option><option value="6">Top 6</option><option value="8">Top 8</option>` : '';
-    let bracketActionHTML = bracketMatches.length === 0
-      ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          ${useGroups ? `<span style="background:#e8f0ff;color:#174CCC;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;">Top ${cat.finals_per_group} per group → ${lockedFinalsSize} teams</span><input type="hidden" id="finals-size-${cat.id}" value="${lockedFinalsSize}">` : `<select id="finals-size-${cat.id}" class="t-select-sm">${ssOpts}</select>`}
-          <select id="finals-elim-${cat.id}" class="t-select-sm"><option value="single">Single Elim</option></select>
-          <select id="finals-score-format-${cat.id}" class="t-select-sm"><option value="play11_win2">11, win by 2</option><option value="play11_win1">11, win by 1</option><option value="play15_win2">15, win by 2</option><option value="play15_win1">15, win by 1</option><option value="play21_win2">21, win by 2</option><option value="play21_win1">21, win by 1</option><option value="best_of_3">Best of 3 (first to win 2)</option><option value="best_of_5">Best of 5 (first to win 3)</option></select>
-          <button onclick="generateBracket(${cat.id}, ${cat.tournament_id})" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-size:11px;font-weight:700;cursor:pointer;">Generate Bracket</button>
-        </div>`
-      : '';
-    let bracketBody = bracketMatches.length > 0
-      ? `<div style="padding:12px 20px 16px;">${renderBracket(bracketMatches, tMap, tournament)}</div>`
-      : `<div style="padding:16px 20px;">
-          <div style="font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:12px;">${useGroups ? 'These teams will advance to the bracket:' : 'Choose how many teams advance and generate the bracket.'}</div>
-          ${useGroups && seededPreview ? seededPreview.map((s, i) => `<div class="t-standing-preview-row"><span class="t-seed-badge">${i+1}</span><span class="t-standing-name">${tEsc(s.name)}</span><span class="t-group-tag">Group ${tEsc(groups[s._groupIndex]?.name||'?')} · #${s._groupRank}</span><span class="t-standing-record">${s.w}W ${s.l}L ${s.pts_for-s.pts_against>0?'+':''}${s.pts_for-s.pts_against}</span></div>`).join('') : (standings||[]).slice(0,8).map((s,i)=>`<div class="t-standing-preview-row"><span class="t-seed-badge">${i+1}</span><span class="t-standing-name">${tEsc(s.name)}</span><span class="t-standing-record">${s.w}W ${s.l}L ${s.pts_for-s.pts_against>0?'+':''}${s.pts_for-s.pts_against}</span></div>`).join('')}
+
+    // ── Teams advancing segmented buttons (hidden input keeps generateBracket working)
+    const teamOpts = [2,3,4,6,8];
+    const teamsAdvHtml = useGroups
+      ? `<span style="background:#e8f0ff;color:#174CCC;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;">Top ${cat.finals_per_group} per group → ${lockedFinalsSize} teams</span>
+         <input type="hidden" id="finals-size-${cat.id}" value="${lockedFinalsSize}">`
+      : `<div style="display:flex;flex-wrap:wrap;gap:6px;">
+           ${teamOpts.map(n => `<button type="button"
+             onclick="bbSelectTeams(this, ${cat.id})"
+             data-val="${n}"
+             style="padding:6px 14px;border-radius:8px;border:1px solid ${n===4?'transparent':'#e0e7f5'};background:${n===4?'#174CCC':'white'};color:${n===4?'white':'#6b7a99'};font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">
+             Top ${n}
+           </button>`).join('')}
+         </div>
+         <input type="hidden" id="finals-size-${cat.id}" value="4">`;
+
+    // ── Bracket type (single option, extensible) ──────────────────────
+    const bracketTypeHtml = `
+      <button type="button"
+        style="padding:6px 16px;border-radius:8px;border:1px solid transparent;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;min-width:160px;">
+        Single Elimination
+      </button>
+      <input type="hidden" id="finals-elim-${cat.id}" value="single">`;
+
+    // ── Match format small cards (4 per row = 2 rows) ─────────────────
+    const fmtOpts = [
+      {v:'play11_win1',l:'11 win by 1'},
+      {v:'play11_win2',l:'11 win by 2'},
+      {v:'play15_win1',l:'15 win by 1'},
+      {v:'play15_win2',l:'15 win by 2'},
+      {v:'play21_win1',l:'21 win by 1'},
+      {v:'play21_win2',l:'21 win by 2'},
+      {v:'best_of_3',  l:'Best of 3'},
+      {v:'best_of_5',  l:'Best of 5'},
+    ];
+    const fmtCardsHtml = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
+        ${fmtOpts.map(f => `<button type="button"
+          onclick="bbSelectFormat(this, ${cat.id})"
+          data-val="${f.v}"
+          style="padding:6px 4px;border-radius:7px;border:1px solid ${f.v==='play11_win2'?'transparent':'#e0e7f5'};background:${f.v==='play11_win2'?'#174CCC':'white'};color:${f.v==='play11_win2'?'white':'#6b7a99'};font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;text-align:center;white-space:nowrap;">
+          ${f.l}
+        </button>`).join('')}
+      </div>
+      <input type="hidden" id="finals-score-format-${cat.id}" value="play11_win2">`;
+
+    // ── Qualified teams preview ───────────────────────────────────────
+    const previewSource = useGroups && seededPreview ? seededPreview : (standings || []);
+    const defaultCount = lockedFinalsSize || 4;
+    const previewTeams = previewSource.slice(0, defaultCount);
+    const seedColors = ['#174CCC','#6b7a99','#9a8c7a','#b0bbd6','#c5d6f5','#d9d9d9'];
+    const qualifiedPreviewHtml = previewTeams.map((s, i) => {
+      const diff = s.pts_for - s.pts_against;
+      const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
+      const diffColor = diff > 0 ? '#24BC96' : diff < 0 ? '#e53935' : '#6b7a99';
+      const team = tTeams ? tTeams.find(t => t.id === s.id) : null;
+      const players = team ? getTeamPlayerNames(team) : '';
+      const groupTag = useGroups && groups && s._groupIndex !== undefined
+        ? `<span style="font-size:9px;font-weight:600;color:#174CCC;background:#e8f0ff;padding:1px 6px;border-radius:99px;margin-left:4px;">Group ${tEsc(groups[s._groupIndex]?.name||'?')} #${s._groupRank}</span>`
+        : '';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;margin-bottom:6px;">
+        <div style="width:22px;height:22px;border-radius:50%;background:${seedColors[i]||'#b0bbd6'};color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
+        <div style="flex:1;">
+          <span style="font-size:12px;font-weight:800;color:#0d1f4a;">${tEsc(s.name)}</span>
+          ${players ? `<span style="font-size:10px;font-weight:500;color:#6b7a99;"> (${tEsc(players)})</span>` : ''}
+          ${groupTag}
+        </div>
+        <div style="font-size:11px;font-weight:700;white-space:nowrap;">
+          <span style="color:#6b7a99;">${s.w}W ${s.l}L</span>
+          <span style="color:${diffColor};margin-left:6px;">${diffStr}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    // ── Config labels shared style ────────────────────────────────────
+    const cfgLbl = (t) => `<div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:8px;">${t}</div>`;
+    const cfgDivider = `<div style="border-top:0.5px solid #e0e7f5;margin:14px 0;"></div>`;
+
+    let bracketBody = bracketMatches.length > 0 ? (() => {
+      // ── Bracket intelligence ────────────────────────────────────────
+      const roundOrder = ['R32','R16','QF','Semifinals','3rd Place','Final'];
+      const grouped = {};
+      bracketMatches.forEach(m => { if(!grouped[m.round_name]) grouped[m.round_name]=[]; grouped[m.round_name].push(m); });
+      const sfCount = (grouped['Semifinals']||[]).length;
+      const finalCount = (grouped['Final']||[]).length;
+      const totalMatches = bracketMatches.filter(m => m.status !== 'bye').length;
+      const completedMatches = bracketMatches.filter(m => m.status === 'completed').length;
+      const allDone = completedMatches === totalMatches && totalMatches > 0;
+
+      // Derive subtext from stored cat data
+      const fmtLabel = T_FORMATS[cat.finals_format_score] || '';
+      const fmtDisplay = fmtLabel.replace(', win by ', ', win by ');
+      const sizeLabel = cat.finals_size ? `Top ${cat.finals_size}` : '';
+      const subtext = [singleEliminationLabel(cat.finals_format), sizeLabel, fmtDisplay].filter(Boolean).join(' • ');
+
+      const statusDot = allDone
+        ? `<div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;color:#24BC96;"><div style="width:7px;height:7px;border-radius:50%;background:#24BC96;"></div>Completed</div>`
+        : `<div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;color:#F26024;"><div style="width:7px;height:7px;border-radius:50%;background:#F26024;"></div>In Progress</div>`;
+
+      const intelligenceHTML = `
+        <div style="display:flex;gap:16px;padding:12px 20px;border-bottom:0.5px solid #f0f2f8;flex-wrap:wrap;align-items:center;">
+          ${sfCount > 0 ? `<div style="display:flex;flex-direction:column;gap:2px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;line-height:1;">${sfCount}</div>
+            <div style="font-size:9px;font-weight:700;color:#6b7a99;text-transform:uppercase;letter-spacing:.5px;">Semifinals</div>
+          </div>
+          <div style="width:1px;background:#e0e7f5;align-self:stretch;"></div>` : ''}
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;line-height:1;">${finalCount}</div>
+            <div style="font-size:9px;font-weight:700;color:#6b7a99;text-transform:uppercase;letter-spacing:.5px;">Final</div>
+          </div>
+          <div style="width:1px;background:#e0e7f5;align-self:stretch;"></div>
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;line-height:1;">${completedMatches}/${totalMatches}</div>
+            <div style="font-size:9px;font-weight:700;color:#6b7a99;text-transform:uppercase;letter-spacing:.5px;">Results Reported</div>
+          </div>
+          <div style="width:1px;background:#e0e7f5;align-self:stretch;"></div>
+          ${statusDot}
         </div>`;
 
+      return `${intelligenceHTML}<div style="padding:12px 20px 16px;">${renderBracket(bracketMatches, tMap, tournament)}</div>`;
+    })() : `<div style="padding:16px 20px 20px;">
+        <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:14px;">Select finalists, bracket type, and match format before generating the finals bracket.</div>
+
+        ${cfgLbl('Teams Advancing')}
+        <div style="margin-bottom:14px;">${teamsAdvHtml}</div>
+
+        ${cfgLbl('Bracket Type')}
+        <div style="margin-bottom:14px;">${bracketTypeHtml}</div>
+
+        ${cfgDivider}
+
+        ${cfgLbl('Match Format')}
+        <div style="margin-bottom:14px;">${fmtCardsHtml}</div>
+
+        ${cfgDivider}
+
+        ${cfgLbl('Qualified Teams Preview')}
+        <div id="bb-preview-${cat.id}" style="margin-bottom:16px;">${qualifiedPreviewHtml}</div>
+
+        <div style="display:flex;justify-content:flex-end;">
+          <button onclick="generateBracket(${cat.id}, ${cat.tournament_id})"
+            style="display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Generate Finals Bracket
+          </button>
+        </div>
+      </div>`;
+
+    // ── Section title changes based on state ──────────────────────────
+    const sectionTitle = bracketMatches.length > 0 ? 'Finals Bracket' : 'Bracket Builder';
+    const finalsSubtext = bracketMatches.length > 0 ? (() => {
+      const fmtLbl = T_FORMATS[cat.finals_format_score] || '';
+      const sizeLbl = cat.finals_size ? `Top ${cat.finals_size}` : '';
+      return [sizeLbl, fmtLbl].filter(Boolean).join(' • ');
+    })() : null;
+
+    const bracketSubtextHtml = finalsSubtext ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">${tEsc(finalsSubtext)}</span>` : '';
     html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;">
-      ${sectionHdr(3, 'Bracket Setup', null, bracketActionHTML, false)}
+      ${sectionHdr(3, sectionTitle, null, bracketSubtextHtml, false)}
       ${bracketBody}
     </div>`;
 
@@ -1834,7 +1975,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   } else {
     // Show locked sections 3 and 4
     html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;opacity:0.6;">
-      ${sectionHdr(3, 'Bracket Setup', null, lockedHdr('Locked until RR complete'), true)}
+      ${sectionHdr(3, 'Bracket Builder', null, lockedHdr('Locked until RR complete'), true)}
       <div style="padding:10px 20px 14px;font-size:11px;font-weight:600;color:#b0bbd6;">Complete round robin to unlock bracket generation.</div>
     </div>
     <div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;opacity:0.6;">
@@ -3473,6 +3614,48 @@ function buildBracketMatches(advancing, catId, format) {
 }
 
 // ─── SCORE ENTRY MODAL ──────────────────────────────────────
+// ── Bracket Builder helpers ───────────────────────────────────────────────
+function bbSelectTeams(btn, catId) {
+  const val = btn.dataset.val;
+  // Update hidden input
+  const inp = document.getElementById(`finals-size-${catId}`);
+  if (inp) inp.value = val;
+  // Update button styles
+  btn.closest('div').querySelectorAll('button').forEach(b => {
+    const active = b === btn;
+    b.style.background = active ? '#174CCC' : 'white';
+    b.style.color = active ? 'white' : '#6b7a99';
+    b.style.borderColor = active ? 'transparent' : '#e0e7f5';
+  });
+  // Update qualified teams preview to show correct number of teams
+  const previewEl = document.getElementById(`bb-preview-${catId}`);
+  if (!previewEl) return;
+  const rows = previewEl.querySelectorAll('div[style*="border-radius:8px"]');
+  rows.forEach((row, i) => {
+    row.style.display = i < parseInt(val) ? '' : 'none';
+  });
+}
+
+function bbSelectFormat(btn, catId) {
+  const val = btn.dataset.val;
+  // Update hidden input
+  const inp = document.getElementById(`finals-score-format-${catId}`);
+  if (inp) inp.value = val;
+  // Update button styles
+  btn.closest('div').querySelectorAll('button').forEach(b => {
+    const active = b === btn;
+    b.style.background = active ? '#174CCC' : 'white';
+    b.style.color = active ? 'white' : '#6b7a99';
+    b.style.borderColor = active ? 'transparent' : '#e0e7f5';
+  });
+}
+
+function singleEliminationLabel(format) {
+  if (!format || format === 'single') return 'Single Elimination';
+  return format;
+}
+
+
 async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
   if (!teamAId || !teamBId) { tToast('This match is waiting for previous results.', true); return; }
 
