@@ -506,11 +506,11 @@ function tAvoidSameGroupClashes(pairings) {
 
 
 // ─── MAIN ENTRY POINT ───────────────────────────────────────
-async function loadTournamentModule() {
+async function loadTournamentModule(skipList = false) {
   if (!tAllPlayers.length) {
     tAllPlayers = await tApi('players?select=*&order=first_name');
   }
-  renderTournamentList();
+  if (!skipList) renderTournamentList();
 }
 
 // ─── TOURNAMENT LIST ────────────────────────────────────────

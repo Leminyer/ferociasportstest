@@ -372,12 +372,13 @@
     // Keep Tournament Hub (sb-tournament) highlighted, not Management → Tournament
     sbSetActive('tournament-view');
 
-    // Load tournament module and open the selected tournament detail
+    // Load tournament module (skip list render — we go straight to detail)
+    // then await openTournament so DOM is fully ready before loadCategory runs
     if (typeof loadTournamentModule !== 'undefined') {
-      await loadTournamentModule();
+      await loadTournamentModule(true);
     }
     if (typeof openTournament !== 'undefined') {
-      openTournament(currentTournamentId);
+      await openTournament(currentTournamentId);
     }
   };
 
