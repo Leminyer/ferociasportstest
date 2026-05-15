@@ -1861,7 +1861,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
       const groupTag = useGroups && groups && s._groupIndex !== undefined
         ? `<span style="font-size:9px;font-weight:600;color:#174CCC;background:#e8f0ff;padding:1px 6px;border-radius:99px;margin-left:4px;">Group ${tEsc(groups[s._groupIndex]?.name||'?')} #${s._groupRank}</span>`
         : '';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;margin-bottom:6px;">
+      return `<div data-preview-row="${i}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;margin-bottom:6px;">
         <div style="width:22px;height:22px;border-radius:50%;background:${seedColors[i]||'#b0bbd6'};color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
         <div style="flex:1;">
           <span style="font-size:12px;font-weight:800;color:#0d1f4a;">${tEsc(s.name)}</span>
@@ -3630,9 +3630,10 @@ function bbSelectTeams(btn, catId) {
   // Update qualified teams preview to show correct number of teams
   const previewEl = document.getElementById(`bb-preview-${catId}`);
   if (!previewEl) return;
-  const rows = previewEl.querySelectorAll('div[style*="border-radius:8px"]');
-  rows.forEach((row, i) => {
-    row.style.display = i < parseInt(val) ? '' : 'none';
+  const rows = previewEl.querySelectorAll('[data-preview-row]');
+  rows.forEach(row => {
+    const idx = parseInt(row.dataset.previewRow);
+    row.style.display = idx < parseInt(val) ? '' : 'none';
   });
 }
 
