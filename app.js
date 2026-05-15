@@ -4565,8 +4565,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const leaderboardUrl = `${baseUrl}?l=${encoded}`;
 
     const sendBtn = document.getElementById('notify-send-btn');
+    const sendBtnOrigText = sendBtn.innerHTML;
     sendBtn.disabled = true;
-    sendBtn.textContent = 'Sending...';
+    sendBtn.innerHTML = 'Sending...';
     _emailInFlight = true;
 
     emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
@@ -4655,8 +4656,26 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const emailPlayers = players.filter(p => p.email);
     if (!emailPlayers.length) { toast('No players with email addresses found.', true); return; }
 
-    document.getElementById('t-notify-recipient-count').innerHTML =
-      `<span class="text-bold color-teal">${emailPlayers.length} player${emailPlayers.length !== 1 ? 's' : ''} with email</span> across all categories of <strong>${esc(tournamentName)}</strong> will receive this email.`;
+    // Subtitle: "N tournament players across all divisions will receive this update."
+    document.getElementById('t-notify-recipient-count').textContent =
+      `${emailPlayers.length} tournament player${emailPlayers.length !== 1 ? 's' : ''} across all divisions will receive this update.`;
+
+    // Section 1: Tournament context
+    document.getElementById('t-notify-tournament-name').textContent = tournamentName;
+    const catCount = categories.length;
+    document.getElementById('t-notify-context-pills').innerHTML = `
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#174CCC;background:#e8f0ff;padding:2px 8px;border-radius:99px;">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+        ${catCount} Division${catCount !== 1 ? 's' : ''}
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#174CCC;background:#e8f0ff;padding:2px 8px;border-radius:99px;">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        ${emailPlayers.length} Player${emailPlayers.length !== 1 ? 's' : ''}
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#085041;background:#d4f5ed;padding:2px 8px;border-radius:99px;">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#085041" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Results Ready
+      </span>`;
 
     // Pre-fill default subject and message
     document.getElementById('t-notify-subject').value =
@@ -4726,7 +4745,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     _emailInFlight = false;
     sendBtn.disabled = false;
-    sendBtn.textContent = 'Send emails';
+    sendBtn.innerHTML = sendBtnOrigText;
     closeTournamentNotifyModal();
 
     if (!failedRecipients.length) {

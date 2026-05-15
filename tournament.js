@@ -1515,8 +1515,7 @@ function renderTournamentDetail(t, categories) {
     <div class="td-action-bar">
       <span class="td-start-hint" id="td-start-hint" style="display:none;font-size:10px;font-weight:700;color:#b0bbd6;padding:0 6px;"></span>
       ${startBtnHTML}
-      <button onclick="window.app.openTournamentNotifyModal(${t.id})"
-        style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;color:#0d1f4a;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">
+      <button onclick="window.app.openTournamentNotifyModal(${t.id})" class="btn btn-teal btn-sm">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         Notify Players
       </button>

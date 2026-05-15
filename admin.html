@@ -2230,23 +2230,83 @@
 
 <!-- Tournament Notify Modal -->
 <div class="modal-bg" id="tournament-notify-modal">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-title">✉️ Notify Tournament Players</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;font-weight:500;" id="t-notify-recipient-count"></div>
-    <form id="t-notify-form">
-      <div class="form-group">
-        <label>Subject</label>
-        <input type="text" id="t-notify-subject" style="width:100%;" placeholder="e.g. 🏆 Check your tournament results!">
+  <div class="modal" style="max-width:560px;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+
+    <!-- HEADER -->
+    <div style="padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:3px;">Send Tournament Update</div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a99;" id="t-notify-recipient-count"></div>
       </div>
-      <div class="form-group">
-        <label>Message</label>
-        <textarea id="t-notify-message" style="width:100%;min-height:140px;resize:vertical;font-family:Montserrat,sans-serif;font-size:13px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius-sm);outline:none;"></textarea>
+      <button type="button" data-action="closeTournamentNotifyModal"
+        style="width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"
+        onmouseover="this.style.background='#fde8d8';this.style.borderColor='rgba(229,57,53,0.3)'"
+        onmouseout="this.style.background='white';this.style.borderColor='#e0e7f5'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="border-top:0.5px solid #e0e7f5;margin:14px 24px 0;"></div>
+
+    <!-- BODY -->
+    <form id="t-notify-form" style="padding:16px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;">
+
+      <!-- SECTION 1: Tournament Context -->
+      <div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <span style="width:3px;height:13px;border-radius:99px;background:#174CCC;display:inline-block;flex-shrink:0;"></span>Tournament Context
+        </div>
+        <div style="background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:10px;padding:14px 16px;">
+          <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:8px;" id="t-notify-tournament-name"></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;" id="t-notify-context-pills"></div>
+        </div>
       </div>
-      <div style="font-size:11px;color:var(--text-muted);font-weight:500;">The tournament results link will be automatically included in every email.</div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-outline btn-sm" data-action="closeTournamentNotifyModal">Cancel</button>
-        <button type="submit" class="btn btn-primary btn-sm" id="t-notify-send-btn">Send emails</button>
+
+      <!-- SECTION 2: Email Content -->
+      <div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <span style="width:3px;height:13px;border-radius:99px;background:#174CCC;display:inline-block;flex-shrink:0;"></span>Email Content
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Email Subject <span style="color:#e53935;">*</span></div>
+          <input type="text" id="t-notify-subject" placeholder="e.g. 🏆 Check your tournament results!"
+            style="width:100%;padding:9px 12px;border:1px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;color:#0d1f4a;outline:none;"
+            onfocus="this.style.borderColor='#174CCC';this.style.boxShadow='0 0 0 3px rgba(23,76,204,0.08)'"
+            onblur="this.style.borderColor='#e0e7f5';this.style.boxShadow='none'">
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;">Message <span style="color:#e53935;">*</span></div>
+          <div style="border:1px solid #e0e7f5;border-radius:10px;overflow:hidden;">
+            <div style="padding:7px 12px;background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;display:flex;align-items:center;gap:6px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;">Message Preview</span>
+            </div>
+            <textarea id="t-notify-message"
+              style="width:100%;min-height:160px;padding:14px;border:none;outline:none;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:500;color:#0d1f4a;line-height:1.7;resize:vertical;background:white;"></textarea>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:5px;">Results and standings links will be automatically added to every email.</div>
+        </div>
       </div>
+
+      <!-- SECTION 3: Delivery Info -->
+      <div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#6b7a99;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <span style="width:3px;height:13px;border-radius:99px;background:#174CCC;display:inline-block;flex-shrink:0;"></span>Delivery Info
+        </div>
+        <div style="background:#f0f4ff;border:1px solid #c5d6f5;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <div style="font-size:11px;font-weight:600;color:#174CCC;line-height:1.4;">Tournament results link will be included automatically.</div>
+        </div>
+      </div>
+
+      <!-- FOOTER inside form -->
+      <div style="display:flex;justify-content:flex-end;padding-top:4px;border-top:0.5px solid #e0e7f5;margin-top:2px;">
+        <button type="submit" id="t-notify-send-btn"
+          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send Update
+        </button>
+      </div>
+
     </form>
   </div>
 </div>
