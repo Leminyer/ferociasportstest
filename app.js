@@ -4501,8 +4501,24 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       return;
     }
     const emailPlayers = ladderPlayers.filter((p) => p.email && p.ladder_status === 'active');
-    document.getElementById('notify-recipient-count').innerHTML =
-      `<span class="text-bold color-teal">${emailPlayers.length} active players with email</span> in <strong>${esc(currentLadder.name)}</strong> will receive this email.`;
+    const totalPlayers = ladderPlayers.length;
+
+    // Subtitle: "N ladder players will receive this update."
+    document.getElementById('notify-recipient-count').textContent =
+      `${emailPlayers.length} ladder player${emailPlayers.length !== 1 ? 's' : ''} will receive this update.`;
+
+    // Section 1: Ladder context
+    document.getElementById('notify-ladder-name').textContent = currentLadder.name;
+    document.getElementById('notify-context-pills').innerHTML = `
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#174CCC;background:#e8f0ff;padding:2px 8px;border-radius:99px;">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        ${totalPlayers} Player${totalPlayers !== 1 ? 's' : ''}
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#085041;background:#d4f5ed;padding:2px 8px;border-radius:99px;">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#085041" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        ${emailPlayers.length} with Email
+      </span>`;
+
     setNotifyTemplate('welcome');
     document.getElementById('notify-type').value = 'welcome';
     document.getElementById('notify-modal').classList.add('open');
@@ -4596,7 +4612,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     _emailInFlight = false;
     sendBtn.disabled = false;
-    sendBtn.textContent = 'Send emails';
+    sendBtn.innerHTML = sendBtnOrigText;
     document.getElementById('notify-modal').classList.remove('open');
 
     if (!failedRecipients.length) {
