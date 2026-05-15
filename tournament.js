@@ -1856,7 +1856,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
       const diff = s.pts_for - s.pts_against;
       const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
       const diffColor = diff > 0 ? '#24BC96' : diff < 0 ? '#e53935' : '#6b7a99';
-      const team = tTeams ? tTeams.find(t => t.id === s.id) : null;
+      const team = teams ? teams.find(t => t.id === s.id) : null;
       const players = team ? getTeamPlayerNames(team) : '';
       const groupTag = useGroups && groups && s._groupIndex !== undefined
         ? `<span style="font-size:9px;font-weight:600;color:#174CCC;background:#e8f0ff;padding:1px 6px;border-radius:99px;margin-left:4px;">Group ${tEsc(groups[s._groupIndex]?.name||'?')} #${s._groupRank}</span>`
