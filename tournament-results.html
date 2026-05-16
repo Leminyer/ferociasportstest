@@ -132,7 +132,7 @@
   .bracket-team-players { font-size:10px; font-weight:500; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
 
   /* GROUP BLOCKS */
-  .group-block  { background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-sm); padding:14px; margin-bottom:14px; }
+  .group-block  { background:white; border:0.5px solid var(--border); border-radius:var(--radius-sm); padding:14px; margin-bottom:14px; box-shadow:0 1px 4px rgba(23,76,204,0.04); }
   .group-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; padding-bottom:8px; border-bottom:0.5px solid var(--border); }
   .group-badge  { display:inline-block; font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#fff; background:var(--blue); padding:4px 10px; border-radius:99px; }
 
@@ -366,11 +366,11 @@
     const thirdM=bracketMatches.find(m=>m.round_name==='3rd Place'&&m.status==='completed');
     const third=thirdM?.winner_id?tMap[thirdM.winner_id]:null;
     if(!champion) return '';
-    const ini=n=>n?n.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase():'?';
+    // Show team name in circle directly (e.g. A12, A7) — not initials
     const slot=(team,avCls,barCls,lbl,isChamp,players)=>{
       if(!team) return '';
       return '<div class="podium-slot">'
-        +'<div class="pod-av '+avCls+'">'+(isChamp?'<span class="pod-crown">👑</span>':'')+ini(team.name)+'</div>'
+        +'<div class="pod-av '+avCls+'">'+(isChamp?'<span class="pod-crown">👑</span>':'')+esc(team.name)+'</div>'
         +'<div class="pod-name">'+esc(team.name)+'</div>'
         +(players?'<div class="pod-players">'+esc(players)+'</div>':'')
         +'<div style="font-size:11px;font-weight:700;color:'+(isChamp?'#9a6e00':avCls==='silver'?'#6b7a99':'#9e6229')+';margin-bottom:4px;">'+lbl+'</div>'
@@ -389,8 +389,8 @@
     const pend=m.status!=='completed'&&m.status!=='forfeited';
     const nA=tA?esc(tA.name):'TBD', nB=tB?esc(tB.name):'TBD';
     const pA=tA?getPlayerNames(tA):'', pB=tB?getPlayerNames(tB):'';
-    const tnA=nA+(pA?'<br><span style="font-size:10px;font-weight:500;color:#6b7a99;">'+esc(pA)+'</span>':'')+(ffA?' <span style="font-size:9px;color:var(--orange);font-weight:800;">(FF)</span>':'');
-    const tnB=nB+(pB?'<br><span style="font-size:10px;font-weight:500;color:#6b7a99;">'+esc(pB)+'</span>':'')+(ffB?' <span style="font-size:9px;color:var(--orange);font-weight:800;">(FF)</span>':'');
+    const tnA=nA+(pA?' <span style="font-size:10px;font-weight:500;color:#6b7a99;">'+esc(pA)+'</span>':'')+(ffA?' <span style="font-size:9px;color:var(--orange);font-weight:800;">(FF)</span>':'');
+    const tnB=nB+(pB?' <span style="font-size:10px;font-weight:500;color:#6b7a99;">'+esc(pB)+'</span>':'')+(ffB?' <span style="font-size:9px;color:var(--orange);font-weight:800;">(FF)</span>':'');
     const blkA=pend?'team-pend':aWon?'team-win':'team-lose';
     const blkB=pend?'team-pend':bWon?'team-win':'team-lose';
     const clA=pend?'pend':aWon?'':'lose', clB=pend?'pend':bWon?'':'lose';
@@ -481,23 +481,31 @@
       +'<div class="stat sl"><div class="stat-label">Bracket</div><div class="stat-value">'+bDone+'</div><div class="stat-ctx" style="color:#7a9200;">'+(bTotal>0?bDone+' of '+bTotal+' played':'Not started')+'</div></div>'
       +'<div class="stat sg"><div class="stat-label">Leader</div>'
         +(leader&&leader.w>0
-          ?'<div class="stat-value" style="font-size:26px;line-height:1.1;">'+esc(leader.name)+'</div><div class="stat-ctx" style="color:#9a6e00;">'+leader.w+'W '+leader.l+'L · '+(leader.pts_for-leader.pts_against>0?'+':'')+(leader.pts_for-leader.pts_against)+' diff</div>'
+          ?'<div class="stat-value" style="font-size:26px;line-height:1.1;">'+esc(leader.name)+'</div><div class="stat-ctx" style="color:#6b7a99;margin-bottom:2px;">'+esc(getPlayerNames(teams.find(t=>t.id===leader.id)||{})||'')+'</div><div class="stat-ctx" style="color:#9a6e00;">'+leader.w+'W '+leader.l+'L · '+(leader.pts_for-leader.pts_against>0?'+':'')+(leader.pts_for-leader.pts_against)+' diff</div>'
           :'<div class="stat-value" style="font-size:26px;">—</div><div class="stat-ctx" style="color:#9a6e00;">No scores yet</div>')
       +'</div></div>';
 
     // Momentum strip
     const rrComplete=rrTotal>0&&rrDone===rrTotal;
     const hasBracket=bracketMatches.length>0;
-    const stage=hasBracket?'Bracket live':rrComplete?'RR complete':rrDone>0?'RR in progress':'Setup';
-    const leaderText=leader&&leader.w>0?esc(leader.name)+' leading · '+leader.w+'W '+leader.l+'L':'No scores yet';
-    const leaderSub=leader&&leader.w>0?esc(getPlayerNames(leader)||''):'Record scores to see standings';
+    // Momentum Watch — 3 distinct non-repeated data points
+    const matchesRemaining = rrTotal - rrDone;
+    const bestDiff = standings.length > 0 ? Math.max(...standings.map(s=>s.pts_for-s.pts_against)) : 0;
+    const bestDiffLabel = bestDiff > 0 ? '+'+bestDiff : String(bestDiff);
+    const momItem1Text = rrComplete ? 'Round Robin complete' : rrDone > 0 ? matchesRemaining+' match'+(matchesRemaining!==1?'es':'')+' remaining' : 'No matches played yet';
+    const momItem1Sub  = rrComplete ? 'All '+rrTotal+' matches reported' : rrDone+' of '+rrTotal+' matches played';
+    const momItem2Text = standings.length > 0 && bestDiff !== 0 ? 'Best diff: '+bestDiffLabel : 'Scores even';
+    const momItem2Sub  = leader && leader.w > 0 ? esc(leader.name)+' · '+leader.w+'W '+leader.l+'L' : 'No results yet';
+    const momItem3Text = hasBracket ? (bDone===bTotal&&bTotal>0?'Finals complete':'Bracket in progress') : rrComplete ? 'Bracket not started' : 'Awaiting RR completion';
+    const momItem3Sub  = hasBracket ? bDone+' of '+bTotal+' finals matches played' : rrComplete ? 'Generate bracket to continue' : 'Complete round robin first';
     const momHtml='<div class="mom-wrap">'
-      +'<div class="mom-label">Division Intel</div>'
+      +'<div class="mom-label">Momentum Watch</div>'
       +'<div class="mom-sep"></div>'
-      +'<div class="mom-item"><div class="mom-icon" style="background:#fde8d8;">⚡</div><div><div class="mom-text">'+stage+'</div><div class="mom-sub">'+rrDone+' of '+rrTotal+' RR matches played</div></div></div>'
+      +'<div class="mom-item"><div class="mom-icon" style="background:#fde8d8;">⚡</div><div><div class="mom-text">'+momItem1Text+'</div><div class="mom-sub">'+momItem1Sub+'</div></div></div>'
       +'<div class="mom-sep"></div>'
-      +'<div class="mom-item"><div class="mom-icon" style="background:var(--teal-light);">👑</div><div><div class="mom-text">'+leaderText+'</div><div class="mom-sub">'+leaderSub+'</div></div></div>'
-      +(hasBracket?'<div class="mom-sep"></div><div class="mom-item"><div class="mom-icon" style="background:#e8f0ff;">🏆</div><div><div class="mom-text">'+bDone+' of '+bTotal+' bracket matches</div><div class="mom-sub">'+(bDone===bTotal&&bTotal>0?'Finals complete':'In progress')+'</div></div></div>':'')
+      +'<div class="mom-item"><div class="mom-icon" style="background:var(--teal-light);">📊</div><div><div class="mom-text">'+momItem2Text+'</div><div class="mom-sub">'+momItem2Sub+'</div></div></div>'
+      +'<div class="mom-sep"></div>'
+      +'<div class="mom-item"><div class="mom-icon" style="background:#e8f0ff;">🏆</div><div><div class="mom-text">'+momItem3Text+'</div><div class="mom-sub">'+momItem3Sub+'</div></div></div>'
       +'</div>';
 
     // Status banner
