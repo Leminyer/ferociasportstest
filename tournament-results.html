@@ -371,7 +371,6 @@
       if(!team) return '';
       return '<div class="podium-slot">'
         +'<div class="pod-av '+avCls+'">'+(isChamp?'<span class="pod-crown">👑</span>':'')+esc(team.name)+'</div>'
-        +'<div class="pod-name">'+esc(team.name)+'</div>'
         +(players?'<div class="pod-players">'+esc(players)+'</div>':'')
         +'<div style="font-size:11px;font-weight:700;color:'+(isChamp?'#9a6e00':avCls==='silver'?'#6b7a99':'#9e6229')+';margin-bottom:4px;">'+lbl+'</div>'
         +'<div class="pod-bar '+barCls+'"></div>'
