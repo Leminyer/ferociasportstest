@@ -5959,7 +5959,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         return p ? `${esc(p.first_name)} ${esc(p.last_name)}` : `Player #${id}`;
       };
       const teamLabel = t.name ? esc(t.name) : `Team ${i + 1}`;
-      const captain   = t.captain_name ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">Captain: ${esc(t.captain_name)}</span>` : '';
+      const capPlayer = t.captain_player_id ? ladderPlayers.find(x => x.id === t.captain_player_id) : null;
+      const captain   = capPlayer ? `<span style="font-size:10px;font-weight:600;color:#174CCC;background:#e8f0ff;padding:1px 7px;border-radius:99px;">⭐ ${esc(capPlayer.first_name)} ${esc(capPlayer.last_name)}</span>` : '';
 
       return `<div class="card" style="padding:16px 20px;margin-bottom:10px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
@@ -6040,6 +6041,34 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   };
 
   // ── Update mixed doubles dropdowns based on starter selections ──────────
+  // Update captain radio pill styles + labels from dropdown selections
+  window.ftcUpdateCaptainUI = () => {
+    const slotMap = { m1:'ftc-m1', m2:'ftc-m2', f1:'ftc-f1', f2:'ftc-f2' };
+    const labelMap = { m1:'Man 1', m2:'Man 2', f1:'Woman 1', f2:'Woman 2' };
+    Object.entries(slotMap).forEach(([slot, selId]) => {
+      const sel   = document.getElementById(selId);
+      const label = document.getElementById(`ftc-cap-${slot}-label`);
+      if (!label) return;
+      const val = sel?.value;
+      if (val) {
+        const p = ladderPlayers.find(x => String(x.id) === String(val));
+        label.textContent = p ? `${p.first_name} ${p.last_name}` : labelMap[slot];
+      } else {
+        label.textContent = labelMap[slot];
+      }
+    });
+    // Update pill active styles
+    const selected = document.querySelector('input[name="ftc-captain"]:checked')?.value || '';
+    ['none','m1','m2','f1','f2'].forEach(slot => {
+      const wrap = document.getElementById(`ftc-cap-${slot}-wrap`);
+      if (!wrap) return;
+      const isActive = selected === slot || (slot === 'none' && selected === '');
+      wrap.style.background    = isActive ? '#174CCC' : 'white';
+      wrap.style.borderColor   = isActive ? '#174CCC' : '#e0e7f5';
+      wrap.style.color         = isActive ? 'white'   : '#6b7a99';
+    });
+  };
+
   window.ftcUpdateMixedOptions = () => {
     const m1 = document.getElementById('ftc-m1')?.value;
     const m2 = document.getElementById('ftc-m2')?.value;
@@ -6069,6 +6098,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       sel.innerHTML = fOpts;
       if (cur) sel.value = cur;
     });
+    // Update captain labels when starters change
+    ftcUpdateCaptainUI();
   };
 
   // ── Open register modal ─────────────────────────────────────────────────
@@ -6083,9 +6114,13 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
+    // Reset captain to None
+    const noneRadio = document.getElementById('ftc-cap-none');
+    if (noneRadio) { noneRadio.checked = true; }
     const valEl = document.getElementById('ftc-mixed-validation');
     if (valEl) valEl.style.display = 'none';
     ftcPopulateDropdowns();
+    ftcUpdateCaptainUI();
     document.getElementById('ftc-team-modal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
   };
@@ -6096,7 +6131,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     if (!t) return;
     document.getElementById('ftc-team-id').value      = t.id;
     document.getElementById('ftc-team-name').value    = t.name || '';
-    document.getElementById('ftc-captain-name').value = t.captain_name || '';
+    // captain is now set via radio group below
     document.getElementById('ftc-modal-title').textContent    = 'Edit Team';
     document.getElementById('ftc-modal-subtitle').textContent = 'Update team details. Past matches are not affected.';
     ftcPopulateDropdowns(t.id);
@@ -6108,6 +6143,18 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     ftcUpdateMixedOptions();
     setVal('ftc-mixed1-m', t.mixed1_ma_id); setVal('ftc-mixed1-f', t.mixed1_fa_id);
     setVal('ftc-mixed2-m', t.mixed2_ma_id); setVal('ftc-mixed2-f', t.mixed2_fa_id);
+    // Set captain radio
+    const slotMap = { m1: t.m1_id, m2: t.m2_id, f1: t.f1_id, f2: t.f2_id };
+    const capId = t.captain_player_id;
+    let capSlot = '';
+    if (capId) {
+      Object.entries(slotMap).forEach(([slot, pid]) => {
+        if (String(pid) === String(capId)) capSlot = slot;
+      });
+    }
+    const capRadio = document.getElementById(capSlot ? `ftc-cap-${capSlot}` : 'ftc-cap-none');
+    if (capRadio) capRadio.checked = true;
+    ftcUpdateCaptainUI();
     const valEl = document.getElementById('ftc-mixed-validation');
     if (valEl) valEl.style.display = 'none';
     document.getElementById('ftc-team-modal').style.display = 'flex';
@@ -6163,8 +6210,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     const body = {
       ladder_id:    currentLadder.id,
-      name:         document.getElementById('ftc-team-name').value.trim() || null,
-      captain_name: document.getElementById('ftc-captain-name').value.trim() || null,
+      name:              document.getElementById('ftc-team-name').value.trim() || null,
+      captain_player_id: (() => {
+        const slot = document.querySelector('input[name="ftc-captain"]:checked')?.value;
+        if (!slot) return null;
+        const slotToField = { m1:'ftc-m1', m2:'ftc-m2', f1:'ftc-f1', f2:'ftc-f2' };
+        const pid = document.getElementById(slotToField[slot])?.value;
+        return pid ? parseInt(pid, 10) : null;
+      })(),
       m1_id:        parseInt(gv('ftc-m1'), 10),
       m2_id:        parseInt(gv('ftc-m2'), 10),
       f1_id:        parseInt(gv('ftc-f1'), 10),
