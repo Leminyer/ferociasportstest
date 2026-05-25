@@ -5927,97 +5927,114 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   // ── Load and render teams page ──────────────────────────────────────────
   const loadFtcTeams = async () => {
     if (!currentLadder) return;
-    document.getElementById('ftc-teams-subtitle').textContent =
-      `${currentLadder.name} — Team Registration`;
+    // Update hero
+    const heroTitle = document.getElementById('ftc-hero-title');
+    const heroSub   = document.getElementById('ftc-hero-sub');
+    const heroTag   = document.getElementById('ftc-hero-tagline');
+    if (heroTitle) heroTitle.textContent = currentLadder.name || 'Ferocia Team Challenge';
+    if (heroSub) {
+      const start = currentLadder.start_date
+        ? new Date(currentLadder.start_date + 'T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'})
+        : 'Season Dates TBD';
+      heroSub.textContent = `Season 1 • ${start}`;
+    }
+    if (heroTag) heroTag.innerHTML = `🔥 ${esc(currentLadder.name || 'Ferocia Team Challenge')} &nbsp;•&nbsp; Playoffs Included`;
     const el = document.getElementById('ftc-teams-list');
     el.innerHTML = '<div class="loading">Loading teams...</div>';
     try {
       ftcTeams = await api(
         `ftc_ladder_teams?ladder_id=eq.${currentLadder.id}&select=*&order=id`
       );
+      const statEl = document.getElementById('ftc-stat-teams');
+      if (statEl) statEl.textContent = ftcTeams.length;
       renderFtcTeams();
     } catch (err) {
       el.innerHTML = `<div class="error">Error: ${esc(err.message)}</div>`;
     }
   };
 
-  const renderFtcTeams = () => {
+  const renderFtcTeams = (filterStr = '') => {
     const el = document.getElementById('ftc-teams-list');
-    if (!ftcTeams.length) {
-      el.innerHTML = `<div class="card" style="padding:32px;text-align:center;">
-        <div style="font-size:32px;margin-bottom:12px;">🏆</div>
-        <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">No teams registered yet</div>
-        <div style="font-size:12px;font-weight:600;color:#6b7a99;">Click "Register Team" to add the first team to this ladder.</div>
+    let teams = ftcTeams;
+    if (filterStr) {
+      const q = filterStr.toLowerCase();
+      teams = ftcTeams.filter(t => {
+        const nameMatch = (t.name || '').toLowerCase().includes(q);
+        const capPlayer = t.captain_player_id ? ladderPlayers.find(x => x.id === t.captain_player_id) : null;
+        const capMatch  = capPlayer ? `${capPlayer.first_name} ${capPlayer.last_name}`.toLowerCase().includes(q) : false;
+        const playerIds = [t.m1_id,t.m2_id,t.f1_id,t.f2_id,t.m_sub_id,t.f_sub_id].filter(Boolean);
+        const playerMatch = playerIds.some(pid => {
+          const p = ladderPlayers.find(x => x.id === pid);
+          return p && `${p.first_name} ${p.last_name}`.toLowerCase().includes(q);
+        });
+        return nameMatch || capMatch || playerMatch;
+      });
+    }
+
+    if (!teams.length && !filterStr) {
+      el.innerHTML = `<div class="ftc-empty">
+        <div class="ftc-empty-icon">🏆</div>
+        <div class="ftc-empty-title">Ready to build the competition?</div>
+        <div class="ftc-empty-sub">Register the first team and start the season.<br>Teams will appear here once registered.</div>
+        <button class="ftc-register-btn" onclick="ftcOpenRegisterModal()" style="margin:0 auto;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          Register First Team
+        </button>
       </div>`;
       return;
     }
+    if (!teams.length) {
+      el.innerHTML = '<div class="ftc-empty" style="padding:32px;"><div class="ftc-empty-title">No teams match your search.</div></div>';
+      return;
+    }
 
-    const rows = ftcTeams.map((t, i) => {
-      const playerName = (id) => {
-        if (!id) return '—';
-        const p = ladderPlayers.find(x => x.id === id);
-        return p ? `${esc(p.first_name)} ${esc(p.last_name)}` : `Player #${id}`;
-      };
-      const teamLabel = t.name ? esc(t.name) : `Team ${i + 1}`;
+    const playerName = (id) => {
+      if (!id) return null;
+      const p = ladderPlayers.find(x => x.id === id);
+      return p ? `${esc(p.first_name)} ${esc(p.last_name)}` : null;
+    };
+
+    const cards = teams.map((t, i) => {
+      const label = t.name ? esc(t.name) : `Team ${i + 1}`;
+      const initial = (t.name || `T${i+1}`)[0].toUpperCase();
       const capPlayer = t.captain_player_id ? ladderPlayers.find(x => x.id === t.captain_player_id) : null;
-      const captain   = capPlayer ? `<span style="font-size:10px;font-weight:600;color:#174CCC;background:#e8f0ff;padding:1px 7px;border-radius:99px;">⭐ ${esc(capPlayer.first_name)} ${esc(capPlayer.last_name)}</span>` : '';
+      const capName = capPlayer ? `${esc(capPlayer.first_name)} ${esc(capPlayer.last_name)}` : null;
+      const playerCount = [t.m1_id,t.m2_id,t.f1_id,t.f2_id,t.m_sub_id,t.f_sub_id].filter(Boolean).length;
 
-      return `<div class="card" style="padding:16px 20px;margin-bottom:10px;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+      return `<div class="ftc-team-card">
+        <div class="ftc-card-header">
+          <div class="ftc-card-avatar">${initial}</div>
           <div style="flex:1;min-width:0;">
-            <!-- Team header -->
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-              <div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#174CCC,#2456d3);color:white;font-family:'Bebas Neue',sans-serif;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
-              <div>
-                <div style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamLabel}</div>
-                ${captain}
-              </div>
-            </div>
-            <!-- Player grid -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <!-- Men -->
-              <div style="background:#f0f4ff;border-radius:8px;padding:10px 12px;">
-                <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#174CCC;margin-bottom:6px;">Men</div>
-                <div style="font-size:12px;font-weight:700;color:#0d1f4a;margin-bottom:3px;">M1: ${playerName(t.m1_id)}</div>
-                <div style="font-size:12px;font-weight:700;color:#0d1f4a;margin-bottom:3px;">M2: ${playerName(t.m2_id)}</div>
-                ${t.m_sub_id ? `<div style="font-size:11px;font-weight:600;color:#6b7a99;">Sub: ${playerName(t.m_sub_id)}</div>` : ''}
-              </div>
-              <!-- Women -->
-              <div style="background:#fff4f0;border-radius:8px;padding:10px 12px;">
-                <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#F26024;margin-bottom:6px;">Women</div>
-                <div style="font-size:12px;font-weight:700;color:#0d1f4a;margin-bottom:3px;">F1: ${playerName(t.f1_id)}</div>
-                <div style="font-size:12px;font-weight:700;color:#0d1f4a;margin-bottom:3px;">F2: ${playerName(t.f2_id)}</div>
-                ${t.f_sub_id ? `<div style="font-size:11px;font-weight:600;color:#6b7a99;">Sub: ${playerName(t.f_sub_id)}</div>` : ''}
-              </div>
-            </div>
-            <!-- Mixed pairs -->
-            ${(t.mixed1_ma_id || t.mixed2_ma_id) ? `
-            <div style="margin-top:8px;padding:8px 12px;background:#f8f9ff;border-radius:8px;display:flex;gap:16px;flex-wrap:wrap;">
-              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;width:100%;margin-bottom:2px;">Mixed Doubles Pairs</div>
-              ${t.mixed1_ma_id ? `<span style="font-size:11px;font-weight:700;color:#0d1f4a;">Mixed #1: ${playerName(t.mixed1_ma_id)} + ${playerName(t.mixed1_fa_id)}</span>` : ''}
-              ${t.mixed2_ma_id ? `<span style="font-size:11px;font-weight:700;color:#0d1f4a;">Mixed #2: ${playerName(t.mixed2_ma_id)} + ${playerName(t.mixed2_fa_id)}</span>` : ''}
-            </div>` : ''}
+            <div class="ftc-card-name">${label}</div>
+            ${capName ? `<div class="ftc-card-captain">⭐ ${capName}</div>` : '<div class="ftc-card-captain" style="color:#b0bbd6;">No captain assigned</div>'}
           </div>
-          <!-- Actions -->
-          <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-            <button onclick="ftcOpenEditModal(${t.id})"
-              style="padding:5px 12px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;">
-              Edit
-            </button>
-            <button onclick="ftcDeleteTeam(${t.id}, '${teamLabel}')"
-              style="padding:5px 12px;border:0.5px solid rgba(229,57,53,0.2);border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#e53935;cursor:pointer;">
-              Delete
-            </button>
+        </div>
+        <div class="ftc-card-body">
+          <div class="ftc-card-row">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            ${playerCount} Player${playerCount!==1?'s':''}
           </div>
+          <div class="ftc-card-row">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            0–0 Record
+          </div>
+          ${t.mixed1_ma_id ? `<div class="ftc-card-row">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Mixed pairs assigned
+          </div>` : ''}
+        </div>
+        <div class="ftc-card-actions">
+          <button class="ftc-card-btn" onclick="ftcOpenEditModal(${t.id})">Edit</button>
+          <button class="ftc-card-btn danger" onclick="ftcDeleteTeam(${t.id}, '${label}')">Delete</button>
         </div>
       </div>`;
     }).join('');
 
-    el.innerHTML = `
-      <div style="font-size:11px;font-weight:700;color:#6b7a99;margin-bottom:10px;">${ftcTeams.length} team${ftcTeams.length!==1?'s':''} registered</div>
-      ${rows}`;
+    el.innerHTML = `<div style="font-size:11px;font-weight:700;color:#6b7a99;margin-bottom:12px;">${teams.length} team${teams.length!==1?'s':''} registered</div>
+      <div class="ftc-teams-grid">${cards}</div>`;
   };
 
+  window.ftcFilterTeams = (val) => renderFtcTeams(val);
   // ── Populate player dropdowns ───────────────────────────────────────────
   const ftcPopulateDropdowns = (editTeamId = null) => {
     const men   = ladderPlayers.filter(p => p.gender === 'Male');
@@ -6063,9 +6080,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       const wrap = document.getElementById(`ftc-cap-${slot}-wrap`);
       if (!wrap) return;
       const isActive = selected === slot || (slot === 'none' && selected === '');
-      wrap.style.background    = isActive ? '#174CCC' : 'white';
-      wrap.style.borderColor   = isActive ? '#174CCC' : '#e0e7f5';
-      wrap.style.color         = isActive ? 'white'   : '#6b7a99';
+      wrap.classList.toggle('selected', isActive);
     });
   };
 
@@ -6102,24 +6117,140 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     ftcUpdateCaptainUI();
   };
 
+  // ── Wizard navigation ──────────────────────────────────────────────────
+  let ftcCurrentStep = 1;
+  const FTC_TOTAL_STEPS = 6;
+
+  const ftcGoToStep = (step) => {
+    ftcCurrentStep = step;
+    // Show/hide panels
+    for (let i = 1; i <= FTC_TOTAL_STEPS; i++) {
+      const panel = document.getElementById(`ftc-panel-${i}`);
+      if (panel) panel.classList.toggle('active', i === step);
+    }
+    // Update sidebar step states
+    for (let i = 1; i <= FTC_TOTAL_STEPS; i++) {
+      const num   = document.getElementById(`ftc-stepnum-${i}`);
+      const label = document.getElementById(`ftc-steplabel-${i}`);
+      if (!num || !label) continue;
+      if (i < step) {
+        num.className   = 'ftc-step-num done';
+        num.innerHTML   = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        label.className = 'ftc-step-label done';
+      } else if (i === step) {
+        num.className   = 'ftc-step-num active';
+        num.textContent = i;
+        label.className = 'ftc-step-label active';
+      } else {
+        num.className   = 'ftc-step-num';
+        num.textContent = i;
+        label.className = 'ftc-step-label';
+      }
+    }
+    // Show/hide nav buttons
+    const backBtn = document.getElementById('ftc-btn-back');
+    const nextBtn = document.getElementById('ftc-btn-next');
+    const saveBtn = document.getElementById('ftc-btn-save');
+    if (backBtn) backBtn.style.display = step > 1 ? 'inline-flex' : 'none';
+    if (nextBtn) nextBtn.style.display = step < FTC_TOTAL_STEPS ? 'inline-flex' : 'none';
+    if (saveBtn) saveBtn.style.display = step === FTC_TOTAL_STEPS ? 'inline-flex' : 'none';
+    // Build review on step 6
+    if (step === FTC_TOTAL_STEPS) ftcBuildReview();
+  };
+
+  window.ftcWizardNext = () => {
+    // Validate current step before advancing
+    if (ftcCurrentStep === 2) {
+      if (!document.getElementById('ftc-m1')?.value ||
+          !document.getElementById('ftc-m2')?.value ||
+          !document.getElementById('ftc-f1')?.value ||
+          !document.getElementById('ftc-f2')?.value) {
+        toast('Please select all 4 starters before continuing.', true);
+        return;
+      }
+      const ids = ['ftc-m1','ftc-m2','ftc-f1','ftc-f2'].map(id => document.getElementById(id).value);
+      if (new Set(ids).size < 4) {
+        toast('Each starter slot must be a different player.', true);
+        return;
+      }
+    }
+    if (ftcCurrentStep === 5) {
+      const m1m = document.getElementById('ftc-mixed1-m')?.value;
+      const m1f = document.getElementById('ftc-mixed1-f')?.value;
+      const m2m = document.getElementById('ftc-mixed2-m')?.value;
+      const m2f = document.getElementById('ftc-mixed2-f')?.value;
+      const mixedErr = ftcValidateMixed(m1m, m1f, m2m, m2f);
+      if (mixedErr) {
+        const valEl = document.getElementById('ftc-mixed-validation');
+        if (valEl) { valEl.textContent = mixedErr; valEl.style.display = 'block'; }
+        return;
+      }
+      const valEl = document.getElementById('ftc-mixed-validation');
+      if (valEl) valEl.style.display = 'none';
+    }
+    if (ftcCurrentStep < FTC_TOTAL_STEPS) ftcGoToStep(ftcCurrentStep + 1);
+  };
+
+  window.ftcWizardBack = () => {
+    if (ftcCurrentStep > 1) ftcGoToStep(ftcCurrentStep - 1);
+  };
+
+  const ftcBuildReview = () => {
+    const el = document.getElementById('ftc-review-content');
+    if (!el) return;
+    const pName = (id) => {
+      if (!id) return '—';
+      const p = ladderPlayers.find(x => String(x.id) === String(id) || x.id === id);
+      return p ? `${p.first_name} ${p.last_name}` : '—';
+    };
+    const slot = document.querySelector('input[name="ftc-captain"]:checked')?.value || '';
+    const slotToSel = { m1:'ftc-m1', m2:'ftc-m2', f1:'ftc-f1', f2:'ftc-f2' };
+    const capPid = slot && slotToSel[slot] ? document.getElementById(slotToSel[slot])?.value : null;
+    const capName = capPid ? pName(capPid) : 'None';
+
+    el.innerHTML = `
+      <div class="ftc-review-section">
+        <div class="ftc-review-label">Team Identity</div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Team Name</span><span class="ftc-review-val">${document.getElementById('ftc-team-name')?.value || '—'}</span></div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Captain</span><span class="ftc-review-val">${capName}</span></div>
+      </div>
+      <div class="ftc-review-section">
+        <div class="ftc-review-label">Starters</div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Man 1</span><span class="ftc-review-val">${pName(document.getElementById('ftc-m1')?.value)}</span></div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Man 2</span><span class="ftc-review-val">${pName(document.getElementById('ftc-m2')?.value)}</span></div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Woman 1</span><span class="ftc-review-val">${pName(document.getElementById('ftc-f1')?.value)}</span></div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Woman 2</span><span class="ftc-review-val">${pName(document.getElementById('ftc-f2')?.value)}</span></div>
+      </div>
+      <div class="ftc-review-section">
+        <div class="ftc-review-label">Substitutes</div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Male Sub</span><span class="ftc-review-val">${pName(document.getElementById('ftc-msub')?.value) || 'None'}</span></div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Female Sub</span><span class="ftc-review-val">${pName(document.getElementById('ftc-fsub')?.value) || 'None'}</span></div>
+      </div>
+      <div class="ftc-review-section">
+        <div class="ftc-review-label">Mixed Doubles</div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Mixed #1</span><span class="ftc-review-val">${pName(document.getElementById('ftc-mixed1-m')?.value)} + ${pName(document.getElementById('ftc-mixed1-f')?.value)}</span></div>
+        <div class="ftc-review-row"><span class="ftc-review-key">Mixed #2</span><span class="ftc-review-val">${pName(document.getElementById('ftc-mixed2-m')?.value)} + ${pName(document.getElementById('ftc-mixed2-f')?.value)}</span></div>
+      </div>`;
+  };
+
   // ── Open register modal ─────────────────────────────────────────────────
   window.ftcOpenRegisterModal = () => {
-    document.getElementById('ftc-team-id').value    = '';
-    document.getElementById('ftc-team-name').value  = '';
+    document.getElementById('ftc-team-id').value   = '';
+    document.getElementById('ftc-team-name').value = '';
     document.getElementById('ftc-modal-title').textContent    = 'Register Team';
-    document.getElementById('ftc-modal-subtitle').textContent = 'Fill in team details and assign players.';
+    document.getElementById('ftc-modal-subtitle').textContent = 'Create your team and assign your players.';
     ['ftc-m1','ftc-m2','ftc-f1','ftc-f2','ftc-msub','ftc-fsub',
      'ftc-mixed1-m','ftc-mixed1-f','ftc-mixed2-m','ftc-mixed2-f'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
-    // Reset captain to None
     const noneRadio = document.getElementById('ftc-cap-none');
-    if (noneRadio) { noneRadio.checked = true; }
+    if (noneRadio) noneRadio.checked = true;
     const valEl = document.getElementById('ftc-mixed-validation');
     if (valEl) valEl.style.display = 'none';
     ftcPopulateDropdowns();
     ftcUpdateCaptainUI();
+    ftcGoToStep(1);
     document.getElementById('ftc-team-modal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
   };
@@ -6156,6 +6287,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     ftcUpdateCaptainUI();
     const valEl = document.getElementById('ftc-mixed-validation');
     if (valEl) valEl.style.display = 'none';
+    ftcGoToStep(1);
     document.getElementById('ftc-team-modal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
   };
@@ -6195,17 +6327,11 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       return;
     }
 
-    // Validate mixed doubles if both pairs are set
+    // Mixed doubles validation (also checked on step nav)
     const m1m = gv('ftc-mixed1-m'), m1f = gv('ftc-mixed1-f');
     const m2m = gv('ftc-mixed2-m'), m2f = gv('ftc-mixed2-f');
     const mixedErr = ftcValidateMixed(m1m, m1f, m2m, m2f);
-    if (mixedErr) {
-      const valEl = document.getElementById('ftc-mixed-validation');
-      if (valEl) { valEl.textContent = mixedErr; valEl.style.display = 'block'; }
-      return;
-    }
-    const valEl = document.getElementById('ftc-mixed-validation');
-    if (valEl) valEl.style.display = 'none';
+    if (mixedErr) { toast(mixedErr, true); return; }
 
     const body = {
       ladder_id:    currentLadder.id,
