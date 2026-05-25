@@ -12,13 +12,8 @@ window.selectLadderType = (type) => {
   const inp = document.getElementById('new-ladder-type');
   if (!rp || !ftc || !inp) return;
   inp.value = type;
-  if (type === 'rotating_partner') {
-    rp.style.background  = '#174CCC'; rp.style.borderColor  = '#174CCC'; rp.style.color = 'white';
-    ftc.style.background = 'white';   ftc.style.borderColor = '#e0e7f5'; ftc.style.color = '#6b7a99';
-  } else {
-    ftc.style.background = '#174CCC'; ftc.style.borderColor = '#174CCC'; ftc.style.color = 'white';
-    rp.style.background  = 'white';   rp.style.borderColor  = '#e0e7f5'; rp.style.color  = '#6b7a99';
-  }
+  rp.classList.toggle('active',  type === 'rotating_partner');
+  ftc.classList.toggle('active', type === 'ftc');
 };
 
 (function () {

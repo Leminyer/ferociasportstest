@@ -1303,15 +1303,9 @@
         <!-- Ladder Type Selector -->
         <div style="margin-bottom:12px;">
           <div class="lop-create-label" style="margin-bottom:6px;">Ladder Type</div>
-          <div style="display:flex;gap:8px;">
-            <button type="button" id="ltype-rp" onclick="selectLadderType('rotating_partner')"
-              style="flex:1;padding:10px 16px;border-radius:10px;border:2px solid #174CCC;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;cursor:pointer;transition:all .15s;">
-              🔄 Rotating Partner Ladder
-            </button>
-            <button type="button" id="ltype-ftc" onclick="selectLadderType('ftc')"
-              style="flex:1;padding:10px 16px;border-radius:10px;border:2px solid #e0e7f5;background:white;color:#6b7a99;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;cursor:pointer;transition:all .15s;">
-              🏆 Ferocia Team Challenge Ladder
-            </button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" id="ltype-rp" class="promo-type-pill active" onclick="selectLadderType('rotating_partner')">🔄 Rotating Partner</button>
+            <button type="button" id="ltype-ftc" class="promo-type-pill" onclick="selectLadderType('ftc')">🏆 Ferocia Team Challenge</button>
           </div>
           <input type="hidden" id="new-ladder-type" value="rotating_partner">
         </div>
