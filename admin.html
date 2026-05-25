@@ -855,6 +855,10 @@
     <button class="sb-sub-item" id="sb-standings" data-action="showPage" data-page="ladder">Standings</button>
     <button class="sb-sub-item" id="sb-sessions" data-action="showPage" data-page="sessions">Sessions</button>
     <button class="sb-sub-item" id="sb-entry" data-action="showPage" data-page="entry">Record Session</button>
+    <!-- FTC-only nav items (shown when FTC ladder selected) -->
+    <button class="sb-sub-item" id="sb-ftc-teams" data-action="showPage" data-page="ftc-teams" style="display:none;">Teams</button>
+    <button class="sb-sub-item" id="sb-ftc-schedule" data-action="showPage" data-page="ftc-schedule" style="display:none;">Schedule</button>
+    <button class="sb-sub-item" id="sb-ftc-playoffs" data-action="showPage" data-page="ftc-playoffs" style="display:none;">Playoffs</button>
   </div>
 
   <div class="sb-divider"></div>
@@ -1230,6 +1234,23 @@
   </div>
 
   <!-- LADDERS -->
+  <!-- FTC Ladder Pages (placeholders for Phase 2+) -->
+  <div id="page-ftc-teams" class="page">
+    <div class="card" style="padding:32px;text-align:center;color:#6b7a99;font-size:13px;font-weight:600;">
+      Teams management coming in Phase 2.
+    </div>
+  </div>
+  <div id="page-ftc-schedule" class="page">
+    <div class="card" style="padding:32px;text-align:center;color:#6b7a99;font-size:13px;font-weight:600;">
+      Schedule coming in Phase 3.
+    </div>
+  </div>
+  <div id="page-ftc-playoffs" class="page">
+    <div class="card" style="padding:32px;text-align:center;color:#6b7a99;font-size:13px;font-weight:600;">
+      Playoffs coming in Phase 6.
+    </div>
+  </div>
+
   <div id="page-ladders" class="page">
 
     <!-- Page title -->
@@ -1279,6 +1300,21 @@
         New Ladder
       </div>
       <form id="create-ladder-form">
+        <!-- Ladder Type Selector -->
+        <div style="margin-bottom:12px;">
+          <div class="lop-create-label" style="margin-bottom:6px;">Ladder Type</div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" id="ltype-rp" onclick="selectLadderType('rotating_partner')"
+              style="flex:1;padding:10px 16px;border-radius:10px;border:2px solid #174CCC;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;cursor:pointer;transition:all .15s;">
+              🔄 Rotating Partner Ladder
+            </button>
+            <button type="button" id="ltype-ftc" onclick="selectLadderType('ftc')"
+              style="flex:1;padding:10px 16px;border-radius:10px;border:2px solid #e0e7f5;background:white;color:#6b7a99;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;cursor:pointer;transition:all .15s;">
+              🏆 Ferocia Team Challenge Ladder
+            </button>
+          </div>
+          <input type="hidden" id="new-ladder-type" value="rotating_partner">
+        </div>
         <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end;">
           <div style="display:flex;flex-direction:column;gap:4px;">
             <div class="lop-create-label">Ladder Name</div>
@@ -2069,6 +2105,11 @@
         <div class="ap-group">
           <label class="ap-label">Ladder Name</label>
           <input type="text" id="edit-ladder-name" class="ap-input" required placeholder="e.g. Spring Ladder 2026">
+        </div>
+        <div style="margin-top:8px;">
+          <label class="ap-label">Ladder Type</label>
+          <div id="edit-ladder-type-badge" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;background:#e8f0ff;border:0.5px solid #c5d6f5;font-size:11px;font-weight:700;color:#174CCC;margin-top:4px;"></div>
+          <input type="hidden" id="edit-ladder-type">
         </div>
       </div>
 

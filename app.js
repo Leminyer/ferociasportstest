@@ -5,6 +5,22 @@
                      toast, confirmModal, FEROCIA_CONFIG
    ============================================================ */
 
+// ── Ladder type selector (global — called from inline onclick) ────────────
+window.selectLadderType = (type) => {
+  const rp  = document.getElementById('ltype-rp');
+  const ftc = document.getElementById('ltype-ftc');
+  const inp = document.getElementById('new-ladder-type');
+  if (!rp || !ftc || !inp) return;
+  inp.value = type;
+  if (type === 'rotating_partner') {
+    rp.style.background  = '#174CCC'; rp.style.borderColor  = '#174CCC'; rp.style.color = 'white';
+    ftc.style.background = 'white';   ftc.style.borderColor = '#e0e7f5'; ftc.style.color = '#6b7a99';
+  } else {
+    ftc.style.background = '#174CCC'; ftc.style.borderColor = '#174CCC'; ftc.style.color = 'white';
+    rp.style.background  = 'white';   rp.style.borderColor  = '#e0e7f5'; rp.style.color  = '#6b7a99';
+  }
+};
+
 (function () {
   'use strict';
 
@@ -53,9 +69,12 @@
     // Activate sidebar item by id (sb-<key>) and bottom nav (bn-<key>)
     const maps = {
       'home':         ['sb-home',        'bn-home'],
-      'ladder':       ['sb-standings',   'bn-ladder'],
-      'sessions':     ['sb-sessions',    'bn-ladder'],
-      'entry':        ['sb-entry',       'bn-ladder'],
+      'ladder':           ['sb-standings',    'bn-ladder'],
+      'sessions':         ['sb-sessions',    'bn-ladder'],
+      'entry':            ['sb-entry',       'bn-ladder'],
+      'ftc-teams':        ['sb-ftc-teams',   'bn-ladder'],
+      'ftc-schedule':     ['sb-ftc-schedule','bn-ladder'],
+      'ftc-playoffs':     ['sb-ftc-playoffs','bn-ladder'],
       'tournament-view': ['sb-tournament', 'bn-tournament'],
       'players':      ['sb-players',     'bn-players'],
       'add-player':   ['sb-add-player',  null],
@@ -78,13 +97,27 @@
     }
 
     // Show/hide ladder sub-items and select
-    const isLadderPage = ['ladder','sessions','entry'].includes(pageOrKey);
+    const isLadderPage = ['ladder','sessions','entry','ftc-teams','ftc-schedule','ftc-playoffs'].includes(pageOrKey);
     const ladderWrap = document.getElementById('sb-ladder-select-wrap');
     if (ladderWrap) ladderWrap.style.display = isLadderPage ? 'block' : 'none';
-    ['sb-standings','sb-sessions','sb-entry'].forEach(id => {
+    ['sb-standings','sb-sessions','sb-entry','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.style.display = isLadderPage ? 'flex' : 'none';
+      if (el) el.style.display = 'none'; // reset all first
     });
+    if (isLadderPage) {
+      const isFTC = currentLadder?.ladder_type === 'ftc';
+      if (isFTC) {
+        ['sb-standings','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'flex';
+        });
+      } else {
+        ['sb-standings','sb-sessions','sb-entry','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'flex';
+        });
+      }
+    }
 
     // Show/hide tournament select
     const isTournPage = ['tournament-view'].includes(pageOrKey);
@@ -325,10 +358,24 @@
     // Always show the sub-items
     const wrap = document.getElementById('sb-ladder-select-wrap');
     if (wrap) wrap.style.display = 'block';
-    ['sb-standings','sb-sessions','sb-entry'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'flex';
-    });
+    (() => {
+      const isFTC = currentLadder?.ladder_type === 'ftc';
+      ['sb-standings','sb-sessions','sb-entry','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      if (isFTC) {
+        ['sb-standings','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'flex';
+        });
+      } else {
+        ['sb-standings','sb-sessions','sb-entry','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'flex';
+        });
+      }
+    })();
     document.getElementById('sb-ladder')?.classList.add('active');
     document.getElementById('bn-ladder')?.classList.add('active');
   };
@@ -473,7 +520,7 @@
 
   const updateLadderBanner = () => {
     const ladderPages = ['ladder', 'sessions', 'entry'];
-    const ladderNavBtns = document.querySelectorAll('#sb-standings, #sb-sessions, #sb-entry');
+    const ladderNavBtns = document.querySelectorAll('#sb-standings, #sb-sessions, #sb-entry, #sb-ftc-teams, #sb-ftc-schedule, #sb-ftc-playoffs');
     if (!currentLadder) {
       ladderNavBtns.forEach((b) => {
         if (ladderPages.includes(b.dataset.page)) b.disabled = true;
@@ -640,6 +687,12 @@
           <!-- LEFT -->
           <div class="lop-left">
             <div class="lop-name">${esc(l.name)}</div>
+            <div style="margin-bottom:4px;">
+              ${l.ladder_type === 'ftc'
+                ? `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:rgba(198,242,33,0.15);color:#3B6D11;border:0.5px solid rgba(198,242,33,0.4);padding:2px 8px;border-radius:99px;">🏆 Ferocia Team Challenge</span>`
+                : `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:#e8f0ff;color:#174CCC;border:0.5px solid #c5d6f5;padding:2px 8px;border-radius:99px;">🔄 Rotating Partner</span>`
+              }
+            </div>
             <div class="lop-status-row">
               <span class="${isActive ? 'lop-active-pill' : 'lop-closed-pill'}">${isActive ? 'Season Active' : 'Closed'}</span>
               ${isActive && l.start_date ? `<span class="lop-next">${clkSVG} ${nextSessionStr(l) || 'Active'}</span>` : ''}
@@ -770,17 +823,20 @@
 
   const createLadder = async (e) => {
     e.preventDefault();
-    const name = document.getElementById('new-ladder-name').value.trim();
-    const start = document.getElementById('new-ladder-start').value || null;
-    const end = document.getElementById('new-ladder-end').value || null;
+    const name       = document.getElementById('new-ladder-name').value.trim();
+    const start      = document.getElementById('new-ladder-start').value || null;
+    const end        = document.getElementById('new-ladder-end').value   || null;
+    const ladderType = document.getElementById('new-ladder-type')?.value || 'rotating_partner';
     if (!name) {
       toast('Please enter a ladder name.', true);
       return;
     }
     try {
-      await api('ladders', 'POST', { name, status: 'active', start_date: start, end_date: end });
+      await api('ladders', 'POST', { name, status: 'active', start_date: start, end_date: end, ladder_type: ladderType });
       toast(`Ladder "${name}" created!`);
       document.getElementById('create-ladder-form').reset();
+      // Reset type selector back to default
+      selectLadderType('rotating_partner');
       await loadLadderSelector();
       await loadLaddersPage();
     } catch (err) {
@@ -803,10 +859,16 @@
   const openEditLadder = (id) => {
     const l = allLadders.find((x) => x.id === id);
     if (!l) return;
-    document.getElementById('edit-ladder-id').value  = l.id;
+    document.getElementById('edit-ladder-id').value    = l.id;
     document.getElementById('edit-ladder-name').value  = l.name;
     document.getElementById('edit-ladder-start').value = l.start_date || '';
     document.getElementById('edit-ladder-end').value   = l.end_date   || '';
+    // Show ladder type as read-only badge
+    const typeEl  = document.getElementById('edit-ladder-type');
+    const badgeEl = document.getElementById('edit-ladder-type-badge');
+    const typeLabel = l.ladder_type === 'ftc' ? '🏆 Ferocia Team Challenge Ladder' : '🔄 Rotating Partner Ladder';
+    if (typeEl)  typeEl.value       = l.ladder_type || 'rotating_partner';
+    if (badgeEl) badgeEl.textContent = typeLabel;
     const modal = document.getElementById('edit-ladder-modal');
     if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
   };
@@ -6075,7 +6137,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   // Sidebar initialized — set home as active on boot
   sbSetActive('home');
   // Hide ladder sub-items until a ladder is selected
-  ['sb-standings','sb-sessions','sb-entry'].forEach(id => {
+  ['sb-standings','sb-sessions','sb-entry','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
