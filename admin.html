@@ -1237,17 +1237,17 @@
   <div id="page-ftc-teams" class="page">
 <style>
 /* FTC Teams Page */
-.ftc-hero{border-radius:14px;background:linear-gradient(135deg,#080f2e 0%,#0d1f4a 60%,#174CCC 100%);padding:28px 28px 24px;margin-bottom:16px;position:relative;overflow:hidden;}
-.ftc-hero::before{content:'';position:absolute;top:-30px;right:-30px;width:180px;height:180px;border-radius:50%;background:rgba(198,242,33,0.06);pointer-events:none;}
-.ftc-hero::after{content:'';position:absolute;bottom:-40px;right:60px;width:120px;height:120px;border-radius:50%;background:rgba(23,76,204,0.3);pointer-events:none;}
-.ftc-hero-eyebrow{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(198,242,33,0.8);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
-.ftc-hero-title{font-family:'Bebas Neue',sans-serif;font-size:26px;color:white;letter-spacing:1px;line-height:1;margin-bottom:4px;}
-.ftc-hero-sub{font-size:12px;font-weight:600;color:rgba(255,255,255,0.5);margin-bottom:16px;}
+.ftc-hero{border-radius:14px;background:white;border:0.5px solid #e0e7f5;padding:24px 28px 20px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(23,76,204,0.06);}
+.ftc-hero::before{content:'';position:absolute;top:-20px;right:-20px;width:160px;height:160px;border-radius:50%;background:rgba(23,76,204,0.04);pointer-events:none;}
+.ftc-hero::after{display:none;}
+.ftc-hero-eyebrow{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#174CCC;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.ftc-hero-title{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:4px;}
+.ftc-hero-sub{font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:16px;}
 .ftc-hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
-.ftc-hero-stat{background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;}
-.ftc-hero-stat-label{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:4px;}
-.ftc-hero-stat-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:white;line-height:1;}
-.ftc-hero-stat-sub{font-size:9px;font-weight:600;color:rgba(255,255,255,0.35);margin-top:2px;}
+.ftc-hero-stat{background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;padding:10px 12px;}
+.ftc-hero-stat-label{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:4px;}
+.ftc-hero-stat-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0d1f4a;line-height:1;}
+.ftc-hero-stat-sub{font-size:9px;font-weight:600;color:#b0bbd6;margin-top:2px;}
 .ftc-register-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border:none;border-radius:99px;background:linear-gradient(135deg,#C6F221,#a8d400);color:#080f2e;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(198,242,33,0.3);transition:all .15s;letter-spacing:.3px;}
 .ftc-register-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(198,242,33,0.4);}
 /* Team Cards */
@@ -1346,8 +1346,8 @@
         </div>
         <div class="ftc-hero-stat">
           <div class="ftc-hero-stat-label">Match Format</div>
-          <div class="ftc-hero-stat-val" style="font-size:14px;padding-top:3px;">Team</div>
-          <div class="ftc-hero-stat-sub">Battle format</div>
+          <div class="ftc-hero-stat-val" style="font-size:14px;padding-top:3px;">4v4</div>
+          <div class="ftc-hero-stat-sub">Team Battle</div>
         </div>
         <div class="ftc-hero-stat">
           <div class="ftc-hero-stat-label">Game Type</div>
@@ -1356,7 +1356,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.35);" id="ftc-hero-tagline">🔥 Ferocia Team Challenge &nbsp;&bull;&nbsp; Playoffs Included</div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a99;" id="ftc-hero-tagline">🔥 Ferocia Team Challenge &nbsp;&bull;&nbsp; Playoffs Included</div>
         <button class="ftc-register-btn" onclick="ftcOpenRegisterModal()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
           Register Team
@@ -1365,7 +1365,7 @@
     </div>
 
     <!-- SECTION 2: Search -->
-    <div class="ftc-search-wrap">
+    <div class="ftc-search-wrap" id="ftc-search-wrap" style="display:none;">
       <svg class="ftc-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input class="ftc-search-input" type="text" id="ftc-search" placeholder="Search by team, captain, or player..." oninput="ftcFilterTeams(this.value)">
     </div>

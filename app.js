@@ -5947,6 +5947,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       );
       const statEl = document.getElementById('ftc-stat-teams');
       if (statEl) statEl.textContent = ftcTeams.length;
+      // Show search only when at least 1 team exists
+      const searchWrap = document.getElementById('ftc-search-wrap');
+      if (searchWrap) searchWrap.style.display = ftcTeams.length > 0 ? 'block' : 'none';
       renderFtcTeams();
     } catch (err) {
       el.innerHTML = `<div class="error">Error: ${esc(err.message)}</div>`;
@@ -5973,7 +5976,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     if (!teams.length && !filterStr) {
       el.innerHTML = `<div class="ftc-empty">
-        <div class="ftc-empty-icon">🏆</div>
+        <div class="ftc-empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4;"><circle cx="12" cy="8" r="5"/><path d="M8.56 13.9l-1.56 6.1 5-3 5 3-1.56-6.1"/></svg>
+        </div>
         <div class="ftc-empty-title">Ready to build the competition?</div>
         <div class="ftc-empty-sub">Register the first team and start the season.<br>Teams will appear here once registered.</div>
         <button class="ftc-register-btn" onclick="ftcOpenRegisterModal()" style="margin:0 auto;">
