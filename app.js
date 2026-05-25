@@ -5989,31 +5989,53 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   };
 
   // ── Load schedule page ────────────────────────────────────────────────
-  const loadFtcSchedule = async () => {
-    if (!currentLadder) return;
-    const subEl = document.getElementById('ftc-sch-subtitle');
-    if (subEl) subEl.textContent = `${currentLadder.name} — Season Schedule`;
+  // Team color palette for shields
+  const FTC_TEAM_COLORS = ['#174CCC','#F26024','#24BC96','#9a6e00','#7B2FBE','#C04A0E','#085041','#B91C1C'];
+  const FTC_COURT_COLORS = ['#174CCC','#24BC96','#F26024','#9a6e00','#7B2FBE'];
 
-    // Show team count hint
+  const ftcTeamInitials = (name) => {
+    if (!name) return '?';
+    const words = name.trim().split(/\s+/);
+    return words.length >= 2 ? (words[0][0] + words[1][0]).toUpperCase() : name.slice(0,2).toUpperCase();
+  };
+
+  const ftcTeamColor = (teamId) => {
+    const idx = ftcTeams.findIndex(t => t.id === teamId);
+    return FTC_TEAM_COLORS[idx >= 0 ? idx % FTC_TEAM_COLORS.length : 0];
+  };
+
+  window.ftcUpdateSchStats = () => {
+    const n = ftcTeams.length;
+    const weeks = document.getElementById('ftc-sch-weeks')?.value || '6';
+    const court = document.getElementById('ftc-sch-court')?.value?.trim() || '—';
+    const teamsEl = document.getElementById('ftc-sch-stat-teams');
+    const teamsSubEl = document.getElementById('ftc-sch-stat-teams-sub');
+    const weeksEl = document.getElementById('ftc-sch-stat-weeks');
+    const courtsEl = document.getElementById('ftc-sch-stat-courts');
+    if (teamsEl) teamsEl.textContent = n;
+    if (teamsSubEl) teamsSubEl.textContent = n % 2 === 0 ? 'All teams play each week' : '1 team gets a bye each week';
+    if (weeksEl) weeksEl.textContent = `${weeks} weeks`;
+    if (courtsEl) courtsEl.textContent = court || '—';
     const countEl = document.getElementById('ftc-sch-team-count');
     if (countEl) {
-      const n = ftcTeams.length;
       if (n < 2) {
-        countEl.textContent = `⚠ Register at least 2 teams before generating a schedule.`;
+        countEl.innerHTML = '⚠ Register at least 2 teams before generating a schedule.';
         countEl.style.color = 'var(--orange)';
       } else {
-        const weeks = parseInt(document.getElementById('ftc-sch-weeks')?.value || '6', 10);
-        countEl.textContent = `${n} team${n!==1?'s':''} registered · ${n%2===0?'All teams play each week':'1 team gets a bye each week'}`;
-        countEl.style.color = '#6b7a99';
+        countEl.innerHTML = `${n} teams registered &nbsp;•&nbsp; ${n%2===0?'All teams play each week':'1 team gets a bye each week'} &nbsp;•&nbsp; Matches are automatically balanced`;
+        countEl.style.color = '#174CCC';
       }
     }
+  };
 
+  const loadFtcSchedule = async () => {
+    if (!currentLadder) return;
     // Pre-fill start date from ladder start_date
     const startEl = document.getElementById('ftc-sch-start-date');
     if (startEl && !startEl.value && currentLadder.start_date) {
       startEl.value = currentLadder.start_date;
     }
-
+    ftcUpdateSchStats();
     const el = document.getElementById('ftc-schedule-list');
     el.innerHTML = '<div class="loading">Loading schedule...</div>';
     try {
@@ -6028,37 +6050,84 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
   // ── Preview schedule (no save) ────────────────────────────────────────
   window.ftcPreviewSchedule = () => {
-    const preview = document.getElementById('ftc-sch-preview');
-    if (!preview) return;
     if (ftcTeams.length < 2) {
       toast('Register at least 2 teams before generating a schedule.', true);
       return;
     }
-    const weeks    = parseInt(document.getElementById('ftc-sch-weeks')?.value || '6', 10);
-    const startDate= document.getElementById('ftc-sch-start-date')?.value;
-    const targetDay= parseInt(document.getElementById('ftc-sch-day')?.value || '6', 10);
+    const weeks     = parseInt(document.getElementById('ftc-sch-weeks')?.value || '6', 10);
+    const startDate = document.getElementById('ftc-sch-start-date')?.value;
+    const targetDay = parseInt(document.getElementById('ftc-sch-day')?.value || '6', 10);
     if (!startDate) { toast('Please select a start date.', true); return; }
 
+    ftcUpdateSchStats();
     const firstMatchDate = ftcNextWeekday(startDate, targetDay);
     const rounds = ftcGenerateRoundRobin(ftcTeams, weeks);
-    const teamName = (t) => t ? (esc(t.name) || `Team ${ftcTeams.indexOf(t)+1}`) : '—';
 
-    let html = `<div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#174CCC;margin-bottom:8px;">Preview — ${weeks} weeks</div>`;
+    // Update preview card title
+    const titleTxt = document.getElementById('ftc-preview-title-txt');
+    if (titleTxt) titleTxt.textContent = `PREVIEW — ${weeks} WEEKS`;
+
+    // Build court legend from actual court input
+    const courtStr = document.getElementById('ftc-sch-court')?.value?.trim() || '';
+    const courts = courtStr ? courtStr.split(',').map(c => c.trim()).filter(Boolean) : [];
+    const legendEl = document.getElementById('ftc-preview-legend');
+    if (legendEl) {
+      legendEl.innerHTML = courts.map((c, i) =>
+        `<div class="ftc-legend-item"><span class="ftc-ldot" style="background:${FTC_COURT_COLORS[i % FTC_COURT_COLORS.length]};"></span>Court ${esc(c)}</div>`
+      ).join('');
+    }
+
+    // Build team name + initials helper
+    const tName = (t) => t ? esc(t.name || `Team ${ftcTeams.indexOf(t)+1}`) : '—';
+    const tInit = (t) => t ? ftcTeamInitials(t.name || `T${ftcTeams.indexOf(t)+1}`) : '?';
+    const tColor = (t) => t ? FTC_TEAM_COLORS[ftcTeams.indexOf(t) % FTC_TEAM_COLORS.length] : '#174CCC';
+
+    // Build team shield HTML
+    const shield = (t) => `<div class="ftc-team-shield" style="background:${tColor(t)};">${tInit(t)}</div>`;
+
+    // Build week rows
+    let weeksHtml = '';
     rounds.forEach((round, i) => {
       const date = ftcAddWeeks(firstMatchDate, i);
-      html += `<div style="display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:0.5px solid #f4f5f8;">
-        <div style="width:60px;font-size:10px;font-weight:800;color:#6b7a99;padding-top:1px;">Week ${round.week}</div>
-        <div style="font-size:10px;font-weight:600;color:#b0bbd6;width:70px;padding-top:1px;">${ftcFmtDate(date)}</div>
-        <div style="flex:1;">
-          ${round.matchups.map(m => m.bye
-            ? `<div style="color:#b0bbd6;font-size:11px;font-weight:600;">BYE: ${teamName(m.teamA)}</div>`
-            : `<div style="font-size:11px;font-weight:700;color:#0d1f4a;">${teamName(m.teamA)} <span style="color:#b0bbd6;font-size:9px;">vs</span> ${teamName(m.teamB)}</div>`
-          ).join('')}
+      const matchups = round.matchups.filter(m => !m.bye);
+      const byes     = round.matchups.filter(m => m.bye);
+
+      // Build court blocks for this week (each matchup gets its own court column)
+      let courtBlocks = matchups.map((m, ci) => {
+        const courtLabel = courts[ci] ? `Court ${esc(courts[ci])}` : `Match ${ci+1}`;
+        const courtColor = FTC_COURT_COLORS[ci % FTC_COURT_COLORS.length];
+        return `<div class="ftc-court-block">
+          <div class="ftc-court-lbl">
+            <span class="ftc-ldot" style="background:${courtColor};"></span>
+            <span style="color:${courtColor};">${courtLabel}</span>
+          </div>
+          <div class="ftc-matchup-teams">
+            <div class="ftc-team-side">${shield(m.teamA)}<span class="ftc-team-name">${tName(m.teamA)}</span></div>
+            <span class="ftc-vs-sep">vs</span>
+            <div class="ftc-team-side">${shield(m.teamB)}<span class="ftc-team-name">${tName(m.teamB)}</span></div>
+          </div>
+        </div>`;
+      }).join('');
+
+      // Bye column
+      if (byes.length) {
+        courtBlocks += `<div class="ftc-bye-block"><div class="ftc-bye-txt">Bye / Rest</div></div>`;
+      }
+
+      weeksHtml += `<div class="ftc-wk-row">
+        <div class="ftc-wk-left">
+          <div class="ftc-wk-badge">Week ${round.week}</div>
+          <div class="ftc-wk-date">${ftcFmtDate(date)}</div>
         </div>
+        <div class="ftc-wk-courts">${courtBlocks}</div>
       </div>`;
     });
-    preview.innerHTML = html;
-    preview.style.display = 'block';
+
+    const weeksEl = document.getElementById('ftc-preview-weeks');
+    if (weeksEl) weeksEl.innerHTML = weeksHtml;
+
+    const card = document.getElementById('ftc-sch-preview-card');
+    if (card) card.style.display = 'block';
   };
 
   // ── Generate and save schedule to DB ─────────────────────────────────
@@ -6121,10 +6190,12 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   const renderFtcSchedule = () => {
     const el = document.getElementById('ftc-schedule-list');
     if (!ftcSchedule.length) {
-      el.innerHTML = `<div class="card" style="padding:28px;text-align:center;">
-        <div style="font-size:28px;margin-bottom:10px;">📅</div>
-        <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">No schedule yet</div>
-        <div style="font-size:11px;font-weight:600;color:#6b7a99;">Fill in the form above and click Generate &amp; Save to create the season schedule.</div>
+      el.innerHTML = `<div class="card" style="padding:40px 24px;text-align:center;">
+        <div style="margin-bottom:14px;">
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#b0bbd6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">No schedule saved yet</div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a99;line-height:1.6;">Adjust your settings above and click "Generate &amp; Save"<br>to create and save your season schedule.</div>
       </div>`;
       return;
     }

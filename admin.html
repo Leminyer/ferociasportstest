@@ -1637,17 +1637,57 @@
 
   <div id="page-ftc-schedule" class="page">
 <style>
-.ftc-sch-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
-.ftc-sch-title{font-size:13px;font-weight:800;color:#0d1f4a;}
-.ftc-sch-sub{font-size:11px;font-weight:600;color:#6b7a99;margin-top:2px;}
-.ftc-gen-card{background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(23,76,204,0.06);}
-.ftc-gen-label{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#174CCC;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
-.ftc-gen-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
+/* ── FTC Schedule Page ─────────────────── */
+.ftc-sch-gen-card{background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:20px 24px;margin-bottom:14px;box-shadow:0 1px 4px rgba(23,76,204,0.06);}
+.ftc-gen-label{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#174CCC;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+.ftc-gen-sub{font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;}
 .ftc-gen-field{display:flex;flex-direction:column;gap:4px;}
-.ftc-gen-flabel{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#6b7a99;}
+.ftc-gen-flabel{font-size:10px;font-weight:800;color:#0d1f4a;letter-spacing:.1px;}
+.ftc-gen-flabel-req{color:#e53935;}
 .ftc-gen-input{padding:8px 10px;border:1px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;color:#0d1f4a;outline:none;width:100%;}
 .ftc-gen-input:focus{border-color:#174CCC;box-shadow:0 0 0 3px rgba(23,76,204,0.08);}
 .ftc-gen-select{padding:8px 10px;border:1px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;color:#0d1f4a;outline:none;background:white;width:100%;}
+.ftc-gen-hint{font-size:9px;font-weight:600;color:#b0bbd6;margin-top:1px;}
+.ftc-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.ftc-stat-box{background:white;border:0.5px solid #e0e7f5;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(23,76,204,0.04);}
+.ftc-stat-ibox{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ftc-stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-bottom:2px;}
+.ftc-stat-val{font-size:13px;font-weight:800;color:#0d1f4a;line-height:1.2;}
+.ftc-stat-sub{font-size:9px;font-weight:600;color:#b0bbd6;margin-top:1px;}
+.ftc-info-bar{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f0f4ff;border-radius:8px;border-left:3px solid #174CCC;font-size:11px;font-weight:600;color:#174CCC;margin-bottom:14px;}
+/* Preview card */
+.ftc-preview-card{background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:20px 24px;margin-bottom:14px;box-shadow:0 1px 4px rgba(23,76,204,0.06);display:none;}
+.ftc-preview-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.ftc-preview-title{font-size:12px;font-weight:800;color:#0d1f4a;display:flex;align-items:center;gap:8px;}
+.ftc-bal-badge{font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;background:rgba(36,188,150,0.12);color:#085041;letter-spacing:.3px;text-transform:uppercase;}
+.ftc-preview-sub{font-size:10px;font-weight:600;color:#6b7a99;margin-bottom:14px;}
+.ftc-legend{display:flex;gap:12px;}
+.ftc-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#0d1f4a;}
+.ftc-ldot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+/* Week rows */
+.ftc-wk-row{display:flex;align-items:flex-start;padding:12px 0;border-bottom:0.5px solid #f0f2f8;}
+.ftc-wk-row:last-child{border-bottom:none;}
+.ftc-wk-left{width:110px;flex-shrink:0;padding-top:2px;}
+.ftc-wk-badge{display:inline-flex;padding:3px 10px;border-radius:99px;background:#e8f0ff;font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.ftc-wk-date{font-size:10px;font-weight:600;color:#6b7a99;}
+.ftc-wk-courts{display:flex;flex:1;}
+.ftc-court-block{flex:1;padding:0 14px;border-right:0.5px solid #f0f2f8;}
+.ftc-court-block:first-child{padding-left:0;}
+.ftc-court-block:last-child{border-right:none;}
+.ftc-court-lbl{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
+.ftc-matchup-teams{display:flex;align-items:center;gap:8px;}
+.ftc-team-side{display:flex;align-items:center;gap:6px;}
+.ftc-team-shield{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:800;color:white;}
+.ftc-team-name{font-size:12px;font-weight:800;color:#0d1f4a;line-height:1.2;}
+.ftc-vs-sep{font-size:9px;font-weight:800;color:#b0bbd6;flex-shrink:0;}
+.ftc-bye-block{flex:0.6;padding:0 14px;display:flex;align-items:center;}
+.ftc-bye-txt{font-size:10px;font-weight:700;color:#b0bbd6;padding-top:14px;}
+/* Status pills (reused in schedule list) */
+.ftc-status-pill{font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:2px 8px;border-radius:99px;}
+.ftc-status-scheduled{background:#e8f0ff;color:#174CCC;}
+.ftc-status-completed{background:rgba(36,188,150,0.12);color:#085041;}
+.ftc-edit-mini{padding:4px 10px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;white-space:nowrap;}
+/* Schedule list week cards */
 .ftc-week-card{background:white;border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.04);}
 .ftc-week-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;cursor:pointer;}
 .ftc-week-label{font-size:12px;font-weight:800;color:#0d1f4a;display:flex;align-items:center;gap:8px;}
@@ -1655,39 +1695,94 @@
 .ftc-week-body{padding:12px 16px;}
 .ftc-matchup-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid #f4f5f8;}
 .ftc-matchup-row:last-child{border-bottom:none;}
-.ftc-matchup-teams{flex:1;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#0d1f4a;}
+.ftc-matchup-block{flex:1;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#0d1f4a;}
 .ftc-matchup-vs{font-size:9px;font-weight:800;color:#b0bbd6;background:#f0f2f8;padding:2px 6px;border-radius:99px;}
 .ftc-bye-badge{font-size:10px;font-weight:700;color:#6b7a99;background:#f4f5f8;padding:3px 8px;border-radius:99px;}
-.ftc-edit-mini{padding:4px 10px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;white-space:nowrap;}
-.ftc-override-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
-.ftc-override-input{padding:5px 8px;border:1px solid #e0e7f5;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;color:#0d1f4a;outline:none;width:auto;}
-.ftc-override-input:focus{border-color:#174CCC;}
-.ftc-status-pill{font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:2px 8px;border-radius:99px;}
-.ftc-status-scheduled{background:#e8f0ff;color:#174CCC;}
-.ftc-status-completed{background:rgba(36,188,150,0.12);color:#085041;}
 </style>
 
-    <!-- Header -->
-    <div class="ftc-sch-header">
-      <div>
-        <div class="ftc-sch-title">Season Schedule</div>
-        <div class="ftc-sch-sub" id="ftc-sch-subtitle">Generate and manage the weekly match schedule.</div>
+    <!-- Page Header: title + subtext + step indicator -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="width:44px;height:44px;border-radius:10px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:800;color:#0d1f4a;line-height:1.2;margin-bottom:3px;">Season Schedule</div>
+          <div style="font-size:11px;font-weight:600;color:#6b7a99;">Create and manage your season schedule.</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="width:22px;height:22px;border-radius:50%;background:#174CCC;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;">1</span>
+          <span style="font-size:11px;font-weight:800;color:#174CCC;">Configure Schedule</span>
+        </div>
+        <span style="color:#b0bbd6;font-size:11px;">——</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="width:22px;height:22px;border-radius:50%;background:#e0e7f5;color:#6b7a99;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;">2</span>
+          <span style="font-size:11px;font-weight:700;color:#6b7a99;">Review</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stat Cards Row -->
+    <div class="ftc-stat-row">
+      <div class="ftc-stat-box">
+        <div class="ftc-stat-ibox" style="background:rgba(36,188,150,0.1);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div>
+          <div class="ftc-stat-lbl">Teams Registered</div>
+          <div class="ftc-stat-val" id="ftc-sch-stat-teams">—</div>
+          <div class="ftc-stat-sub" id="ftc-sch-stat-teams-sub">—</div>
+        </div>
+      </div>
+      <div class="ftc-stat-box">
+        <div class="ftc-stat-ibox" style="background:#e8f0ff;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div>
+          <div class="ftc-stat-lbl">Season Length</div>
+          <div class="ftc-stat-val" id="ftc-sch-stat-weeks">6 weeks</div>
+          <div class="ftc-stat-sub">Regular season</div>
+        </div>
+      </div>
+      <div class="ftc-stat-box">
+        <div class="ftc-stat-ibox" style="background:rgba(242,96,36,0.08);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        </div>
+        <div>
+          <div class="ftc-stat-lbl">Courts per Match</div>
+          <div class="ftc-stat-val" id="ftc-sch-stat-courts">—</div>
+          <div class="ftc-stat-sub">Courts assigned</div>
+        </div>
+      </div>
+      <div class="ftc-stat-box">
+        <div class="ftc-stat-ibox" style="background:rgba(255,215,0,0.15);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9a6e00" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+        </div>
+        <div>
+          <div class="ftc-stat-lbl">Match Format</div>
+          <div class="ftc-stat-val">Team Challenge</div>
+          <div class="ftc-stat-sub">Head-to-head team play</div>
+        </div>
       </div>
     </div>
 
     <!-- Generate Schedule Card -->
-    <div class="ftc-gen-card" id="ftc-gen-card">
+    <div class="ftc-sch-gen-card" id="ftc-gen-card">
       <div class="ftc-gen-label">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Generate Season Schedule
       </div>
-      <div class="ftc-gen-grid" style="margin-bottom:14px;">
+      <div class="ftc-gen-sub">Set the parameters below to automatically generate your season schedule.</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px;">
         <div class="ftc-gen-field">
-          <div class="ftc-gen-flabel">Start Date <span style="color:#e53935;">*</span></div>
+          <div class="ftc-gen-flabel">Start Date <span class="ftc-gen-flabel-req">*</span></div>
           <input type="date" id="ftc-sch-start-date" class="ftc-gen-input">
+          <div class="ftc-gen-hint">When the season will begin</div>
         </div>
         <div class="ftc-gen-field">
-          <div class="ftc-gen-flabel">Day of Week <span style="color:#e53935;">*</span></div>
+          <div class="ftc-gen-flabel">Day of Week <span class="ftc-gen-flabel-req">*</span></div>
           <select id="ftc-sch-day" class="ftc-gen-select">
             <option value="0">Sunday</option>
             <option value="1">Monday</option>
@@ -1697,38 +1792,59 @@
             <option value="5">Friday</option>
             <option value="6">Saturday</option>
           </select>
+          <div class="ftc-gen-hint">Day of the week for matches</div>
         </div>
         <div class="ftc-gen-field">
-          <div class="ftc-gen-flabel">Match Time</div>
+          <div class="ftc-gen-flabel">Match Time <span class="ftc-gen-flabel-req">*</span></div>
           <input type="time" id="ftc-sch-time" class="ftc-gen-input" value="10:00">
+          <div class="ftc-gen-hint">Start time for all weekly matches</div>
         </div>
         <div class="ftc-gen-field">
-          <div class="ftc-gen-flabel">Court(s)</div>
+          <div class="ftc-gen-flabel">Court(s) <span class="ftc-gen-flabel-req">*</span></div>
           <input type="text" id="ftc-sch-court" class="ftc-gen-input" placeholder="e.g. 1, 2, 3">
+          <div class="ftc-gen-hint">Courts to be used each week</div>
         </div>
         <div class="ftc-gen-field">
-          <div class="ftc-gen-flabel">Season Weeks</div>
-          <select id="ftc-sch-weeks" class="ftc-gen-select">
+          <div class="ftc-gen-flabel">Season Weeks <span class="ftc-gen-flabel-req">*</span></div>
+          <select id="ftc-sch-weeks" class="ftc-gen-select" onchange="ftcUpdateSchStats()">
             <option value="6" selected>6 weeks</option>
             <option value="7">7 weeks</option>
             <option value="8">8 weeks</option>
+            <option value="9">9 weeks</option>
             <option value="10">10 weeks</option>
             <option value="12">12 weeks</option>
+            <option value="14">14 weeks</option>
           </select>
         </div>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:11px;font-weight:600;color:#6b7a99;" id="ftc-sch-team-count">—</div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="ftcPreviewSchedule()" style="padding:8px 16px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:#174CCC;cursor:pointer;">Preview</button>
-          <button onclick="ftcGenerateSchedule()" class="ap-submit-btn" style="padding:8px 18px;font-size:11px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-            Generate &amp; Save
-          </button>
-        </div>
+      <div class="ftc-info-bar">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="ftc-sch-team-count">—</span>
       </div>
-      <!-- Preview output -->
-      <div id="ftc-sch-preview" style="display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid #e0e7f5;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button onclick="ftcPreviewSchedule()" style="padding:8px 18px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:#174CCC;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Preview Schedule
+        </button>
+        <button onclick="ftcGenerateSchedule()" class="ap-submit-btn" style="padding:8px 18px;font-size:11px;display:flex;align-items:center;gap:6px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          Generate &amp; Save
+        </button>
+      </div>
+    </div>
+
+    <!-- Preview Card (separate white box, shown after Preview click) -->
+    <div class="ftc-preview-card" id="ftc-sch-preview-card">
+      <div class="ftc-preview-hdr">
+        <div class="ftc-preview-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span id="ftc-preview-title-txt">PREVIEW — 6 WEEKS</span>
+          <span class="ftc-bal-badge">Balanced</span>
+        </div>
+        <div class="ftc-legend" id="ftc-preview-legend"></div>
+      </div>
+      <div class="ftc-preview-sub">This is a preview of your season schedule. You can adjust settings above and preview again.</div>
+      <div id="ftc-preview-weeks"></div>
     </div>
 
     <!-- Schedule list -->
