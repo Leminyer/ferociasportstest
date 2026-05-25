@@ -485,6 +485,7 @@ window.selectLadderType = (type) => {
     if (name === 'entry') initEntry();
     if (name === 'ladders') loadLaddersPage();
     if (name === 'ftc-teams') loadFtcTeams();
+    if (name === 'ftc-schedule') loadFtcSchedule();
     if (name === 'add-player') initAddPlayer();
     if (name === 'share') loadSharePage();
     if (name === 'orders') loadOrdersPage();
@@ -5919,6 +5920,320 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   };
 
   /* ─── EVENT DELEGATION ─────────────────────────────────── */
+
+  /* ─── FTC LADDER — PHASE 3: SCHEDULE GENERATION ─────────── */
+
+  let ftcSchedule = []; // loaded schedule rows from DB
+
+  // ── Round-robin schedule algorithm (circle method) ────────────────────
+  // Returns array of rounds, each round is array of {teamA, teamB} or {teamA, bye:true}
+  const ftcGenerateRoundRobin = (teams, totalWeeks) => {
+    const n = teams.length;
+    if (n < 2) return [];
+
+    // For odd number of teams, add a dummy bye team
+    const list = n % 2 === 0 ? [...teams] : [...teams, null];
+    const size  = list.length;
+    const rounds = [];
+
+    for (let r = 0; r < size - 1; r++) {
+      const round = [];
+      for (let i = 0; i < size / 2; i++) {
+        const home = list[i];
+        const away = list[size - 1 - i];
+        if (home === null || away === null) {
+          // bye — the non-null team sits out
+          const realTeam = home !== null ? home : away;
+          round.push({ teamA: realTeam, teamB: null, bye: true });
+        } else {
+          round.push({ teamA: home, teamB: away, bye: false });
+        }
+      }
+      rounds.push(round);
+      // Rotate all except first element
+      const last = list.splice(size - 1, 1)[0];
+      list.splice(1, 0, last);
+    }
+
+    // If totalWeeks > rounds.length, repeat the schedule
+    const result = [];
+    let weekNum = 1;
+    while (result.length < totalWeeks) {
+      const round = rounds[result.length % rounds.length];
+      result.push({ week: weekNum++, matchups: round });
+    }
+    return result.slice(0, totalWeeks);
+  };
+
+  // ── Get the next occurrence of a weekday from a start date ───────────
+  const ftcNextWeekday = (startDateStr, targetDay) => {
+    const d = new Date(startDateStr + 'T00:00:00');
+    const current = d.getDay();
+    const diff = (targetDay - current + 7) % 7;
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().slice(0, 10);
+  };
+
+  // ── Add weeks to a date ───────────────────────────────────────────────
+  const ftcAddWeeks = (dateStr, weeks) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + weeks * 7);
+    return d.toISOString().slice(0, 10);
+  };
+
+  // ── Format date for display ───────────────────────────────────────────
+  const ftcFmtDate = (iso) => {
+    if (!iso) return '—';
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+  };
+
+  // ── Load schedule page ────────────────────────────────────────────────
+  const loadFtcSchedule = async () => {
+    if (!currentLadder) return;
+    const subEl = document.getElementById('ftc-sch-subtitle');
+    if (subEl) subEl.textContent = `${currentLadder.name} — Season Schedule`;
+
+    // Show team count hint
+    const countEl = document.getElementById('ftc-sch-team-count');
+    if (countEl) {
+      const n = ftcTeams.length;
+      if (n < 2) {
+        countEl.textContent = `⚠ Register at least 2 teams before generating a schedule.`;
+        countEl.style.color = 'var(--orange)';
+      } else {
+        const weeks = parseInt(document.getElementById('ftc-sch-weeks')?.value || '6', 10);
+        countEl.textContent = `${n} team${n!==1?'s':''} registered · ${n%2===0?'All teams play each week':'1 team gets a bye each week'}`;
+        countEl.style.color = '#6b7a99';
+      }
+    }
+
+    // Pre-fill start date from ladder start_date
+    const startEl = document.getElementById('ftc-sch-start-date');
+    if (startEl && !startEl.value && currentLadder.start_date) {
+      startEl.value = currentLadder.start_date;
+    }
+
+    const el = document.getElementById('ftc-schedule-list');
+    el.innerHTML = '<div class="loading">Loading schedule...</div>';
+    try {
+      ftcSchedule = await api(
+        `ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}&select=*&order=week_number,id`
+      );
+      renderFtcSchedule();
+    } catch (err) {
+      el.innerHTML = `<div class="error">Error: ${esc(err.message)}</div>`;
+    }
+  };
+
+  // ── Preview schedule (no save) ────────────────────────────────────────
+  window.ftcPreviewSchedule = () => {
+    const preview = document.getElementById('ftc-sch-preview');
+    if (!preview) return;
+    if (ftcTeams.length < 2) {
+      toast('Register at least 2 teams before generating a schedule.', true);
+      return;
+    }
+    const weeks    = parseInt(document.getElementById('ftc-sch-weeks')?.value || '6', 10);
+    const startDate= document.getElementById('ftc-sch-start-date')?.value;
+    const targetDay= parseInt(document.getElementById('ftc-sch-day')?.value || '6', 10);
+    if (!startDate) { toast('Please select a start date.', true); return; }
+
+    const firstMatchDate = ftcNextWeekday(startDate, targetDay);
+    const rounds = ftcGenerateRoundRobin(ftcTeams, weeks);
+    const teamName = (t) => t ? (esc(t.name) || `Team ${ftcTeams.indexOf(t)+1}`) : '—';
+
+    let html = `<div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#174CCC;margin-bottom:8px;">Preview — ${weeks} weeks</div>`;
+    rounds.forEach((round, i) => {
+      const date = ftcAddWeeks(firstMatchDate, i);
+      html += `<div style="display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:0.5px solid #f4f5f8;">
+        <div style="width:60px;font-size:10px;font-weight:800;color:#6b7a99;padding-top:1px;">Week ${round.week}</div>
+        <div style="font-size:10px;font-weight:600;color:#b0bbd6;width:70px;padding-top:1px;">${ftcFmtDate(date)}</div>
+        <div style="flex:1;">
+          ${round.matchups.map(m => m.bye
+            ? `<div style="color:#b0bbd6;font-size:11px;font-weight:600;">BYE: ${teamName(m.teamA)}</div>`
+            : `<div style="font-size:11px;font-weight:700;color:#0d1f4a;">${teamName(m.teamA)} <span style="color:#b0bbd6;font-size:9px;">vs</span> ${teamName(m.teamB)}</div>`
+          ).join('')}
+        </div>
+      </div>`;
+    });
+    preview.innerHTML = html;
+    preview.style.display = 'block';
+  };
+
+  // ── Generate and save schedule to DB ─────────────────────────────────
+  window.ftcGenerateSchedule = async () => {
+    if (ftcTeams.length < 2) {
+      toast('Register at least 2 teams before generating a schedule.', true);
+      return;
+    }
+    const weeks     = parseInt(document.getElementById('ftc-sch-weeks')?.value || '6', 10);
+    const startDate = document.getElementById('ftc-sch-start-date')?.value;
+    const targetDay = parseInt(document.getElementById('ftc-sch-day')?.value || '6', 10);
+    const time      = document.getElementById('ftc-sch-time')?.value || null;
+    const court     = document.getElementById('ftc-sch-court')?.value.trim() || null;
+    if (!startDate) { toast('Please select a start date.', true); return; }
+
+    // Confirm if schedule already exists
+    if (ftcSchedule.length > 0) {
+      const ok = await confirmModal({
+        title:   'Regenerate Schedule?',
+        message: 'This will delete the existing schedule and create a new one. Match results already recorded will also be deleted. This cannot be undone.',
+        confirm: 'Regenerate',
+        danger:  true,
+      });
+      if (!ok) return;
+      // Delete existing schedule (cascade deletes matches)
+      await api(`ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}`, 'DELETE');
+    }
+
+    const firstMatchDate = ftcNextWeekday(startDate, targetDay);
+    const rounds = ftcGenerateRoundRobin(ftcTeams, weeks);
+
+    const rows = [];
+    rounds.forEach((round, i) => {
+      const matchDate = ftcAddWeeks(firstMatchDate, i);
+      round.matchups.forEach(m => {
+        rows.push({
+          ladder_id:   currentLadder.id,
+          week_number: round.week,
+          match_date:  matchDate,
+          match_time:  time,
+          court:       court,
+          team_a_id:   m.teamA?.id || null,
+          team_b_id:   m.bye ? null : (m.teamB?.id || null),
+          is_bye:      m.bye,
+          status:      'scheduled',
+        });
+      });
+    });
+
+    try {
+      await api('ftc_ladder_schedule', 'POST', rows);
+      toast(`Schedule generated — ${weeks} weeks, ${rows.length} matchups!`);
+      await loadFtcSchedule();
+    } catch (err) {
+      toast(`Error: ${err.message}`, true);
+    }
+  };
+
+  // ── Render schedule list ──────────────────────────────────────────────
+  const renderFtcSchedule = () => {
+    const el = document.getElementById('ftc-schedule-list');
+    if (!ftcSchedule.length) {
+      el.innerHTML = `<div class="card" style="padding:28px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:10px;">📅</div>
+        <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">No schedule yet</div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a99;">Fill in the form above and click Generate &amp; Save to create the season schedule.</div>
+      </div>`;
+      return;
+    }
+
+    // Group by week
+    const byWeek = {};
+    ftcSchedule.forEach(s => {
+      if (!byWeek[s.week_number]) byWeek[s.week_number] = [];
+      byWeek[s.week_number].push(s);
+    });
+
+    const teamName = (id) => {
+      if (!id) return '<span style="color:#b0bbd6;">TBD</span>';
+      const t = ftcTeams.find(x => x.id === id);
+      return t ? esc(t.name || `Team ${ftcTeams.indexOf(t)+1}`) : `Team #${id}`;
+    };
+
+    const totalWeeks = Object.keys(byWeek).length;
+    const completed  = ftcSchedule.filter(s => s.status === 'completed').length;
+
+    let html = `<div style="font-size:11px;font-weight:700;color:#6b7a99;margin-bottom:10px;">
+      ${totalWeeks} week${totalWeeks!==1?'s':''} · ${ftcSchedule.length} matchups · ${completed} completed
+    </div>`;
+
+    Object.keys(byWeek).sort((a,b) => a-b).forEach(week => {
+      const matchups  = byWeek[week];
+      const firstDate = matchups[0]?.match_date;
+      const allDone   = matchups.every(m => m.status === 'completed');
+      const anyDone   = matchups.some(m => m.status === 'completed');
+
+      html += `<div class="ftc-week-card">
+        <div class="ftc-week-hdr" onclick="ftcToggleWeek(${week})">
+          <div class="ftc-week-label">
+            <span style="width:22px;height:22px;border-radius:50%;background:${allDone?'#24BC96':anyDone?'#F26024':'#174CCC'};color:white;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${week}</span>
+            Week ${week}
+            ${allDone?'<span class="ftc-status-pill ftc-status-completed">Complete</span>':anyDone?'<span class="ftc-status-pill" style="background:rgba(242,96,36,0.1);color:#F26024;">In Progress</span>':'<span class="ftc-status-pill ftc-status-scheduled">Scheduled</span>'}
+          </div>
+          <div class="ftc-week-meta">${firstDate ? ftcFmtDate(firstDate) : 'No date set'} · ${matchups.filter(m=>!m.is_bye).length} match${matchups.filter(m=>!m.is_bye).length!==1?'es':''}</div>
+        </div>
+        <div class="ftc-week-body" id="ftc-week-body-${week}">
+          ${matchups.map(m => {
+            if (m.is_bye) {
+              return `<div class="ftc-matchup-row">
+                <div class="ftc-matchup-teams">
+                  <span class="ftc-bye-badge">BYE</span>
+                  ${teamName(m.team_a_id)} sits out this week
+                </div>
+              </div>`;
+            }
+            return `<div class="ftc-matchup-row">
+              <div class="ftc-matchup-teams">
+                ${teamName(m.team_a_id)}
+                <span class="ftc-matchup-vs">VS</span>
+                ${teamName(m.team_b_id)}
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                ${m.match_time ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">${fmtTime12(m.match_time)}</span>` : ''}
+                ${m.court ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">Court ${esc(m.court)}</span>` : ''}
+                <span class="ftc-status-pill ${m.status==='completed'?'ftc-status-completed':'ftc-status-scheduled'}">${m.status}</span>
+                <button class="ftc-edit-mini" onclick="ftcOpenOverrideModal(${m.id}, '${m.match_date||''}', '${m.match_time||''}', '${esc(m.court||'')}')">Edit</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    });
+
+    el.innerHTML = html;
+  };
+
+  window.ftcToggleWeek = (week) => {
+    const body = document.getElementById(`ftc-week-body-${week}`);
+    if (!body) return;
+    body.style.display = body.style.display === 'none' ? 'block' : 'none';
+  };
+
+  // ── Override modal ────────────────────────────────────────────────────
+  window.ftcOpenOverrideModal = (id, date, time, court) => {
+    document.getElementById('ftc-override-id').value    = id;
+    document.getElementById('ftc-override-date').value  = date;
+    document.getElementById('ftc-override-time').value  = time;
+    document.getElementById('ftc-override-court').value = court;
+    document.getElementById('ftc-override-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.ftcCloseOverrideModal = () => {
+    document.getElementById('ftc-override-modal').style.display = 'none';
+    document.body.style.overflow = '';
+  };
+
+  window.ftcSaveOverride = async () => {
+    const id    = document.getElementById('ftc-override-id').value;
+    const date  = document.getElementById('ftc-override-date').value;
+    const time  = document.getElementById('ftc-override-time').value;
+    const court = document.getElementById('ftc-override-court').value.trim();
+    try {
+      await api(`ftc_ladder_schedule?id=eq.${id}`, 'PATCH', {
+        match_date: date || null,
+        match_time: time || null,
+        court:      court || null,
+      });
+      toast('Matchup updated.');
+      ftcCloseOverrideModal();
+      await loadFtcSchedule();
+    } catch (err) {
+      toast(`Error: ${err.message}`, true);
+    }
+  };
 
   /* ─── FTC LADDER — PHASE 2: TEAM REGISTRATION ────────────── */
 
