@@ -6030,6 +6030,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
   const loadFtcSchedule = async () => {
     if (!currentLadder) return;
+    // Ensure ftcTeams is loaded — may be empty if navigating directly to Schedule tab
+    if (!ftcTeams.length) {
+      try {
+        ftcTeams = await api(
+          `ftc_ladder_teams?ladder_id=eq.${currentLadder.id}&select=*&order=id`
+        );
+      } catch (e) { /* non-fatal */ }
+    }
     // Pre-fill start date from ladder start_date
     const startEl = document.getElementById('ftc-sch-start-date');
     if (startEl && !startEl.value && currentLadder.start_date) {
