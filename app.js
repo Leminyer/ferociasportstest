@@ -6106,7 +6106,6 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   window.ftcOpenRegisterModal = () => {
     document.getElementById('ftc-team-id').value    = '';
     document.getElementById('ftc-team-name').value  = '';
-    document.getElementById('ftc-captain-name').value = '';
     document.getElementById('ftc-modal-title').textContent    = 'Register Team';
     document.getElementById('ftc-modal-subtitle').textContent = 'Fill in team details and assign players.';
     ['ftc-m1','ftc-m2','ftc-f1','ftc-f2','ftc-msub','ftc-fsub',
