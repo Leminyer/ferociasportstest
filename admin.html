@@ -1311,61 +1311,41 @@
         </div>
 
         <!-- Format cards -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
 
           <!-- Rotating Partner -->
           <div id="ltype-rp"
             onclick="selectLadderType('rotating_partner')"
-            style="border:1.5px solid #174CCC;border-radius:12px;padding:16px 18px;cursor:pointer;background:linear-gradient(135deg,rgba(23,76,204,0.03),rgba(23,76,204,0.06));box-shadow:0 0 0 4px rgba(23,76,204,0.1),0 4px 16px rgba(23,76,204,0.12);transform:scale(1.01);position:relative;transition:border-color .2s,box-shadow .2s,transform .15s;">
-            <div id="ltype-rp-check" style="position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;background:#174CCC;display:flex;align-items:center;justify-content:center;">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            style="width:200px;flex-shrink:0;border:1.5px solid #174CCC;border-radius:10px;padding:10px 12px;cursor:pointer;background:linear-gradient(135deg,rgba(23,76,204,0.03),rgba(23,76,204,0.06));box-shadow:0 0 0 3px rgba(23,76,204,0.1),0 4px 12px rgba(23,76,204,0.1);transform:scale(1.01);position:relative;transition:border-color .2s,box-shadow .2s,transform .15s;">
+            <div id="ltype-rp-check" style="position:absolute;top:8px;right:8px;width:15px;height:15px;border-radius:50%;background:#174CCC;display:flex;align-items:center;justify-content:center;">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <div style="font-size:26px;margin-bottom:8px;">🔄</div>
-            <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Rotating Partner</div>
-            <div style="font-size:11px;font-weight:600;color:#6b7a99;line-height:1.5;margin-bottom:10px;">Players rotate partners each round. Everyone plays with and against different people throughout the season.</div>
-            <div style="margin-bottom:10px;">
-              <span style="font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:99px;background:#e8f0ff;color:#174CCC;margin-right:4px;">Individual Scoring</span>
-              <span style="font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:99px;background:rgba(36,188,150,0.12);color:#085041;">4 Players / Court</span>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+              <span style="font-size:16px;">🔄</span>
+              <div style="font-size:11px;font-weight:800;color:#0d1f4a;">Rotating Partner</div>
             </div>
-            <div style="padding-top:10px;border-top:0.5px solid #e8f0ff;">
-              <div style="font-size:9px;font-weight:700;color:#b0bbd6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Round rotation</div>
-              <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                <div style="width:22px;height:22px;border-radius:50%;background:#174CCC;color:white;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;">A</div>
-                <div style="width:22px;height:22px;border-radius:50%;background:#174CCC;color:white;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;">B</div>
-                <span style="font-size:12px;color:#b0bbd6;">⇄</span>
-                <div style="width:22px;height:22px;border-radius:50%;background:#174CCC;color:white;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;">C</div>
-                <div style="width:22px;height:22px;border-radius:50%;background:#174CCC;color:white;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;">D</div>
-              </div>
+            <div style="font-size:10px;font-weight:600;color:#6b7a99;line-height:1.5;margin-bottom:7px;">Players rotate partners each round. Individual scoring.</div>
+            <div style="display:flex;flex-wrap:wrap;gap:3px;">
+              <span style="font-size:8px;font-weight:700;padding:2px 6px;border-radius:99px;background:#e8f0ff;color:#174CCC;">Individual</span>
+              <span style="font-size:8px;font-weight:700;padding:2px 6px;border-radius:99px;background:rgba(36,188,150,0.12);color:#085041;">4-5-6 Players</span>
             </div>
           </div>
 
           <!-- Ferocia Team Challenge -->
           <div id="ltype-ftc"
             onclick="selectLadderType('ftc')"
-            style="border:1.5px solid #e0e7f5;border-radius:12px;padding:16px 18px;cursor:pointer;background:white;position:relative;transition:border-color .2s,box-shadow .2s,transform .15s;">
-            <div id="ltype-ftc-check" style="position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;background:#174CCC;display:none;align-items:center;justify-content:center;">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            style="width:200px;flex-shrink:0;border:1.5px solid #e0e7f5;border-radius:10px;padding:10px 12px;cursor:pointer;background:white;position:relative;transition:border-color .2s,box-shadow .2s,transform .15s;">
+            <div id="ltype-ftc-check" style="position:absolute;top:8px;right:8px;width:15px;height:15px;border-radius:50%;background:#174CCC;display:none;align-items:center;justify-content:center;">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <div style="font-size:26px;margin-bottom:8px;">🏆</div>
-            <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Ferocia Team Challenge</div>
-            <div style="font-size:11px;font-weight:600;color:#6b7a99;line-height:1.5;margin-bottom:10px;">Fixed teams compete weekly. Men's, Women's, and Mixed Doubles matches contribute to team standings.</div>
-            <div style="margin-bottom:10px;">
-              <span style="font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:99px;background:rgba(198,242,33,0.2);color:#3B6D11;margin-right:4px;">Team Standings</span>
-              <span style="font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:99px;background:rgba(242,96,36,0.1);color:#c04a0e;">6+2 Week Season</span>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+              <span style="font-size:16px;">🏆</span>
+              <div style="font-size:11px;font-weight:800;color:#0d1f4a;">Team Challenge</div>
             </div>
-            <div style="padding-top:10px;border-top:0.5px solid #f0f2f8;">
-              <div style="font-size:9px;font-weight:700;color:#b0bbd6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Weekly matchup</div>
-              <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
-                  <div style="width:28px;height:20px;border-radius:4px;background:#174CCC;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:white;">A</div>
-                  <div style="font-size:8px;color:#6b7a99;font-weight:700;">Team A</div>
-                </div>
-                <span style="font-size:10px;font-weight:800;color:#b0bbd6;">VS</span>
-                <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
-                  <div style="width:28px;height:20px;border-radius:4px;background:#F26024;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:white;">B</div>
-                  <div style="font-size:8px;color:#6b7a99;font-weight:700;">Team B</div>
-                </div>
-              </div>
+            <div style="font-size:10px;font-weight:600;color:#6b7a99;line-height:1.5;margin-bottom:7px;">Fixed teams compete weekly. Team standings & playoffs.</div>
+            <div style="display:flex;flex-wrap:wrap;gap:3px;">
+              <span style="font-size:8px;font-weight:700;padding:2px 6px;border-radius:99px;background:rgba(198,242,33,0.2);color:#3B6D11;">Team Scoring</span>
+              <span style="font-size:8px;font-weight:700;padding:2px 6px;border-radius:99px;background:rgba(242,96,36,0.1);color:#c04a0e;">6+2 Weeks</span>
             </div>
           </div>
 
