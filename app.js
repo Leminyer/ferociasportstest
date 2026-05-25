@@ -130,7 +130,7 @@ window.selectLadderType = (type) => {
           if (el) el.style.display = 'flex';
         });
       } else {
-        ['sb-standings','sb-sessions','sb-entry','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
+        ['sb-standings','sb-sessions','sb-entry'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.style.display = 'flex';
         });
@@ -388,7 +388,7 @@ window.selectLadderType = (type) => {
           if (el) el.style.display = 'flex';
         });
       } else {
-        ['sb-standings','sb-sessions','sb-entry','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
+        ['sb-standings','sb-sessions','sb-entry'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.style.display = 'flex';
         });
@@ -537,20 +537,20 @@ window.selectLadderType = (type) => {
   };
 
   const updateLadderBanner = () => {
-    const ladderPages = ['ladder', 'sessions', 'entry'];
-    const ladderNavBtns = document.querySelectorAll('#sb-standings, #sb-sessions, #sb-entry, #sb-ftc-teams, #sb-ftc-schedule, #sb-ftc-playoffs');
+    const ladderPages    = ['ladder', 'sessions', 'entry'];
+    const ftcPages       = ['ftc-teams', 'ftc-schedule', 'ftc-playoffs'];
+    const allLadderPages = [...ladderPages, ...ftcPages];
+    const ladderNavBtns  = document.querySelectorAll('#sb-standings, #sb-sessions, #sb-entry, #sb-ftc-teams, #sb-ftc-schedule, #sb-ftc-playoffs');
     if (!currentLadder) {
-      ladderNavBtns.forEach((b) => {
-        if (ladderPages.includes(b.dataset.page)) b.disabled = true;
-      });
-      ladderPages.forEach((p) => {
+      ladderNavBtns.forEach((b) => (b.disabled = true));
+      allLadderPages.forEach((p) => {
         const el = document.getElementById(`page-${p}`);
         if (el) el.classList.add('page-disabled');
       });
       return;
     }
     ladderNavBtns.forEach((b) => (b.disabled = false));
-    ladderPages.forEach((p) => {
+    allLadderPages.forEach((p) => {
       const el = document.getElementById(`page-${p}`);
       if (el) el.classList.remove('page-disabled');
     });
