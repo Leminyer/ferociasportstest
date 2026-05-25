@@ -7,13 +7,36 @@
 
 // ── Ladder type selector (global — called from inline onclick) ────────────
 window.selectLadderType = (type) => {
-  const rp  = document.getElementById('ltype-rp');
-  const ftc = document.getElementById('ltype-ftc');
-  const inp = document.getElementById('new-ladder-type');
+  const rp       = document.getElementById('ltype-rp');
+  const ftc      = document.getElementById('ltype-ftc');
+  const rpCheck  = document.getElementById('ltype-rp-check');
+  const ftcCheck = document.getElementById('ltype-ftc-check');
+  const inp      = document.getElementById('new-ladder-type');
   if (!rp || !ftc || !inp) return;
   inp.value = type;
-  rp.classList.toggle('active',  type === 'rotating_partner');
-  ftc.classList.toggle('active', type === 'ftc');
+
+  const selectedStyle = (el) => {
+    el.style.border          = '1.5px solid #174CCC';
+    el.style.background      = 'linear-gradient(135deg,rgba(23,76,204,0.03),rgba(23,76,204,0.06))';
+    el.style.boxShadow       = '0 0 0 4px rgba(23,76,204,0.1),0 4px 16px rgba(23,76,204,0.12)';
+    el.style.transform       = 'scale(1.01)';
+  };
+  const defaultStyle = (el) => {
+    el.style.border          = '1.5px solid #e0e7f5';
+    el.style.background      = 'white';
+    el.style.boxShadow       = 'none';
+    el.style.transform       = 'scale(1)';
+  };
+
+  if (type === 'rotating_partner') {
+    selectedStyle(rp);  defaultStyle(ftc);
+    if (rpCheck)  rpCheck.style.display  = 'flex';
+    if (ftcCheck) ftcCheck.style.display = 'none';
+  } else {
+    selectedStyle(ftc); defaultStyle(rp);
+    if (ftcCheck) ftcCheck.style.display = 'flex';
+    if (rpCheck)  rpCheck.style.display  = 'none';
+  }
 };
 
 (function () {
