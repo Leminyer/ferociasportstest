@@ -6042,78 +6042,67 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
   window.ftcFilterTeams = (val) => renderFtcTeams(val);
   // ── Populate player dropdowns with cross-exclusion ─────────────────────
-  const ftcPopulateDropdowns = (editTeamId = null) => {
-    // Collect player IDs already used in OTHER teams (not the one being edited)
-    const usedIds = new Set(
+  // ── Single source of truth for all FTC dropdowns ──────────────────────────
+  // editTeamId: the team being edited (null for new). Excludes other-team players.
+  // Reads current form selections to cross-exclude within the form.
+  const ftcBuildDropdowns = (editTeamId = null) => {
+    // Players used in OTHER teams
+    const usedInOtherTeams = new Set(
       ftcTeams
         .filter(t => t.id !== editTeamId)
         .flatMap(t => [t.m1_id, t.m2_id, t.f1_id, t.f2_id, t.m_sub_id, t.f_sub_id].filter(Boolean))
         .map(String)
     );
-    const avail = ladderPlayers.filter(p => !usedIds.has(String(p.id)));
+    const avail = ladderPlayers.filter(p => !usedInOtherTeams.has(String(p.id)));
     const men   = avail.filter(p => p.gender === 'Male');
     const women = avail.filter(p => p.gender === 'Female');
-    const opt = (p) => `<option value="${p.id}">${esc(p.first_name)} ${esc(p.last_name)}</option>`;
-    ['ftc-m1','ftc-m2'].forEach(id => {
-      const sel = document.getElementById(id);
-      if (!sel) return;
-      sel.innerHTML = `<option value="">Select male player...</option>` + men.map(opt).join('');
-    });
-    ['ftc-f1','ftc-f2'].forEach(id => {
-      const sel = document.getElementById(id);
-      if (!sel) return;
-      sel.innerHTML = `<option value="">Select female player...</option>` + women.map(opt).join('');
-    });
-    // Subs populated later by ftcRefreshStarterDropdowns after starters are set
+
+    // Read current form selections (used for cross-exclusion within the form)
+    const gv = (id) => document.getElementById(id)?.value || '';
+    const m1v = gv('ftc-m1'), m2v = gv('ftc-m2');
+    const f1v = gv('ftc-f1'), f2v = gv('ftc-f2');
+    const m1mCur = gv('ftc-mixed1-m'), m2mCur = gv('ftc-mixed2-m');
+    const m1fCur = gv('ftc-mixed1-f'), m2fCur = gv('ftc-mixed2-f');
+    const msubv  = gv('ftc-msub'),     fsubv  = gv('ftc-fsub');
+
+    const opt = (p, sel) => `<option value="${p.id}"${String(p.id)===String(sel)?' selected':''}>${esc(p.first_name)} ${esc(p.last_name)}</option>`;
+
+    // Starter dropdowns — each excludes the OTHER starter of same gender
+    const m1el = document.getElementById('ftc-m1');
+    const m2el = document.getElementById('ftc-m2');
+    const f1el = document.getElementById('ftc-f1');
+    const f2el = document.getElementById('ftc-f2');
+    if (m1el) m1el.innerHTML = `<option value="">Select male player...</option>`   + men.filter(p => !m2v || String(p.id) !== m2v).map(p => opt(p, m1v)).join('');
+    if (m2el) m2el.innerHTML = `<option value="">Select male player...</option>`   + men.filter(p => !m1v || String(p.id) !== m1v).map(p => opt(p, m2v)).join('');
+    if (f1el) f1el.innerHTML = `<option value="">Select female player...</option>` + women.filter(p => !f2v || String(p.id) !== f2v).map(p => opt(p, f1v)).join('');
+    if (f2el) f2el.innerHTML = `<option value="">Select female player...</option>` + women.filter(p => !f1v || String(p.id) !== f1v).map(p => opt(p, f2v)).join('');
+
+    // Sub dropdowns — exclude both starters of same gender
     const msubEl = document.getElementById('ftc-msub');
-    if (msubEl) msubEl.innerHTML = `<option value="">None</option>` + men.map(opt).join('');
     const fsubEl = document.getElementById('ftc-fsub');
-    if (fsubEl) fsubEl.innerHTML = `<option value="">None</option>` + women.map(opt).join('');
-    // Don't call ftcUpdateMixedOptions here — called after values are set
+    if (msubEl) msubEl.innerHTML = `<option value="">None</option>` + men.filter(p => String(p.id) !== m1v && String(p.id) !== m2v).map(p => opt(p, msubv)).join('');
+    if (fsubEl) fsubEl.innerHTML = `<option value="">None</option>` + women.filter(p => String(p.id) !== f1v && String(p.id) !== f2v).map(p => opt(p, fsubv)).join('');
+
+    // Mixed doubles — only starters are eligible, cross-excluded between pairs
+    const starterMen   = men.filter(p => m1v && m2v ? (String(p.id)===m1v||String(p.id)===m2v) : (String(p.id)===m1v||String(p.id)===m2v));
+    const starterWomen = women.filter(p => f1v && f2v ? (String(p.id)===f1v||String(p.id)===f2v) : (String(p.id)===f1v||String(p.id)===f2v));
+    const mix1mEl = document.getElementById('ftc-mixed1-m');
+    const mix2mEl = document.getElementById('ftc-mixed2-m');
+    const mix1fEl = document.getElementById('ftc-mixed1-f');
+    const mix2fEl = document.getElementById('ftc-mixed2-f');
+    if (mix1mEl) mix1mEl.innerHTML = `<option value="">Select man...</option>`    + starterMen.filter(p => !m2mCur || String(p.id) !== m2mCur).map(p => opt(p, m1mCur)).join('');
+    if (mix2mEl) mix2mEl.innerHTML = `<option value="">Select man...</option>`    + starterMen.filter(p => !m1mCur || String(p.id) !== m1mCur).map(p => opt(p, m2mCur)).join('');
+    if (mix1fEl) mix1fEl.innerHTML = `<option value="">Select woman...</option>`  + starterWomen.filter(p => !m2fCur || String(p.id) !== m2fCur).map(p => opt(p, m1fCur)).join('');
+    if (mix2fEl) mix2fEl.innerHTML = `<option value="">Select woman...</option>`  + starterWomen.filter(p => !m1fCur || String(p.id) !== m1fCur).map(p => opt(p, m2fCur)).join('');
+
+    ftcUpdateCaptainUI();
   };
 
-  // ── Re-filter starter dropdowns to exclude already-selected players ──────
+  // Legacy wrappers so existing callers still work
+  const ftcPopulateDropdowns = (editTeamId = null) => ftcBuildDropdowns(editTeamId);
   window.ftcRefreshStarterDropdowns = () => {
-    const men   = ladderPlayers.filter(p => p.gender === 'Male');
-    const women = ladderPlayers.filter(p => p.gender === 'Female');
-    const opt   = (p, cur) => `<option value="${p.id}"${String(cur)===String(p.id)?' selected':''}>${esc(p.first_name)} ${esc(p.last_name)}</option>`;
-
-    // Get current selections
-    const m1v = document.getElementById('ftc-m1')?.value || '';
-    const m2v = document.getElementById('ftc-m2')?.value || '';
-    const f1v = document.getElementById('ftc-f1')?.value || '';
-    const f2v = document.getElementById('ftc-f2')?.value || '';
-
-    // Men slots — exclude the OTHER men slot's selection
-    const mSelFn = (exclude, cur, isNone) => {
-      const filtered = men.filter(p => !exclude || String(p.id) !== exclude);
-      return `<option value="">${isNone?'None':'Select male player...'}</option>` + filtered.map(p => opt(p, cur)).join('');
-    };
-    const fSelFn = (exclude, cur, isNone) => {
-      const filtered = women.filter(p => !exclude || String(p.id) !== exclude);
-      return `<option value="">${isNone?'None':'Select female player...'}</option>` + filtered.map(p => opt(p, cur)).join('');
-    };
-
-    const m1el = document.getElementById('ftc-m1'); if (m1el) m1el.innerHTML = mSelFn(m2v, m1v, false);
-    const m2el = document.getElementById('ftc-m2'); if (m2el) m2el.innerHTML = mSelFn(m1v, m2v, false);
-    const f1el = document.getElementById('ftc-f1'); if (f1el) f1el.innerHTML = fSelFn(f2v, f1v, false);
-    const f2el = document.getElementById('ftc-f2'); if (f2el) f2el.innerHTML = fSelFn(f1v, f2v, false);
-
-    // Subs — exclude both starters of same gender
-    const msubEl = document.getElementById('ftc-msub');
-    if (msubEl) {
-      const msubv = msubEl.value || '';
-      const mSubFiltered = men.filter(p => String(p.id) !== m1v && String(p.id) !== m2v);
-      msubEl.innerHTML = `<option value="">None</option>` + mSubFiltered.map(p => opt(p, msubv)).join('');
-    }
-    const fsubEl = document.getElementById('ftc-fsub');
-    if (fsubEl) {
-      const fsubv = fsubEl.value || '';
-      const fSubFiltered = women.filter(p => String(p.id) !== f1v && String(p.id) !== f2v);
-      fsubEl.innerHTML = `<option value="">None</option>` + fSubFiltered.map(p => opt(p, fsubv)).join('');
-    }
-
-    ftcUpdateMixedOptions();
+    const editTeamId = parseInt(document.getElementById('ftc-team-id')?.value || '0', 10) || null;
+    ftcBuildDropdowns(editTeamId);
   };
 
   // ── Update mixed doubles dropdowns based on starter selections ──────────
@@ -6143,43 +6132,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     });
   };
 
+  // ftcUpdateMixedOptions: delegates to ftcBuildDropdowns (preserves all selections)
   window.ftcUpdateMixedOptions = () => {
-    const m1 = document.getElementById('ftc-m1')?.value;
-    const m2 = document.getElementById('ftc-m2')?.value;
-    const f1 = document.getElementById('ftc-f1')?.value;
-    const f2 = document.getElementById('ftc-f2')?.value;
-    const men   = [m1, m2].filter(Boolean);
-    const women = [f1, f2].filter(Boolean);
-
-    const optP = (id, cur) => {
-      const p = ladderPlayers.find(x => String(x.id) === String(id));
-      return p ? `<option value="${p.id}"${String(id)===String(cur)?' selected':''}>${esc(p.first_name)} ${esc(p.last_name)}</option>` : '';
-    };
-
-    // Mixed #1 man: exclude what Mixed #2 man has selected
-    const m1mCur = document.getElementById('ftc-mixed1-m')?.value || '';
-    const m2mCur = document.getElementById('ftc-mixed2-m')?.value || '';
-    const m1fCur = document.getElementById('ftc-mixed1-f')?.value || '';
-    const m2fCur = document.getElementById('ftc-mixed2-f')?.value || '';
-
-    const mix1mEl = document.getElementById('ftc-mixed1-m');
-    const mix2mEl = document.getElementById('ftc-mixed2-m');
-    const mix1fEl = document.getElementById('ftc-mixed1-f');
-    const mix2fEl = document.getElementById('ftc-mixed2-f');
-
-    // Men available for Mixed #1 = men excluding Mixed #2 man selection
-    const menFor1 = men.filter(id => !m2mCur || id !== m2mCur);
-    const menFor2 = men.filter(id => !m1mCur || id !== m1mCur);
-    const womenFor1 = women.filter(id => !m2fCur || id !== m2fCur);
-    const womenFor2 = women.filter(id => !m1fCur || id !== m1fCur);
-
-    if (mix1mEl) { mix1mEl.innerHTML = `<option value="">Select man...</option>` + menFor1.map(id => optP(id, m1mCur)).join(''); }
-    if (mix2mEl) { mix2mEl.innerHTML = `<option value="">Select man...</option>` + menFor2.map(id => optP(id, m2mCur)).join(''); }
-    if (mix1fEl) { mix1fEl.innerHTML = `<option value="">Select woman...</option>` + womenFor1.map(id => optP(id, m1fCur)).join(''); }
-    if (mix2fEl) { mix2fEl.innerHTML = `<option value="">Select woman...</option>` + womenFor2.map(id => optP(id, m2fCur)).join(''); }
-
-    // Update captain labels when starters change
-    ftcUpdateCaptainUI();
+    const editTeamId = parseInt(document.getElementById('ftc-team-id')?.value || '0', 10) || null;
+    ftcBuildDropdowns(editTeamId);
   };
 
   // ── Wizard navigation ──────────────────────────────────────────────────
@@ -6325,49 +6281,58 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const t = ftcTeams.find(x => x.id === teamId);
     if (!t) return;
     const pName = (id) => {
-      if (!id) return '—';
+      if (!id) return '<span style="color:#b0bbd6;">—</span>';
       const p = ladderPlayers.find(x => x.id === id);
-      return p ? `${p.first_name} ${p.last_name}` : '—';
+      return p ? `${esc(p.first_name)} ${esc(p.last_name)}` : '—';
     };
     const capPlayer = t.captain_player_id ? ladderPlayers.find(x => x.id === t.captain_player_id) : null;
     const teamLabel = t.name || 'Unnamed Team';
-
-    const rows = (label, val) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid #f4f5f8;font-size:13px;">
-      <span style="font-weight:600;color:#6b7a99;">${label}</span>
-      <span style="font-weight:700;color:#0d1f4a;">${val}</span>
-    </div>`;
-
-    const content = `
-      <div style="margin-bottom:14px;">
-        <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#174CCC;margin-bottom:8px;">Team Identity</div>
-        ${rows('Team Name', teamLabel)}
-        ${rows('Captain', capPlayer ? `⭐ ${pName(t.captain_player_id)}` : 'None assigned')}
-      </div>
-      <div style="margin-bottom:14px;">
-        <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#174CCC;margin-bottom:8px;">Starters</div>
-        ${rows('Man 1', pName(t.m1_id))}
-        ${rows('Man 2', pName(t.m2_id))}
-        ${rows('Woman 1', pName(t.f1_id))}
-        ${rows('Woman 2', pName(t.f2_id))}
-      </div>
-      <div style="margin-bottom:14px;">
-        <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:8px;">Substitutes</div>
-        ${rows('Male Sub', pName(t.m_sub_id) || 'None')}
-        ${rows('Female Sub', pName(t.f_sub_id) || 'None')}
-      </div>
-      <div>
-        <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#174CCC;margin-bottom:8px;">Mixed Doubles</div>
-        ${rows('Mixed #1', t.mixed1_ma_id ? `${pName(t.mixed1_ma_id)} + ${pName(t.mixed1_fa_id)}` : 'Not assigned')}
-        ${rows('Mixed #2', t.mixed2_ma_id ? `${pName(t.mixed2_ma_id)} + ${pName(t.mixed2_fa_id)}` : 'Not assigned')}
+    const row = (label, val) => `
+      <div class="ftc-review-row">
+        <span class="ftc-review-key">${label}</span>
+        <span class="ftc-review-val">${val}</span>
       </div>`;
 
-    confirmModal({
-      title: teamLabel,
-      message: content,
-      confirm: 'Edit Team',
-      cancel: 'Close',
-      danger: false,
-    }).then(ok => { if (ok) ftcOpenEditModal(teamId); });
+    const el = document.getElementById('ftc-view-content');
+    const titleEl = document.getElementById('ftc-view-title');
+    if (titleEl) titleEl.textContent = teamLabel;
+    if (el) el.innerHTML = `
+      <div class="ftc-review-section">
+        <div class="ftc-review-label">Team Identity</div>
+        ${row('Team Name', teamLabel)}
+        ${row('Captain', capPlayer ? `⭐ ${esc(capPlayer.first_name)} ${esc(capPlayer.last_name)}` : '<span style="color:#b0bbd6;">None assigned</span>')}
+      </div>
+      <div class="ftc-review-section">
+        <div class="ftc-review-label">Starters</div>
+        ${row('Man 1', pName(t.m1_id))}
+        ${row('Man 2', pName(t.m2_id))}
+        ${row('Woman 1', pName(t.f1_id))}
+        ${row('Woman 2', pName(t.f2_id))}
+      </div>
+      <div class="ftc-review-section">
+        <div class="ftc-review-label">Substitutes</div>
+        ${row('Male Sub', pName(t.m_sub_id))}
+        ${row('Female Sub', pName(t.f_sub_id))}
+      </div>
+      <div class="ftc-review-section">
+        <div class="ftc-review-label">Mixed Doubles</div>
+        ${row('Mixed #1', t.mixed1_ma_id ? `${pName(t.mixed1_ma_id)} + ${pName(t.mixed1_fa_id)}` : '<span style="color:#b0bbd6;">Not assigned</span>')}
+        ${row('Mixed #2', t.mixed2_ma_id ? `${pName(t.mixed2_ma_id)} + ${pName(t.mixed2_fa_id)}` : '<span style="color:#b0bbd6;">Not assigned</span>')}
+      </div>`;
+    document.getElementById('ftc-view-edit-id').value = teamId;
+    document.getElementById('ftc-view-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.ftcCloseViewModal = () => {
+    document.getElementById('ftc-view-modal').style.display = 'none';
+    document.body.style.overflow = '';
+  };
+
+  window.ftcViewToEdit = () => {
+    const teamId = parseInt(document.getElementById('ftc-view-edit-id').value, 10);
+    ftcCloseViewModal();
+    ftcOpenEditModal(teamId);
   };
 
   window.ftcOpenEditModal = (teamId) => {
@@ -6378,18 +6343,15 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     // captain is now set via radio group below
     document.getElementById('ftc-modal-title').textContent    = 'Edit Team';
     document.getElementById('ftc-modal-subtitle').textContent = 'Update team details. Past matches are not affected.';
-    ftcPopulateDropdowns(t.id);
-    // Step 1: set starter values
+    // Pre-seed hidden values so ftcBuildDropdowns can read them for cross-exclusion
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    setVal('ftc-m1', t.m1_id); setVal('ftc-m2', t.m2_id);
-    setVal('ftc-f1', t.f1_id); setVal('ftc-f2', t.f2_id);
-    // Step 2: refresh subs + mixed after starters are set (this filters subs correctly)
-    ftcRefreshStarterDropdowns();
-    // Step 3: restore sub values after refresh
-    setVal('ftc-msub', t.m_sub_id); setVal('ftc-fsub', t.f_sub_id);
-    // Step 4: restore mixed values after ftcUpdateMixedOptions ran inside refresh
+    setVal('ftc-m1', t.m1_id);        setVal('ftc-m2', t.m2_id);
+    setVal('ftc-f1', t.f1_id);        setVal('ftc-f2', t.f2_id);
+    setVal('ftc-msub', t.m_sub_id);   setVal('ftc-fsub', t.f_sub_id);
     setVal('ftc-mixed1-m', t.mixed1_ma_id); setVal('ftc-mixed1-f', t.mixed1_fa_id);
     setVal('ftc-mixed2-m', t.mixed2_ma_id); setVal('ftc-mixed2-f', t.mixed2_fa_id);
+    // Now build all dropdowns with correct exclusions — values are already in DOM
+    ftcBuildDropdowns(t.id);
     // Set captain radio
     const slotMap = { m1: t.m1_id, m2: t.m2_id, f1: t.f1_id, f2: t.f2_id };
     const capId = t.captain_player_id;
