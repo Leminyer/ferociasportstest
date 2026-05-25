@@ -6045,7 +6045,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   // ── Single source of truth for all FTC dropdowns ──────────────────────────
   // editTeamId: the team being edited (null for new). Excludes other-team players.
   // Reads current form selections to cross-exclude within the form.
-  const ftcBuildDropdowns = (editTeamId = null) => {
+  const ftcBuildDropdowns = (editTeamId = null, initialVals = null) => {
     // Players used in OTHER teams
     const usedInOtherTeams = new Set(
       ftcTeams
@@ -6057,13 +6057,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const men   = avail.filter(p => p.gender === 'Male');
     const women = avail.filter(p => p.gender === 'Female');
 
-    // Read current form selections (used for cross-exclusion within the form)
+    // Use explicit initial values if provided (edit mode), else read from DOM
     const gv = (id) => document.getElementById(id)?.value || '';
-    const m1v = gv('ftc-m1'), m2v = gv('ftc-m2');
-    const f1v = gv('ftc-f1'), f2v = gv('ftc-f2');
-    const m1mCur = gv('ftc-mixed1-m'), m2mCur = gv('ftc-mixed2-m');
-    const m1fCur = gv('ftc-mixed1-f'), m2fCur = gv('ftc-mixed2-f');
-    const msubv  = gv('ftc-msub'),     fsubv  = gv('ftc-fsub');
+    const iv = (key, id) => initialVals ? (String(initialVals[key] || '')) : gv(id);
+    const m1v = iv('m1', 'ftc-m1'), m2v = iv('m2', 'ftc-m2');
+    const f1v = iv('f1', 'ftc-f1'), f2v = iv('f2', 'ftc-f2');
+    const m1mCur = iv('mix1m', 'ftc-mixed1-m'), m2mCur = iv('mix2m', 'ftc-mixed2-m');
+    const m1fCur = iv('mix1f', 'ftc-mixed1-f'), m2fCur = iv('mix2f', 'ftc-mixed2-f');
+    const msubv  = iv('msub', 'ftc-msub'),       fsubv  = iv('fsub', 'ftc-fsub');
 
     const opt = (p, sel) => `<option value="${p.id}"${String(p.id)===String(sel)?' selected':''}>${esc(p.first_name)} ${esc(p.last_name)}</option>`;
 
@@ -6343,15 +6344,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     // captain is now set via radio group below
     document.getElementById('ftc-modal-title').textContent    = 'Edit Team';
     document.getElementById('ftc-modal-subtitle').textContent = 'Update team details. Past matches are not affected.';
-    // Pre-seed hidden values so ftcBuildDropdowns can read them for cross-exclusion
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    setVal('ftc-m1', t.m1_id);        setVal('ftc-m2', t.m2_id);
-    setVal('ftc-f1', t.f1_id);        setVal('ftc-f2', t.f2_id);
-    setVal('ftc-msub', t.m_sub_id);   setVal('ftc-fsub', t.f_sub_id);
-    setVal('ftc-mixed1-m', t.mixed1_ma_id); setVal('ftc-mixed1-f', t.mixed1_fa_id);
-    setVal('ftc-mixed2-m', t.mixed2_ma_id); setVal('ftc-mixed2-f', t.mixed2_fa_id);
-    // Now build all dropdowns with correct exclusions — values are already in DOM
-    ftcBuildDropdowns(t.id);
+    // Pass initial values directly so ftcBuildDropdowns renders options with correct selected state
+    ftcBuildDropdowns(t.id, {
+      m1:    t.m1_id,         m2:    t.m2_id,
+      f1:    t.f1_id,         f2:    t.f2_id,
+      msub:  t.m_sub_id,      fsub:  t.f_sub_id,
+      mix1m: t.mixed1_ma_id,  mix1f: t.mixed1_fa_id,
+      mix2m: t.mixed2_ma_id,  mix2f: t.mixed2_fa_id,
+    });
     // Set captain radio
     const slotMap = { m1: t.m1_id, m2: t.m2_id, f1: t.f1_id, f2: t.f2_id };
     const capId = t.captain_player_id;
