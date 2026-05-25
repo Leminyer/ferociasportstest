@@ -6040,25 +6040,66 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   };
 
   window.ftcFilterTeams = (val) => renderFtcTeams(val);
-  // ── Populate player dropdowns ───────────────────────────────────────────
+  // ── Populate player dropdowns with cross-exclusion ─────────────────────
   const ftcPopulateDropdowns = (editTeamId = null) => {
     const men   = ladderPlayers.filter(p => p.gender === 'Male');
     const women = ladderPlayers.filter(p => p.gender === 'Female');
-
     const opt = (p) => `<option value="${p.id}">${esc(p.first_name)} ${esc(p.last_name)}</option>`;
-
+    // Initial full population
     ['ftc-m1','ftc-m2','ftc-msub'].forEach(id => {
       const sel = document.getElementById(id);
       if (!sel) return;
-      sel.innerHTML = `<option value="">${id==='ftc-msub'?'None':'Select male player...'}</option>`
-        + men.map(opt).join('');
+      sel.innerHTML = `<option value="">${id==='ftc-msub'?'None':'Select male player...'}</option>` + men.map(opt).join('');
     });
     ['ftc-f1','ftc-f2','ftc-fsub'].forEach(id => {
       const sel = document.getElementById(id);
       if (!sel) return;
-      sel.innerHTML = `<option value="">${id==='ftc-fsub'?'None':'Select female player...'}</option>`
-        + women.map(opt).join('');
+      sel.innerHTML = `<option value="">${id==='ftc-fsub'?'None':'Select female player...'}</option>` + women.map(opt).join('');
     });
+    ftcUpdateMixedOptions();
+  };
+
+  // ── Re-filter starter dropdowns to exclude already-selected players ──────
+  window.ftcRefreshStarterDropdowns = () => {
+    const men   = ladderPlayers.filter(p => p.gender === 'Male');
+    const women = ladderPlayers.filter(p => p.gender === 'Female');
+    const opt   = (p, cur) => `<option value="${p.id}"${String(cur)===String(p.id)?' selected':''}>${esc(p.first_name)} ${esc(p.last_name)}</option>`;
+
+    // Get current selections
+    const m1v = document.getElementById('ftc-m1')?.value || '';
+    const m2v = document.getElementById('ftc-m2')?.value || '';
+    const f1v = document.getElementById('ftc-f1')?.value || '';
+    const f2v = document.getElementById('ftc-f2')?.value || '';
+
+    // Men slots — exclude the OTHER men slot's selection
+    const mSelFn = (exclude, cur, isNone) => {
+      const filtered = men.filter(p => !exclude || String(p.id) !== exclude);
+      return `<option value="">${isNone?'None':'Select male player...'}</option>` + filtered.map(p => opt(p, cur)).join('');
+    };
+    const fSelFn = (exclude, cur, isNone) => {
+      const filtered = women.filter(p => !exclude || String(p.id) !== exclude);
+      return `<option value="">${isNone?'None':'Select female player...'}</option>` + filtered.map(p => opt(p, cur)).join('');
+    };
+
+    const m1el = document.getElementById('ftc-m1'); if (m1el) m1el.innerHTML = mSelFn(m2v, m1v, false);
+    const m2el = document.getElementById('ftc-m2'); if (m2el) m2el.innerHTML = mSelFn(m1v, m2v, false);
+    const f1el = document.getElementById('ftc-f1'); if (f1el) f1el.innerHTML = fSelFn(f2v, f1v, false);
+    const f2el = document.getElementById('ftc-f2'); if (f2el) f2el.innerHTML = fSelFn(f1v, f2v, false);
+
+    // Subs — exclude both starters of same gender
+    const msubEl = document.getElementById('ftc-msub');
+    if (msubEl) {
+      const msubv = msubEl.value || '';
+      const mSubFiltered = men.filter(p => String(p.id) !== m1v && String(p.id) !== m2v);
+      msubEl.innerHTML = `<option value="">None</option>` + mSubFiltered.map(p => opt(p, msubv)).join('');
+    }
+    const fsubEl = document.getElementById('ftc-fsub');
+    if (fsubEl) {
+      const fsubv = fsubEl.value || '';
+      const fSubFiltered = women.filter(p => String(p.id) !== f1v && String(p.id) !== f2v);
+      fsubEl.innerHTML = `<option value="">None</option>` + fSubFiltered.map(p => opt(p, fsubv)).join('');
+    }
+
     ftcUpdateMixedOptions();
   };
 
@@ -6097,27 +6138,33 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const men   = [m1, m2].filter(Boolean);
     const women = [f1, f2].filter(Boolean);
 
-    const optP = (id) => {
+    const optP = (id, cur) => {
       const p = ladderPlayers.find(x => String(x.id) === String(id));
-      return p ? `<option value="${p.id}">${esc(p.first_name)} ${esc(p.last_name)}</option>` : '';
+      return p ? `<option value="${p.id}"${String(id)===String(cur)?' selected':''}>${esc(p.first_name)} ${esc(p.last_name)}</option>` : '';
     };
-    const mOpts   = `<option value="">Select man...</option>` + men.map(optP).join('');
-    const fOpts   = `<option value="">Select woman...</option>` + women.map(optP).join('');
 
-    ['ftc-mixed1-m','ftc-mixed2-m'].forEach(id => {
-      const sel = document.getElementById(id);
-      if (!sel) return;
-      const cur = sel.value;
-      sel.innerHTML = mOpts;
-      if (cur) sel.value = cur;
-    });
-    ['ftc-mixed1-f','ftc-mixed2-f'].forEach(id => {
-      const sel = document.getElementById(id);
-      if (!sel) return;
-      const cur = sel.value;
-      sel.innerHTML = fOpts;
-      if (cur) sel.value = cur;
-    });
+    // Mixed #1 man: exclude what Mixed #2 man has selected
+    const m1mCur = document.getElementById('ftc-mixed1-m')?.value || '';
+    const m2mCur = document.getElementById('ftc-mixed2-m')?.value || '';
+    const m1fCur = document.getElementById('ftc-mixed1-f')?.value || '';
+    const m2fCur = document.getElementById('ftc-mixed2-f')?.value || '';
+
+    const mix1mEl = document.getElementById('ftc-mixed1-m');
+    const mix2mEl = document.getElementById('ftc-mixed2-m');
+    const mix1fEl = document.getElementById('ftc-mixed1-f');
+    const mix2fEl = document.getElementById('ftc-mixed2-f');
+
+    // Men available for Mixed #1 = men excluding Mixed #2 man selection
+    const menFor1 = men.filter(id => !m2mCur || id !== m2mCur);
+    const menFor2 = men.filter(id => !m1mCur || id !== m1mCur);
+    const womenFor1 = women.filter(id => !m2fCur || id !== m2fCur);
+    const womenFor2 = women.filter(id => !m1fCur || id !== m1fCur);
+
+    if (mix1mEl) { mix1mEl.innerHTML = `<option value="">Select man...</option>` + menFor1.map(id => optP(id, m1mCur)).join(''); }
+    if (mix2mEl) { mix2mEl.innerHTML = `<option value="">Select man...</option>` + menFor2.map(id => optP(id, m2mCur)).join(''); }
+    if (mix1fEl) { mix1fEl.innerHTML = `<option value="">Select woman...</option>` + womenFor1.map(id => optP(id, m1fCur)).join(''); }
+    if (mix2fEl) { mix2fEl.innerHTML = `<option value="">Select woman...</option>` + womenFor2.map(id => optP(id, m2fCur)).join(''); }
+
     // Update captain labels when starters change
     ftcUpdateCaptainUI();
   };
@@ -6360,9 +6407,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       mixed2_fa_id: m2f ? parseInt(m2f, 10) : null,
     };
 
-    const btn = document.getElementById('ftc-team-save-btn');
-    const origHTML = btn.innerHTML;
-    btn.disabled = true; btn.textContent = 'Saving...';
+    const btn = document.getElementById('ftc-btn-save');
+    const origHTML = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
 
     try {
       if (isEdit) {
@@ -6377,7 +6424,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     } catch (err) {
       toast(`Error: ${err.message}`, true);
     } finally {
-      btn.disabled = false; btn.innerHTML = origHTML;
+      if (btn) { btn.disabled = false; btn.innerHTML = origHTML; }
     }
   };
 
