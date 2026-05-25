@@ -484,6 +484,7 @@ window.selectLadderType = (type) => {
     if (name === 'players') loadPlayers();
     if (name === 'entry') initEntry();
     if (name === 'ladders') loadLaddersPage();
+    if (name === 'ftc-teams') loadFtcTeams();
     if (name === 'add-player') initAddPlayer();
     if (name === 'share') loadSharePage();
     if (name === 'orders') loadOrdersPage();
@@ -5918,6 +5919,302 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   };
 
   /* ─── EVENT DELEGATION ─────────────────────────────────── */
+
+  /* ─── FTC LADDER — PHASE 2: TEAM REGISTRATION ────────────── */
+
+  let ftcTeams = []; // all teams for currentLadder
+
+  // ── Load and render teams page ──────────────────────────────────────────
+  const loadFtcTeams = async () => {
+    if (!currentLadder) return;
+    document.getElementById('ftc-teams-subtitle').textContent =
+      `${currentLadder.name} — Team Registration`;
+    const el = document.getElementById('ftc-teams-list');
+    el.innerHTML = '<div class="loading">Loading teams...</div>';
+    try {
+      ftcTeams = await api(
+        `ftc_ladder_teams?ladder_id=eq.${currentLadder.id}&select=*&order=id`
+      );
+      renderFtcTeams();
+    } catch (err) {
+      el.innerHTML = `<div class="error">Error: ${esc(err.message)}</div>`;
+    }
+  };
+
+  const renderFtcTeams = () => {
+    const el = document.getElementById('ftc-teams-list');
+    if (!ftcTeams.length) {
+      el.innerHTML = `<div class="card" style="padding:32px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:12px;">🏆</div>
+        <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">No teams registered yet</div>
+        <div style="font-size:12px;font-weight:600;color:#6b7a99;">Click "Register Team" to add the first team to this ladder.</div>
+      </div>`;
+      return;
+    }
+
+    const rows = ftcTeams.map((t, i) => {
+      const playerName = (id) => {
+        if (!id) return '—';
+        const p = ladderPlayers.find(x => x.id === id);
+        return p ? `${esc(p.first_name)} ${esc(p.last_name)}` : `Player #${id}`;
+      };
+      const teamLabel = t.name ? esc(t.name) : `Team ${i + 1}`;
+      const captain   = t.captain_name ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">Captain: ${esc(t.captain_name)}</span>` : '';
+
+      return `<div class="card" style="padding:16px 20px;margin-bottom:10px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+          <div style="flex:1;min-width:0;">
+            <!-- Team header -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#174CCC,#2456d3);color:white;font-family:'Bebas Neue',sans-serif;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamLabel}</div>
+                ${captain}
+              </div>
+            </div>
+            <!-- Player grid -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <!-- Men -->
+              <div style="background:#f0f4ff;border-radius:8px;padding:10px 12px;">
+                <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#174CCC;margin-bottom:6px;">Men</div>
+                <div style="font-size:12px;font-weight:700;color:#0d1f4a;margin-bottom:3px;">M1: ${playerName(t.m1_id)}</div>
+                <div style="font-size:12px;font-weight:700;color:#0d1f4a;margin-bottom:3px;">M2: ${playerName(t.m2_id)}</div>
+                ${t.m_sub_id ? `<div style="font-size:11px;font-weight:600;color:#6b7a99;">Sub: ${playerName(t.m_sub_id)}</div>` : ''}
+              </div>
+              <!-- Women -->
+              <div style="background:#fff4f0;border-radius:8px;padding:10px 12px;">
+                <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#F26024;margin-bottom:6px;">Women</div>
+                <div style="font-size:12px;font-weight:700;color:#0d1f4a;margin-bottom:3px;">F1: ${playerName(t.f1_id)}</div>
+                <div style="font-size:12px;font-weight:700;color:#0d1f4a;margin-bottom:3px;">F2: ${playerName(t.f2_id)}</div>
+                ${t.f_sub_id ? `<div style="font-size:11px;font-weight:600;color:#6b7a99;">Sub: ${playerName(t.f_sub_id)}</div>` : ''}
+              </div>
+            </div>
+            <!-- Mixed pairs -->
+            ${(t.mixed1_ma_id || t.mixed2_ma_id) ? `
+            <div style="margin-top:8px;padding:8px 12px;background:#f8f9ff;border-radius:8px;display:flex;gap:16px;flex-wrap:wrap;">
+              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;width:100%;margin-bottom:2px;">Mixed Doubles Pairs</div>
+              ${t.mixed1_ma_id ? `<span style="font-size:11px;font-weight:700;color:#0d1f4a;">Mixed #1: ${playerName(t.mixed1_ma_id)} + ${playerName(t.mixed1_fa_id)}</span>` : ''}
+              ${t.mixed2_ma_id ? `<span style="font-size:11px;font-weight:700;color:#0d1f4a;">Mixed #2: ${playerName(t.mixed2_ma_id)} + ${playerName(t.mixed2_fa_id)}</span>` : ''}
+            </div>` : ''}
+          </div>
+          <!-- Actions -->
+          <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+            <button onclick="ftcOpenEditModal(${t.id})"
+              style="padding:5px 12px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;">
+              Edit
+            </button>
+            <button onclick="ftcDeleteTeam(${t.id}, '${teamLabel}')"
+              style="padding:5px 12px;border:0.5px solid rgba(229,57,53,0.2);border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#e53935;cursor:pointer;">
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div style="font-size:11px;font-weight:700;color:#6b7a99;margin-bottom:10px;">${ftcTeams.length} team${ftcTeams.length!==1?'s':''} registered</div>
+      ${rows}`;
+  };
+
+  // ── Populate player dropdowns ───────────────────────────────────────────
+  const ftcPopulateDropdowns = (editTeamId = null) => {
+    const men   = ladderPlayers.filter(p => p.gender === 'Male');
+    const women = ladderPlayers.filter(p => p.gender === 'Female');
+
+    const opt = (p) => `<option value="${p.id}">${esc(p.first_name)} ${esc(p.last_name)}</option>`;
+
+    ['ftc-m1','ftc-m2','ftc-msub'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = `<option value="">${id==='ftc-msub'?'None':'Select male player...'}</option>`
+        + men.map(opt).join('');
+    });
+    ['ftc-f1','ftc-f2','ftc-fsub'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = `<option value="">${id==='ftc-fsub'?'None':'Select female player...'}</option>`
+        + women.map(opt).join('');
+    });
+    ftcUpdateMixedOptions();
+  };
+
+  // ── Update mixed doubles dropdowns based on starter selections ──────────
+  window.ftcUpdateMixedOptions = () => {
+    const m1 = document.getElementById('ftc-m1')?.value;
+    const m2 = document.getElementById('ftc-m2')?.value;
+    const f1 = document.getElementById('ftc-f1')?.value;
+    const f2 = document.getElementById('ftc-f2')?.value;
+    const men   = [m1, m2].filter(Boolean);
+    const women = [f1, f2].filter(Boolean);
+
+    const optP = (id) => {
+      const p = ladderPlayers.find(x => String(x.id) === String(id));
+      return p ? `<option value="${p.id}">${esc(p.first_name)} ${esc(p.last_name)}</option>` : '';
+    };
+    const mOpts   = `<option value="">Select man...</option>` + men.map(optP).join('');
+    const fOpts   = `<option value="">Select woman...</option>` + women.map(optP).join('');
+
+    ['ftc-mixed1-m','ftc-mixed2-m'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML = mOpts;
+      if (cur) sel.value = cur;
+    });
+    ['ftc-mixed1-f','ftc-mixed2-f'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML = fOpts;
+      if (cur) sel.value = cur;
+    });
+  };
+
+  // ── Open register modal ─────────────────────────────────────────────────
+  window.ftcOpenRegisterModal = () => {
+    document.getElementById('ftc-team-id').value    = '';
+    document.getElementById('ftc-team-name').value  = '';
+    document.getElementById('ftc-captain-name').value = '';
+    document.getElementById('ftc-modal-title').textContent    = 'Register Team';
+    document.getElementById('ftc-modal-subtitle').textContent = 'Fill in team details and assign players.';
+    ['ftc-m1','ftc-m2','ftc-f1','ftc-f2','ftc-msub','ftc-fsub',
+     'ftc-mixed1-m','ftc-mixed1-f','ftc-mixed2-m','ftc-mixed2-f'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const valEl = document.getElementById('ftc-mixed-validation');
+    if (valEl) valEl.style.display = 'none';
+    ftcPopulateDropdowns();
+    document.getElementById('ftc-team-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
+
+  // ── Open edit modal ─────────────────────────────────────────────────────
+  window.ftcOpenEditModal = (teamId) => {
+    const t = ftcTeams.find(x => x.id === teamId);
+    if (!t) return;
+    document.getElementById('ftc-team-id').value      = t.id;
+    document.getElementById('ftc-team-name').value    = t.name || '';
+    document.getElementById('ftc-captain-name').value = t.captain_name || '';
+    document.getElementById('ftc-modal-title').textContent    = 'Edit Team';
+    document.getElementById('ftc-modal-subtitle').textContent = 'Update team details. Past matches are not affected.';
+    ftcPopulateDropdowns(t.id);
+    // Set values after populating
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    setVal('ftc-m1', t.m1_id); setVal('ftc-m2', t.m2_id);
+    setVal('ftc-f1', t.f1_id); setVal('ftc-f2', t.f2_id);
+    setVal('ftc-msub', t.m_sub_id); setVal('ftc-fsub', t.f_sub_id);
+    ftcUpdateMixedOptions();
+    setVal('ftc-mixed1-m', t.mixed1_ma_id); setVal('ftc-mixed1-f', t.mixed1_fa_id);
+    setVal('ftc-mixed2-m', t.mixed2_ma_id); setVal('ftc-mixed2-f', t.mixed2_fa_id);
+    const valEl = document.getElementById('ftc-mixed-validation');
+    if (valEl) valEl.style.display = 'none';
+    document.getElementById('ftc-team-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
+
+  // ── Close modal ─────────────────────────────────────────────────────────
+  window.ftcCloseModal = () => {
+    document.getElementById('ftc-team-modal').style.display = 'none';
+    document.body.style.overflow = '';
+  };
+
+  // ── Validate mixed doubles pairs ────────────────────────────────────────
+  const ftcValidateMixed = (m1m, m1f, m2m, m2f) => {
+    if (!m1m || !m1f || !m2m || !m2f) return null; // incomplete — skip
+    if (m1m === m2m && m1f === m2f) {
+      return 'The same mixed doubles pair cannot play both Mixed #1 and Mixed #2. Please assign different player combinations.';
+    }
+    return null;
+  };
+
+  // ── Save team (create or update) ────────────────────────────────────────
+  window.ftcSaveTeam = async () => {
+    const teamId  = document.getElementById('ftc-team-id').value;
+    const isEdit  = !!teamId;
+
+    const gv = (id) => document.getElementById(id)?.value || null;
+
+    // Validate required starters
+    if (!gv('ftc-m1') || !gv('ftc-m2') || !gv('ftc-f1') || !gv('ftc-f2')) {
+      toast('Please assign all 4 starters (Man 1, Man 2, Woman 1, Woman 2).', true);
+      return;
+    }
+
+    // Validate no duplicate starter
+    const starterIds = [gv('ftc-m1'), gv('ftc-m2'), gv('ftc-f1'), gv('ftc-f2')];
+    if (new Set(starterIds).size < 4) {
+      toast('Each starter slot must be a different player.', true);
+      return;
+    }
+
+    // Validate mixed doubles if both pairs are set
+    const m1m = gv('ftc-mixed1-m'), m1f = gv('ftc-mixed1-f');
+    const m2m = gv('ftc-mixed2-m'), m2f = gv('ftc-mixed2-f');
+    const mixedErr = ftcValidateMixed(m1m, m1f, m2m, m2f);
+    if (mixedErr) {
+      const valEl = document.getElementById('ftc-mixed-validation');
+      if (valEl) { valEl.textContent = mixedErr; valEl.style.display = 'block'; }
+      return;
+    }
+    const valEl = document.getElementById('ftc-mixed-validation');
+    if (valEl) valEl.style.display = 'none';
+
+    const body = {
+      ladder_id:    currentLadder.id,
+      name:         document.getElementById('ftc-team-name').value.trim() || null,
+      captain_name: document.getElementById('ftc-captain-name').value.trim() || null,
+      m1_id:        parseInt(gv('ftc-m1'), 10),
+      m2_id:        parseInt(gv('ftc-m2'), 10),
+      f1_id:        parseInt(gv('ftc-f1'), 10),
+      f2_id:        parseInt(gv('ftc-f2'), 10),
+      m_sub_id:     gv('ftc-msub')    ? parseInt(gv('ftc-msub'), 10)    : null,
+      f_sub_id:     gv('ftc-fsub')    ? parseInt(gv('ftc-fsub'), 10)    : null,
+      mixed1_ma_id: m1m ? parseInt(m1m, 10) : null,
+      mixed1_fa_id: m1f ? parseInt(m1f, 10) : null,
+      mixed2_ma_id: m2m ? parseInt(m2m, 10) : null,
+      mixed2_fa_id: m2f ? parseInt(m2f, 10) : null,
+    };
+
+    const btn = document.getElementById('ftc-team-save-btn');
+    const origHTML = btn.innerHTML;
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    try {
+      if (isEdit) {
+        await api(`ftc_ladder_teams?id=eq.${teamId}`, 'PATCH', body);
+        toast('Team updated successfully!');
+      } else {
+        await api('ftc_ladder_teams', 'POST', body);
+        toast('Team registered successfully!');
+      }
+      ftcCloseModal();
+      await loadFtcTeams();
+    } catch (err) {
+      toast(`Error: ${err.message}`, true);
+    } finally {
+      btn.disabled = false; btn.innerHTML = origHTML;
+    }
+  };
+
+  // ── Delete team ─────────────────────────────────────────────────────────
+  window.ftcDeleteTeam = async (teamId, teamLabel) => {
+    const ok = await confirmModal({
+      title:   'Delete team?',
+      message: `Remove "${teamLabel}" from this ladder? This cannot be undone.`,
+      confirm: 'Delete Team',
+      danger:  true,
+    });
+    if (!ok) return;
+    try {
+      await api(`ftc_ladder_teams?id=eq.${teamId}`, 'DELETE');
+      toast('Team deleted.');
+      await loadFtcTeams();
+    } catch (err) {
+      toast(`Error: ${err.message}`, true);
+    }
+  };
 
   // Click handler — looks up the action handler for any [data-action] click
   const CLICK_HANDLERS = {
