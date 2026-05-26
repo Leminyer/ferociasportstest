@@ -6238,6 +6238,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               <div><span style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:99px;background:#e8f0ff;color:#174CCC;">Scheduled</span></div>
             </div>`;
           }).join('')}
+            </tbody>
+          </table>
         </div>
       </div>`;
     });
@@ -6581,17 +6583,27 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         <!-- Week body -->
         <div id="ftc-week-body-${weekNum}" style="display:${isOpen?'block':'none'};">
           ${byeHtml}
-          <!-- Table header -->
-          <div style="display:grid;grid-template-columns:minmax(180px,1fr) 85px 110px 160px 110px auto;gap:16px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
-            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matchup</div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Time</div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Courts</div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matches</div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Status</div>
-            <div></div>
-          </div>
-
-          <!-- Matchup rows -->
+          <!-- Table using <table> for guaranteed column alignment -->
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+            <colgroup>
+              <col style="width:auto;">
+              <col style="width:90px;">
+              <col style="width:110px;">
+              <col style="width:170px;">
+              <col style="width:110px;">
+              <col style="width:130px;">
+            </colgroup>
+            <thead>
+              <tr style="background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
+                <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:7px 16px;text-align:left;">Matchup</th>
+                <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:7px 0;text-align:left;">Time</th>
+                <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:7px 0;text-align:left;">Courts</th>
+                <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:7px 0;text-align:left;">Matches</th>
+                <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:7px 0;text-align:left;">Status</th>
+                <th style="padding:7px 16px 7px 0;text-align:right;"></th>
+              </tr>
+            </thead>
+            <tbody>
           ${matchups.filter(m => !m.is_bye).map(s => {
             const subMatches    = matchesBySchedule[s.id] || [];
             const courtParts    = s.court ? s.court.split(',').map(c => c.trim()) : [];
@@ -6646,34 +6658,36 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 '</div>'
               : '';
 
-            return `<div>
-              <div style="display:grid;grid-template-columns:minmax(180px,1fr) 85px 110px 160px 110px auto;gap:16px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;cursor:${subMatches.length?'pointer':'default'};"
-                onclick="${subMatches.length?`ftcToggleMatchExpand('${s.id}')`:''}" >
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_a_id)}</span>
-                  <span style="font-size:9px;font-weight:700;color:#b0bbd6;background:#f0f2f8;padding:2px 6px;border-radius:99px;">vs</span>
-                  <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_b_id)}</span>
-                </div>
-                <div style="font-size:11px;font-weight:600;color:#6b7a99;">${timeDisplay}</div>
-                <div style="font-size:11px;font-weight:600;color:#6b7a99;">${courtDisplay}</div>
-                <div style="display:flex;align-items:center;gap:5px;">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  <span style="font-size:11px;font-weight:700;color:#6b7a99;">${matchCount}</span>
-                  <span style="font-size:10px;font-weight:600;color:#b0bbd6;">MD, WD, MX1, MX2</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;">
+            return `<tr style="border-bottom:0.5px solid #f4f5f8;cursor:${subMatches.length?'pointer':'default'};"
+                onclick="${subMatches.length?`ftcToggleMatchExpand('${s.id}')`:''}">
+                <td style="padding:11px 16px;vertical-align:middle;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_a_id)}</span>
+                    <span style="font-size:9px;font-weight:700;color:#b0bbd6;background:#f0f2f8;padding:2px 6px;border-radius:99px;">vs</span>
+                    <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_b_id)}</span>
+                  </div>
+                </td>
+                <td style="font-size:11px;font-weight:600;color:#6b7a99;padding:11px 0;vertical-align:middle;">${timeDisplay}</td>
+                <td style="font-size:11px;font-weight:600;color:#6b7a99;padding:11px 0;vertical-align:middle;">${courtDisplay}</td>
+                <td style="padding:11px 0;vertical-align:middle;">
+                  <div style="display:flex;align-items:center;gap:5px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span style="font-size:11px;font-weight:700;color:#6b7a99;">${matchCount}</span>
+                    <span style="font-size:10px;font-weight:600;color:#b0bbd6;">MD, WD, MX1, MX2</span>
+                  </div>
+                </td>
+                <td style="padding:11px 0;vertical-align:middle;">
                   <span class="ftc-status-pill ${rowStatus}">${s.status}</span>
-                </div>
-                <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
-                  ${subMatches.length ? `<span id="${chevId}" style="font-size:10px;color:#6b7a99;display:inline-block;transform:rotate(0deg);transition:transform .15s;">▼</span>` : ''}
+                </td>
+                <td style="padding:11px 16px 11px 0;text-align:right;vertical-align:middle;white-space:nowrap;">
+                  ${subMatches.length ? `<span id="${chevId}" style="font-size:10px;color:#6b7a99;display:inline-block;transform:rotate(0deg);transition:transform .15s;margin-right:6px;">▼</span>` : ''}
                   <button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenOverrideModal(${s.id},'${s.match_date||''}','${s.match_time||''}','${esc(s.court||'')}')">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     Edit Matchup
                   </button>
-                </div>
-              </div>
-              ${matchDetailHtml}
-            </div>`;
+                </td>
+              </tr>
+              ${matchDetailHtml ? `<tr><td colspan="6" style="padding:0;">${matchDetailHtml}</td></tr>` : ''}`;
           }).join('')}
         </div>
       </div>`;
