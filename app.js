@@ -6202,7 +6202,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
           return `<div class="court-block">
             <div class="court-block-hdr">
               <span class="court-block-label" style="font-size:11px;">${courtLabel}</span>
-              <span style="font-size:11px;font-weight:700;color:#0d1f4a;">${tName(m.teamA)} <span style="font-weight:600;color:#b0bbd6;">vs</span> ${tName(m.teamB)}</span>
+              <span style="font-size:11px;font-weight:800;color:#0d1f4a;">${tName(m.teamA)}&nbsp;<span style="font-size:10px;font-weight:700;color:#6b7a99;">vs</span>&nbsp;${tName(m.teamB)}</span>
             </div>
             ${gameRows}
           </div>`;
@@ -6286,17 +6286,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const court     = document.getElementById('ftc-sch-court')?.value.trim() || null;
     if (!startDate) { toast('Please select a start date.', true); return; }
 
-    // Confirm if schedule already exists
+    // Block if schedule already exists — must delete manually to start over
     if (ftcSchedule.length > 0) {
-      const ok = await confirmModal({
-        title:   'Regenerate Schedule?',
-        message: 'This will delete the existing schedule and create a new one. Match results already recorded will also be deleted. This cannot be undone.',
-        confirm: 'Regenerate',
-        danger:  true,
-      });
-      if (!ok) return;
-      // Delete existing schedule (cascade deletes matches)
-      await api(`ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}`, 'DELETE');
+      toast('A schedule already exists for this ladder. To start over, delete the existing schedule first.', true);
+      return;
     }
 
     const firstMatchDate = ftcNextWeekday(startDate, targetDay);
@@ -6416,6 +6409,26 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       if (!matchesBySchedule[m.schedule_id]) matchesBySchedule[m.schedule_id] = [];
       matchesBySchedule[m.schedule_id].push(m);
     });
+
+    // If schedule exists but NO individual matches exist at all,
+    // show a single action prompt — not empty rows per matchup.
+    const nonByeSchedule = ftcSchedule.filter(s => !s.is_bye);
+    const totalMatchRows  = nonByeSchedule.reduce((sum, s) => sum + (matchesBySchedule[s.id]?.length || 0), 0);
+    if (nonByeSchedule.length > 0 && totalMatchRows === 0) {
+      const totalWeeks = Object.keys(byWeek).length;
+      el.innerHTML = `<div class="card" style="padding:28px 24px;text-align:center;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;margin-bottom:12px;opacity:0.4;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">Schedule ready — matches not yet created</div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;line-height:1.6;">
+          ${totalWeeks} week${totalWeeks!==1?'s':''} scheduled. Click below to create the individual match lineups<br>(Men's Doubles, Women's Doubles, Mixed #1, Mixed #2) for each matchup.
+        </div>
+        <button onclick="ftcGenerateMatchesForSchedule()" style="padding:9px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          Create Match Lineups
+        </button>
+      </div>`;
+      return;
+    }
 
     const pName = (id) => {
       if (!id) return '<span style="color:#b0bbd6;">TBD</span>';
