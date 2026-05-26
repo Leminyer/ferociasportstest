@@ -1238,6 +1238,7 @@
   <!-- LADDERS -->
   <!-- FTC Ladder Pages (placeholders for Phase 2+) -->
   <div id="page-ftc-teams" class="page">
+    <div id="ftc-teams-title" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;margin-bottom:14px;display:none;"></div>
 <style>
 /* FTC Teams Page */
 .ftc-hero{border-radius:14px;background:white;border:0.5px solid #e0e7f5;padding:24px 28px 20px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(23,76,204,0.06);}
@@ -1639,6 +1640,7 @@
   </div>
 
   <div id="page-ftc-schedule" class="page">
+    <div id="ftc-schedule-title" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;margin-bottom:14px;display:none;"></div>
 <style>
 /* ── FTC Schedule Page ─────────────────── */
 .ftc-sch-gen-card{background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:20px 24px;margin-bottom:14px;box-shadow:0 1px 4px rgba(23,76,204,0.06);}
@@ -1689,7 +1691,8 @@
 .ftc-status-pill{font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:2px 8px;border-radius:99px;}
 .ftc-status-scheduled{background:#e8f0ff;color:#174CCC;}
 .ftc-status-completed{background:rgba(36,188,150,0.12);color:#085041;}
-.ftc-edit-mini{padding:4px 10px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;white-space:nowrap;}
+.ftc-edit-mini{padding:4px 10px;border:0.5px solid #c5d6f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s;}
+.ftc-edit-mini:hover{background:#e8f0ff;border-color:#174CCC;}
 /* Schedule list week cards */
 .ftc-week-card{background:white;border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.04);}
 .ftc-week-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;cursor:pointer;}
@@ -1916,6 +1919,7 @@
     </div>
   </div>
   <div id="page-ftc-playoffs" class="page">
+    <div id="ftc-playoffs-title" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;margin-bottom:14px;display:none;"></div>
     <div class="card" style="padding:32px;text-align:center;color:#6b7a99;font-size:13px;font-weight:600;">
       Playoffs coming in Phase 6.
     </div>
@@ -3355,7 +3359,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20260528"></script>
+<script src="app.js?v=20260529"></script>
 <script src="tournament.js?v=20260526"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────

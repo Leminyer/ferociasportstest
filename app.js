@@ -486,6 +486,7 @@ window.selectLadderType = (type) => {
     if (name === 'ladders') loadLaddersPage();
     if (name === 'ftc-teams') loadFtcTeams();
     if (name === 'ftc-schedule') loadFtcSchedule();
+    if (name === 'ftc-playoffs') loadFtcPlayoffs();
     if (name === 'add-player') initAddPlayer();
     if (name === 'share') loadSharePage();
     if (name === 'orders') loadOrdersPage();
@@ -5946,6 +5947,16 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
   /* ─── EVENT DELEGATION ─────────────────────────────────── */
 
+  /* ─── FTC LADDER — PLAYOFFS ───────────────────────────────── */
+  const loadFtcPlayoffs = () => {
+    if (!currentLadder) return;
+    const el = document.getElementById('ftc-playoffs-title');
+    if (el) {
+      el.textContent = currentLadder.name || '';
+      el.style.display = 'block';
+    }
+  };
+
   /* ─── FTC LADDER — PHASE 3: SCHEDULE GENERATION ─────────── */
 
   let ftcSchedule = []; // loaded schedule rows from DB
@@ -6065,6 +6076,12 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
   const loadFtcSchedule = async () => {
     if (!currentLadder) return;
+    // Set page title (Bebas Neue, same as RP ladder pages)
+    const schTitleEl = document.getElementById('ftc-schedule-title');
+    if (schTitleEl) {
+      schTitleEl.textContent = currentLadder.name || '';
+      schTitleEl.style.display = 'block';
+    }
     // Reset preview card — hide it on every fresh load
     const previewCard = document.getElementById('ftc-sch-preview-card');
     const previewWeeks = document.getElementById('ftc-preview-weeks');
@@ -6596,7 +6613,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                     '<span style="font-size:9px;font-weight:800;color:#b0bbd6;flex-shrink:0;">vs</span>' +
                     '<div style="font-size:11px;font-weight:700;color:#6b7a99;line-height:1.4;width:160px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
                   '</div>' +
-                  '<button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(' + m.id + ')" style="font-size:9px;padding:3px 6px;flex-shrink:0;">Sub</button>' +
+                  '<button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(' + m.id + ')" style="font-size:9px;padding:4px 10px;flex-shrink:0;" title="Edit players / substitutes">Sub</button>' +
                   '</div>';
               };
               if (!useTwoCourts) {
@@ -6643,7 +6660,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 </div>
                 <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
                   ${subMatches.length ? `<span id="${chevId}" style="font-size:10px;color:#6b7a99;display:inline-block;transform:rotate(0deg);transition:transform .15s;">▼</span>` : ''}
-                  <button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenOverrideModal(${s.id},'${s.match_date||''}','${s.match_time||''}','${esc(s.court||'')}')" style="font-size:9px;padding:3px 7px;">Edit</button>
+                  <button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenOverrideModal(${s.id},'${s.match_date||''}','${s.match_time||''}','${esc(s.court||'')}')">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit
+                  </button>
                 </div>
               </div>
               ${matchDetailHtml}
@@ -6870,6 +6890,12 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   // ── Load and render teams page ──────────────────────────────────────────
   const loadFtcTeams = async () => {
     if (!currentLadder) return;
+    // Set page title (Bebas Neue, same as RP ladder pages)
+    const teamsTitleEl = document.getElementById('ftc-teams-title');
+    if (teamsTitleEl) {
+      teamsTitleEl.textContent = currentLadder.name || '';
+      teamsTitleEl.style.display = 'block';
+    }
     // Update hero
     const heroTitle = document.getElementById('ftc-hero-title');
     const heroSub   = document.getElementById('ftc-hero-sub');
