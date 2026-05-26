@@ -6178,7 +6178,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       // "Complete by" = date of next week
       const completeByDate = ftcFmtDate(ftcAddWeeks(firstMatchDate, i + 1));
 
-      weeksHtml += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:8px;overflow:hidden;background:white;">
+      weeksHtml += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:8px;background:white;">
         <!-- Week header -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;background:white;"
           onclick="ftcPrvToggleWeek(${round.week})">
@@ -6555,7 +6555,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
            </div>`
         : '';
 
-      html += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:8px;overflow:hidden;background:white;">
+      html += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:8px;background:white;">
 
         <!-- Week header -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;"
@@ -6626,36 +6626,63 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               const typeOrder = ['mens','womens','mixed1','mixed2'];
               const c1Matches = subMatches.filter(m => ['mens','mixed1'].includes(m.match_type));
               const c2Matches = subMatches.filter(m => ['womens','mixed2'].includes(m.match_type));
+
               const renderMatchDetailRow = (m) => {
-                const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#6b7a99' };
-                return '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid #f0f2f8;">' +
-                  '<span style="font-size:9px;font-weight:800;color:#6b7a99;text-transform:uppercase;letter-spacing:.3px;width:100px;flex-shrink:0;">' + info.label + '</span>' +
-                  '<div style="display:flex;align-items:center;justify-content:center;gap:8px;flex:1;">' +
-                    '<div style="font-size:11px;font-weight:700;color:#0d1f4a;line-height:1.4;text-align:right;width:160px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
-                    '<span style="font-size:9px;font-weight:800;color:#b0bbd6;flex-shrink:0;">vs</span>' +
-                    '<div style="font-size:11px;font-weight:700;color:#6b7a99;line-height:1.4;width:160px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
+                const info   = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#6b7a99' };
+                const scored = m.score_a !== null && m.score_b !== null;
+                const aWins  = scored && m.score_a > m.score_b;
+                const bWins  = scored && m.score_b > m.score_a;
+                const scoreA = scored ? String(m.score_a) : '—';
+                const scoreB = scored ? String(m.score_b) : '—';
+                const ptsA   = scored ? '+' + m.league_pts_a + ' pts' : '';
+                const ptsB   = scored ? '+' + m.league_pts_b + ' pts' : '';
+                return (
+                  '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid #f0f2f8;">' +
+                  '<span style="font-size:9px;font-weight:800;color:#6b7a99;width:80px;flex-shrink:0;text-transform:uppercase;letter-spacing:.3px;">' + info.label + '</span>' +
+                  '<div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:white;border:0.5px solid ' + (aWins ? '#24BC96' : '#e0e7f5') + ';border-radius:8px;">' +
+                    '<div style="font-size:12px;font-weight:700;color:#0d1f4a;line-height:1.5;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
+                    '<div style="text-align:right;">' +
+                      '<div style="font-size:20px;font-weight:800;color:' + (aWins ? '#24BC96' : '#6b7a99') + ';">' + scoreA + '</div>' +
+                      (ptsA ? '<div style="font-size:9px;font-weight:600;color:' + (aWins ? '#24BC96' : '#6b7a99') + ';">' + ptsA + '</div>' : '') +
+                    '</div>' +
                   '</div>' +
-                  ((m.score_a !== null && m.score_b !== null) ?   '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:rgba(36,188,150,0.12);color:#085041;">' + m.score_a + ' – ' + m.score_b + '</span>' +  '<button class="ftc-edit-mini" onclick="ftcOpenScoreModal(' + m.id + ')" style="margin-left:4px;">Edit</button>' +  '<button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(' + m.id + ')" style="margin-left:4px;">'+    '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Sub</button>' : '<button class="ftc-edit-mini" onclick="ftcOpenScoreModal(' + m.id + ')" style="background:#174CCC;color:white;border-color:#174CCC;">+ Score</button>' +  '<button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(' + m.id + ')" style="margin-left:4px;">'+    '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Sub</button>') +
-                  '</div>';
+                  '<span style="font-size:10px;font-weight:700;color:#b0bbd6;flex-shrink:0;">vs</span>' +
+                  '<div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:white;border:0.5px solid ' + (bWins ? '#24BC96' : '#e0e7f5') + ';border-radius:8px;">' +
+                    '<div style="font-size:12px;font-weight:700;color:#6b7a99;line-height:1.5;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
+                    '<div style="text-align:right;">' +
+                      '<div style="font-size:20px;font-weight:800;color:' + (bWins ? '#24BC96' : '#6b7a99') + ';">' + scoreB + '</div>' +
+                      (ptsB ? '<div style="font-size:9px;font-weight:600;color:' + (bWins ? '#24BC96' : '#6b7a99') + ';">' + ptsB + '</div>' : '') +
+                    '</div>' +
+                  '</div>' +
+                  '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">' +
+                    (scored
+                      ? '<button class="ftc-edit-mini" onclick="ftcOpenScoreModal(' + m.id + ')">Edit score</button>'
+                      : '<button class="ftc-edit-mini" onclick="ftcOpenScoreModal(' + m.id + ')" style="background:#174CCC;color:white;border-color:#174CCC;">+ Score</button>') +
+                    '<button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(' + m.id + ')">Sub</button>' +
+                  '</div>' +
+                  '</div>'
+                );
               };
+
+              const renderCourtBlock = (courtLabel, courtColor, matches) => {
+                return (
+                  '<div style="border-top:0.5px solid #e0e7f5;">' +
+                  '<div style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:#f8f9ff;">' +
+                    '<span style="width:8px;height:8px;border-radius:50%;background:' + courtColor + ';display:inline-block;"></span>' +
+                    '<span style="font-size:10px;font-weight:800;color:' + courtColor + ';text-transform:uppercase;letter-spacing:.5px;">Court ' + courtLabel + '</span>' +
+                  '</div>' +
+                  matches.map(m => renderMatchDetailRow(m)).join('') +
+                  '</div>'
+                );
+              };
+
               if (!useTwoCourts) {
                 const ordered = typeOrder.map(t => subMatches.find(m => m.match_type === t)).filter(Boolean);
-                return '<div style="padding:0 16px;">' +
-                  '<div style="font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">' +
-                  '<span style="width:7px;height:7px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Court ' + (c1||'—') + '</div>' +
-                  ordered.map(m => renderMatchDetailRow(m)).join('') + '</div>';
+                return renderCourtBlock(c1 || '—', '#174CCC', ordered);
               }
-              return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:0.5px solid #e0e7f5;padding:0 16px;">' +
-                '<div style="padding:0;border-right:0.5px solid #e0e7f5;padding-right:20px;">' +
-                '<div style="font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">' +
-                '<span style="width:7px;height:7px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Court ' + c1 + '</div>' +
-                c1Matches.map(m => renderMatchDetailRow(m)).join('') + '</div>' +
-                '<div style="padding:0;">' +
-                '<div style="font-size:9px;font-weight:800;color:#24BC96;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">' +
-                '<span style="width:7px;height:7px;border-radius:50%;background:#24BC96;display:inline-block;"></span>Court ' + c2 + '</div>' +
-                c2Matches.map(m => renderMatchDetailRow(m)).join('') + '</div>' +
-              '</div>';
-            };
+              return renderCourtBlock(c1, '#174CCC', c1Matches) +
+                     renderCourtBlock(c2, '#24BC96', c2Matches);
+            }
             // Check for 2-2 tiebreaker situation
             const regularSubMatches  = subMatches.filter(m => !m.is_tiebreaker);
             const tiebreakerMatch    = subMatches.find(m => m.is_tiebreaker);
