@@ -6186,7 +6186,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         <!-- Week body -->
         <div id="ftc-prv-week-${round.week}" style="display:${isFirst?'block':'none'};">
           <!-- Table header -->
-          <div style="display:grid;grid-template-columns:1fr 80px 90px 130px 90px;gap:0;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
+          <div style="display:grid;grid-template-columns:1fr 90px 110px 160px 100px;gap:8px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matchup</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Time</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Courts</div>
@@ -6203,7 +6203,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
             const time   = document.getElementById('ftc-sch-time')?.value || '';
             const timeDisplay = time ? fmtTime12(time) : '—';
 
-            return `<div style="display:grid;grid-template-columns:1fr 80px 90px 130px 90px;gap:0;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;">
+            return `<div style="display:grid;grid-template-columns:1fr 90px 110px 160px 100px;gap:8px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;">
               <div style="display:flex;align-items:center;gap:8px;">
                 <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${tName(m.teamA)}</span>
                 <span style="font-size:9px;font-weight:700;color:#b0bbd6;background:#f0f2f8;padding:2px 6px;border-radius:99px;">vs</span>
@@ -6237,9 +6237,20 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const body = document.getElementById(`ftc-prv-week-${week}`);
     const chev = document.getElementById(`ftc-prv-chevron-${week}`);
     if (!body) return;
-    const open = body.style.display !== 'none';
-    body.style.display = open ? 'none' : 'block';
-    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+    const isOpen = body.style.display !== 'none';
+    // Collapse all other open preview weeks first
+    if (!isOpen) {
+      document.querySelectorAll('[id^="ftc-prv-week-"]').forEach(el => {
+        if (el.id !== `ftc-prv-week-${week}` && el.style.display !== 'none') {
+          el.style.display = 'none';
+          const wn = el.id.replace('ftc-prv-week-', '');
+          const c = document.getElementById(`ftc-prv-chevron-${wn}`);
+          if (c) c.style.transform = 'rotate(0deg)';
+        }
+      });
+    }
+    body.style.display = isOpen ? 'none' : 'block';
+    if (chev) chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
   };
   // ── Create matches for existing schedule (no matches yet) ───────────────
   window.ftcGenerateMatchesForSchedule = async () => {
@@ -6548,7 +6559,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         <div id="ftc-week-body-${weekNum}" style="display:${isOpen?'block':'none'};">
           ${byeHtml}
           <!-- Table header -->
-          <div style="display:grid;grid-template-columns:1fr 80px 100px 140px 90px 36px;gap:0;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
+          <div style="display:grid;grid-template-columns:1fr 90px 110px 160px 100px 40px;gap:8px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matchup</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Time</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Courts</div>
@@ -6581,8 +6592,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
                   const renderMatchDetailRow = (m) => {
                     const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#6b7a99' };
-                    return `<div style="display:grid;grid-template-columns:110px 1fr 28px 1fr 32px;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid #f0f2f8;">
-                      <span style="font-size:9px;font-weight:800;color:${info.color};text-transform:uppercase;letter-spacing:.3px;">${info.label}</span>
+                    return `<div style="display:grid;grid-template-columns:110px 1fr 20px 1fr 32px;align-items:center;gap:4px;padding:8px 0;border-bottom:0.5px solid #f0f2f8;">
+                      <span style="font-size:9px;font-weight:800;color:#6b7a99;text-transform:uppercase;letter-spacing:.3px;">${info.label}</span>
                       <div style="font-size:11px;font-weight:700;color:#0d1f4a;line-height:1.4;">${pName(m.team_a_p1_id)}<br>${pName(m.team_a_p2_id)}</div>
                       <span style="font-size:9px;font-weight:800;color:#b0bbd6;text-align:center;">vs</span>
                       <div style="font-size:11px;font-weight:700;color:#6b7a99;line-height:1.4;text-align:right;">${pName(m.team_b_p1_id)}<br>${pName(m.team_b_p2_id)}</div>
@@ -6599,14 +6610,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                       ${ordered.map(m => renderMatchDetailRow(m)).join('')}
                     </div>`;
                   }
-                  return `<div style="display:grid;grid-template-columns:1fr 1fr;border-top:0.5px solid #e0e7f5;">
-                    <div style="padding:0 16px;border-right:0.5px solid #e0e7f5;">
+                  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:0.5px solid #e0e7f5;padding:0 16px;">
+                    <div style="padding:0;border-right:0.5px solid #e0e7f5;padding-right:20px;">
                       <div style="font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">
                         <span style="width:7px;height:7px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Court ${c1}
                       </div>
                       ${c1Matches.map(m => renderMatchDetailRow(m)).join('')}
                     </div>
-                    <div style="padding:0 16px;">
+                    <div style="padding:0;">
                       <div style="font-size:9px;font-weight:800;color:#24BC96;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">
                         <span style="width:7px;height:7px;border-radius:50%;background:#24BC96;display:inline-block;"></span>Court ${c2}
                       </div>
@@ -6617,7 +6628,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               </div>` : '';
 
             return `<div>
-              <div style="display:grid;grid-template-columns:1fr 80px 100px 140px 90px 36px;gap:0;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;cursor:${subMatches.length?'pointer':'default'};"
+              <div style="display:grid;grid-template-columns:1fr 90px 110px 160px 100px 40px;gap:8px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;cursor:${subMatches.length?'pointer':'default'};"
                 onclick="${subMatches.length?`ftcToggleMatchExpand('${s.id}')`:''}" >
                 <div style="display:flex;align-items:center;gap:8px;">
                   <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_a_id)}</span>
@@ -6653,17 +6664,39 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const body = document.getElementById(`ftc-match-expand-${schedId}`);
     const chev = document.getElementById(`ftc-match-chev-${schedId}`);
     if (!body) return;
-    const open = body.style.display !== 'none';
-    body.style.display = open ? 'none' : 'block';
-    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+    const isOpen = body.style.display !== 'none';
+    // Collapse all other open matchup details first
+    if (!isOpen) {
+      document.querySelectorAll('[id^="ftc-match-expand-"]').forEach(el => {
+        if (el.id !== `ftc-match-expand-${schedId}` && el.style.display !== 'none') {
+          el.style.display = 'none';
+          const sid = el.id.replace('ftc-match-expand-', '');
+          const c = document.getElementById(`ftc-match-chev-${sid}`);
+          if (c) c.style.transform = 'rotate(0deg)';
+        }
+      });
+    }
+    body.style.display = isOpen ? 'none' : 'block';
+    if (chev) chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
   };
   window.ftcToggleWeek = (week) => {
     const body = document.getElementById(`ftc-week-body-${week}`);
     const chev = document.getElementById(`ftc-wk-chev-${week}`);
     if (!body) return;
-    const open = body.style.display !== 'none';
-    body.style.display = open ? 'none' : 'block';
-    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+    const isOpen = body.style.display !== 'none';
+    // Collapse all other open weeks first
+    if (!isOpen) {
+      document.querySelectorAll('[id^="ftc-week-body-"]').forEach(el => {
+        if (el.id !== `ftc-week-body-${week}` && el.style.display !== 'none') {
+          el.style.display = 'none';
+          const wn = el.id.replace('ftc-week-body-', '');
+          const c = document.getElementById(`ftc-wk-chev-${wn}`);
+          if (c) c.style.transform = 'rotate(0deg)';
+        }
+      });
+    }
+    body.style.display = isOpen ? 'none' : 'block';
+    if (chev) chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
   };
 
   // ── Override modal ────────────────────────────────────────────────────

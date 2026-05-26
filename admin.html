@@ -1841,15 +1841,16 @@
 
     <!-- Preview Card (separate white box, shown after Preview click) -->
     <div class="ftc-preview-card" id="ftc-sch-preview-card">
-      <div class="ftc-preview-hdr">
-        <div class="ftc-preview-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span id="ftc-preview-title-txt">PREVIEW — 6 WEEKS</span>
+      <!-- Preview header: title + badge + legend -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span id="ftc-preview-title-txt" style="font-size:16px;font-weight:800;color:#0d1f4a;letter-spacing:.3px;">SEASON PREVIEW</span>
           <span class="ftc-bal-badge">Balanced</span>
         </div>
         <div class="ftc-legend" id="ftc-preview-legend"></div>
       </div>
-      <div class="ftc-preview-sub">This is a preview of your season schedule. You can adjust settings above and preview again.</div>
+      <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Review your season schedule. Click any week to see matchups.</div>
       <div id="ftc-preview-weeks"></div>
     </div>
 
@@ -1874,8 +1875,7 @@
         <div style="font-size:11px;font-weight:600;color:#6b7a99;padding:10px 0 6px;">Toggle "Use Sub" to replace a player with their team's substitute for this specific match.</div>
         <div id="ftc-match-edit-body"></div>
       </div>
-      <div style="padding:12px 20px;border-top:0.5px solid #e0e7f5;display:flex;justify-content:flex-end;gap:8px;">
-        <button onclick="ftcCloseMatchEdit()" style="padding:7px 16px;border-radius:99px;border:0.5px solid #e0e7f5;background:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:#6b7a99;cursor:pointer;">Cancel</button>
+      <div style="padding:12px 20px;border-top:0.5px solid #e0e7f5;display:flex;justify-content:flex-end;">
         <button id="ftc-match-edit-save" onclick="ftcSaveMatchEdit()" style="padding:7px 16px;border-radius:99px;border:none;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">Save Changes</button>
       </div>
     </div>
@@ -1907,8 +1907,7 @@
           <input type="text" id="ftc-override-court" class="ftc-gen-input" placeholder="e.g. Court 1">
         </div>
       </div>
-      <div style="padding:12px 20px;border-top:0.5px solid #e0e7f5;display:flex;justify-content:flex-end;gap:8px;">
-        <button onclick="ftcCloseOverrideModal()" style="padding:7px 16px;border-radius:99px;border:0.5px solid #e0e7f5;background:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:#6b7a99;cursor:pointer;">Cancel</button>
+      <div style="padding:12px 20px;border-top:0.5px solid #e0e7f5;display:flex;justify-content:flex-end;">
         <button onclick="ftcSaveOverride()" style="padding:7px 16px;border-radius:99px;border:none;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">Save</button>
       </div>
     </div>
@@ -2024,7 +2023,7 @@
             <input type="date" id="new-ladder-end" class="lop-create-input">
           </div>
         </div>
-        <div style="display:flex;justify-content:flex-end;">
+        <div style="display:flex;justify-content:center;">
           <button type="submit" style="padding:7px 16px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
             Launch Ladder
