@@ -5924,6 +5924,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   /* ─── FTC LADDER — PHASE 3: SCHEDULE GENERATION ─────────── */
 
   let ftcSchedule = []; // loaded schedule rows from DB
+  let ftcMatches  = []; // loaded individual matches (ftc_ladder_matches)
 
   // ── Round-robin schedule algorithm (circle method) ────────────────────
   // Returns array of rounds, each round is array of {teamA, teamB} or {teamA, bye:true}
@@ -6049,6 +6050,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     try {
       ftcSchedule = await api(
         `ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}&select=*&order=week_number,id`
+      );
+      // Also fetch all individual matches for this ladder
+      ftcMatches = await api(
+        `ftc_ladder_matches?ladder_id=eq.${currentLadder.id}&select=*&order=schedule_id,match_type`
       );
       renderFtcSchedule();
     } catch (err) {
@@ -6186,12 +6191,72 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     });
 
     try {
-      await api('ftc_ladder_schedule', 'POST', rows);
-      toast(`Schedule generated — ${weeks} weeks, ${rows.length} matchups!`);
+      // Save schedule rows
+      const savedSchedule = await api('ftc_ladder_schedule', 'POST', rows);
+
+      // Fetch saved rows to get their IDs (Supabase returns inserted rows)
+      const scheduleIds = await api(
+        `ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}&order=week_number,id&select=id,team_a_id,team_b_id,is_bye,court`
+      );
+
+      // Build ftc_ladder_matches (4 per non-bye matchup)
+      const matchTypes = ['mens','womens','mixed1','mixed2'];
+      const matchRows  = [];
+
+      scheduleIds.filter(s => !s.is_bye).forEach(s => {
+        const tA = ftcTeams.find(t => t.id === s.team_a_id);
+        const tB = ftcTeams.find(t => t.id === s.team_b_id);
+        if (!tA || !tB) return;
+
+        // Determine courts from schedule court field (e.g. "19, 20")
+        const courtParts = s.court ? s.court.split(',').map(c => c.trim()) : [];
+        const court1 = courtParts[0] || null;
+        const court2 = courtParts[1] || court1; // fall back to court1 if only one
+
+        // Player assignments per match type
+        const assignments = {
+          mens:   { ap1: tA.m1_id,          ap2: tA.m2_id,          bp1: tB.m1_id,          bp2: tB.m2_id,          court: court1 },
+          womens: { ap1: tA.f1_id,           ap2: tA.f2_id,           bp1: tB.f1_id,           bp2: tB.f2_id,           court: court2 },
+          mixed1: { ap1: tA.mixed1_ma_id,     ap2: tA.mixed1_fa_id,    bp1: tB.mixed1_ma_id,    bp2: tB.mixed1_fa_id,    court: court1 },
+          mixed2: { ap1: tA.mixed2_ma_id,     ap2: tA.mixed2_fa_id,    bp1: tB.mixed2_ma_id,    bp2: tB.mixed2_fa_id,    court: court2 },
+        };
+
+        matchTypes.forEach(type => {
+          const a = assignments[type];
+          matchRows.push({
+            schedule_id:    s.id,
+            ladder_id:      currentLadder.id,
+            match_type:     type,
+            team_a_id:      s.team_a_id,
+            team_b_id:      s.team_b_id,
+            team_a_p1_id:   a.ap1 || null,
+            team_a_p2_id:   a.ap2 || null,
+            team_b_p1_id:   a.bp1 || null,
+            team_b_p2_id:   a.bp2 || null,
+            court:          a.court,
+            status:         'pending',
+          });
+        });
+      });
+
+      if (matchRows.length) {
+        await api('ftc_ladder_matches', 'POST', matchRows);
+      }
+
+      const nonBye = scheduleIds.filter(s => !s.is_bye).length;
+      toast(`Schedule generated — ${weeks} weeks, ${nonBye} matchups, ${matchRows.length} matches created!`);
       await loadFtcSchedule();
     } catch (err) {
       toast(`Error: ${err.message}`, true);
     }
+  };
+
+  // Match type display labels
+  const FTC_MATCH_LABELS = {
+    mens:   { label: "Men's Doubles",   color: '#174CCC', bg: '#e8f0ff' },
+    womens: { label: "Women's Doubles", color: '#F26024', bg: 'rgba(242,96,36,0.08)' },
+    mixed1: { label: 'Mixed #1',        color: '#24BC96', bg: 'rgba(36,188,150,0.08)' },
+    mixed2: { label: 'Mixed #2',        color: '#9a6e00', bg: 'rgba(154,110,0,0.08)'  },
   };
 
   // ── Render schedule list ──────────────────────────────────────────────
@@ -6215,6 +6280,18 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       byWeek[s.week_number].push(s);
     });
 
+    // Index matches by schedule_id
+    const matchesBySchedule = {};
+    ftcMatches.forEach(m => {
+      if (!matchesBySchedule[m.schedule_id]) matchesBySchedule[m.schedule_id] = [];
+      matchesBySchedule[m.schedule_id].push(m);
+    });
+
+    const pName = (id) => {
+      if (!id) return '<span style="color:#b0bbd6;">TBD</span>';
+      const p = ladderPlayers.find(x => x.id === id);
+      return p ? `${esc(p.first_name)} ${esc(p.last_name)}` : `Player #${id}`;
+    };
     const teamName = (id) => {
       if (!id) return '<span style="color:#b0bbd6;">TBD</span>';
       const t = ftcTeams.find(x => x.id === id);
@@ -6225,7 +6302,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const completed  = ftcSchedule.filter(s => s.status === 'completed').length;
 
     let html = `<div style="font-size:11px;font-weight:700;color:#6b7a99;margin-bottom:10px;">
-      ${totalWeeks} week${totalWeeks!==1?'s':''} · ${ftcSchedule.length} matchups · ${completed} completed
+      ${totalWeeks} week${totalWeeks!==1?'s':''} · ${ftcSchedule.filter(s=>!s.is_bye).length} matchups · ${completed} completed
     </div>`;
 
     Object.keys(byWeek).sort((a,b) => a-b).forEach(week => {
@@ -6241,34 +6318,116 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
             Week ${week}
             ${allDone?'<span class="ftc-status-pill ftc-status-completed">Complete</span>':anyDone?'<span class="ftc-status-pill" style="background:rgba(242,96,36,0.1);color:#F26024;">In Progress</span>':'<span class="ftc-status-pill ftc-status-scheduled">Scheduled</span>'}
           </div>
-          <div class="ftc-week-meta">${firstDate ? ftcFmtDate(firstDate) : 'No date set'} · ${matchups.filter(m=>!m.is_bye).length} match${matchups.filter(m=>!m.is_bye).length!==1?'es':''}</div>
+          <div class="ftc-week-meta">${firstDate ? ftcFmtDate(firstDate) : 'No date set'} · ${matchups.filter(m=>!m.is_bye).length} matchup${matchups.filter(m=>!m.is_bye).length!==1?'s':''}</div>
         </div>
-        <div class="ftc-week-body" id="ftc-week-body-${week}">
-          ${matchups.map(m => {
-            if (m.is_bye) {
-              return `<div class="ftc-matchup-row">
-                <div class="ftc-matchup-teams">
-                  <span class="ftc-bye-badge">BYE</span>
-                  ${teamName(m.team_a_id)} sits out this week
-                </div>
-              </div>`;
-            }
-            return `<div class="ftc-matchup-row">
-              <div class="ftc-matchup-teams">
-                ${teamName(m.team_a_id)}
-                <span class="ftc-matchup-vs">VS</span>
-                ${teamName(m.team_b_id)}
+        <div class="ftc-week-body" id="ftc-week-body-${week}">`;
+
+      matchups.forEach(s => {
+        if (s.is_bye) {
+          html += `<div class="ftc-matchup-row">
+            <div class="ftc-matchup-block">
+              <span class="ftc-bye-badge">BYE / REST</span>
+              <span style="font-size:12px;font-weight:700;color:#6b7a99;">${teamName(s.team_a_id)} sits out this week</span>
+            </div>
+          </div>`;
+          return;
+        }
+
+        // Matchup header
+        const courtParts = s.court ? s.court.split(',').map(c => c.trim()) : [];
+        const court1 = courtParts[0] || null;
+        const court2 = courtParts[1] || null;
+        const useTwoCourts = !!court2;
+
+        html += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:10px;overflow:hidden;">
+          <!-- Matchup header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_a_id)}</span>
+              <span style="font-size:10px;font-weight:800;color:#b0bbd6;background:#f0f2f8;padding:2px 8px;border-radius:99px;">VS</span>
+              <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_b_id)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${s.match_time ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">${fmtTime12(s.match_time)}</span>` : ''}
+              ${s.match_date ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">${ftcFmtDate(s.match_date)}</span>` : ''}
+              <span class="ftc-status-pill ${s.status==='completed'?'ftc-status-completed':'ftc-status-scheduled'}">${s.status}</span>
+              <button class="ftc-edit-mini" onclick="ftcOpenOverrideModal(${s.id}, '${s.match_date||''}', '${s.match_time||''}', '${esc(s.court||'')}')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit Matchup
+              </button>
+            </div>
+          </div>`;
+
+        // Individual sub-matches
+        const subMatches = matchesBySchedule[s.id] || [];
+        const typeOrder  = ['mens','womens','mixed1','mixed2'];
+
+        // Group by court for display
+        const court1Matches = subMatches.filter(m => ['mens','mixed1'].includes(m.match_type));
+        const court2Matches = subMatches.filter(m => ['womens','mixed2'].includes(m.match_type));
+
+        const renderMatchRow = (m) => {
+          const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color: '#6b7a99', bg: '#f4f5f8' };
+          return `<div style="display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center;gap:8px;padding:9px 0;border-bottom:0.5px solid #f4f5f8;">
+            <div style="width:8px;height:8px;border-radius:50%;background:${info.color};flex-shrink:0;"></div>
+            <div style="display:flex;flex-direction:column;gap:1px;">
+              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:${info.color};">${info.label}</div>
+              <div style="font-size:12px;font-weight:700;color:#0d1f4a;">${pName(m.team_a_p1_id)}</div>
+              <div style="font-size:12px;font-weight:700;color:#0d1f4a;">${pName(m.team_a_p2_id)}</div>
+            </div>
+            <div style="font-size:10px;font-weight:800;color:#b0bbd6;text-align:center;padding:0 4px;">vs</div>
+            <div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">
+              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:${info.color};">&nbsp;</div>
+              <div style="font-size:12px;font-weight:700;color:#6b7a99;">${pName(m.team_b_p1_id)}</div>
+              <div style="font-size:12px;font-weight:700;color:#6b7a99;">${pName(m.team_b_p2_id)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(${m.id})" title="Edit players / sub">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+            </div>
+          </div>`;
+        };
+
+        if (subMatches.length === 0) {
+          // No individual matches yet — show placeholder
+          html += `<div style="padding:16px;text-align:center;font-size:11px;font-weight:600;color:#b0bbd6;">
+            Individual matches not yet generated. Regenerate the schedule to create them.
+          </div>`;
+        } else if (!useTwoCourts) {
+          // Single court — all 4 matches in one block
+          const orderedMatches = typeOrder.map(t => subMatches.find(m => m.match_type === t)).filter(Boolean);
+          html += `<div style="padding:0 16px;">
+            <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid #e0e7f5;">
+              <div style="width:9px;height:9px;border-radius:50%;background:#174CCC;"></div>
+              <span style="font-size:10px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;">Court ${court1 || '—'}</span>
+            </div>
+            ${orderedMatches.map(m => renderMatchRow(m)).join('')}
+          </div>`;
+        } else {
+          // Two courts side by side
+          html += `<div style="display:grid;grid-template-columns:1fr 1fr;border-top:0.5px solid #e0e7f5;">
+            <div style="padding:0 16px;border-right:0.5px solid #e0e7f5;">
+              <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid #e0e7f5;">
+                <div style="width:9px;height:9px;border-radius:50%;background:#174CCC;"></div>
+                <span style="font-size:10px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;">Court ${court1}</span>
               </div>
-              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-                ${m.match_time ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">${fmtTime12(m.match_time)}</span>` : ''}
-                ${m.court ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">Court ${esc(m.court)}</span>` : ''}
-                <span class="ftc-status-pill ${m.status==='completed'?'ftc-status-completed':'ftc-status-scheduled'}">${m.status}</span>
-                <button class="ftc-edit-mini" onclick="ftcOpenOverrideModal(${m.id}, '${m.match_date||''}', '${m.match_time||''}', '${esc(m.court||'')}')">Edit</button>
+              ${court1Matches.map(m => renderMatchRow(m)).join('')}
+            </div>
+            <div style="padding:0 16px;">
+              <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid #e0e7f5;">
+                <div style="width:9px;height:9px;border-radius:50%;background:#24BC96;"></div>
+                <span style="font-size:10px;font-weight:800;color:#24BC96;text-transform:uppercase;letter-spacing:.5px;">Court ${court2}</span>
               </div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`;
+              ${court2Matches.map(m => renderMatchRow(m)).join('')}
+            </div>
+          </div>`;
+        }
+
+        html += `</div>`; // close matchup card
+      });
+
+      html += `</div></div>`; // close week-body + week-card
     });
 
     el.innerHTML = html;
@@ -6312,6 +6471,140 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     } catch (err) {
       toast(`Error: ${err.message}`, true);
     }
+  };
+
+  // ── Individual match edit (player sub toggle) ────────────────────────
+  window.ftcOpenMatchEdit = (matchId) => {
+    const m = ftcMatches.find(x => x.id === matchId);
+    if (!m) return;
+    const tA = ftcTeams.find(t => t.id === m.team_a_id);
+    const tB = ftcTeams.find(t => t.id === m.team_b_id);
+    const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#174CCC' };
+    const pName = (id) => {
+      if (!id) return 'TBD';
+      const p = ladderPlayers.find(x => x.id === id);
+      return p ? `${p.first_name} ${p.last_name}` : `#${id}`;
+    };
+
+    // Determine which subs are available per team per slot
+    const slots = [
+      { label: `${esc(tA?.name||'Team A')} — Player 1`, pid: m.team_a_p1_id, subId: ftcGetSub(tA, m.match_type, 1), field: 'team_a_p1_id', team: 'A', slot: 1 },
+      { label: `${esc(tA?.name||'Team A')} — Player 2`, pid: m.team_a_p2_id, subId: ftcGetSub(tA, m.match_type, 2), field: 'team_a_p2_id', team: 'A', slot: 2 },
+      { label: `${esc(tB?.name||'Team B')} — Player 1`, pid: m.team_b_p1_id, subId: ftcGetSub(tB, m.match_type, 1), field: 'team_b_p1_id', team: 'B', slot: 1 },
+      { label: `${esc(tB?.name||'Team B')} — Player 2`, pid: m.team_b_p2_id, subId: ftcGetSub(tB, m.match_type, 2), field: 'team_b_p2_id', team: 'B', slot: 2 },
+    ];
+
+    const titleEl = document.getElementById('ftc-match-edit-title');
+    if (titleEl) titleEl.textContent = `${info.label} — Edit Players`;
+
+    const idEl = document.getElementById('ftc-match-edit-id');
+    if (idEl) idEl.value = matchId;
+
+    const bodyEl = document.getElementById('ftc-match-edit-body');
+    if (bodyEl) {
+      bodyEl.innerHTML = slots.map((s, i) => {
+        const isSub = s.subId && s.pid === s.subId;
+        const regularName = pName(isSub ? ftcGetRegular(s.team==='A'?tA:tB, m.match_type, s.slot) : s.pid);
+        const subName     = s.subId ? pName(s.subId) : null;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid #f4f5f8;">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#6b7a99;margin-bottom:2px;">${s.label}</div>
+            <div style="font-size:13px;font-weight:800;color:#0d1f4a;" id="ftc-me-name-${i}">${pName(s.pid)}</div>
+            ${subName ? `<div style="font-size:10px;font-weight:600;color:#24BC96;margin-top:1px;">Sub available: ${subName}</div>` : '<div style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:1px;">No sub available</div>'}
+          </div>
+          ${subName ? `<div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:10px;font-weight:600;color:#6b7a99;">${isSub ? 'Using sub' : 'Regular'}</span>
+            <button id="ftc-me-toggle-${i}"
+              data-mid="${matchId}" data-field="${s.field}" data-regular="${isSub ? ftcGetRegular(s.team==='A'?tA:tB, m.match_type, s.slot) : s.pid}" data-sub="${s.subId}" data-issub="${isSub}"
+              onclick="ftcToggleSub(${i})"
+              style="padding:5px 12px;border-radius:99px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;border:none;background:${isSub ? '#174CCC' : '#e0e7f5'};color:${isSub ? 'white' : '#6b7a99'};">
+              ${isSub ? 'Undo Sub' : 'Use Sub'}
+            </button>
+          </div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    document.getElementById('ftc-match-edit-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
+
+  // Get the sub player ID for a given team, match type, and slot (1 or 2)
+  const ftcGetSub = (team, matchType, slot) => {
+    if (!team) return null;
+    // For men's/mixed man slot → m_sub_id; for women's/mixed woman slot → f_sub_id
+    if (matchType === 'mens') return slot === 1 ? team.m_sub_id : team.m_sub_id;
+    if (matchType === 'womens') return slot === 1 ? team.f_sub_id : team.f_sub_id;
+    if (matchType === 'mixed1' || matchType === 'mixed2') {
+      // slot 1 = man, slot 2 = woman
+      return slot === 1 ? team.m_sub_id : team.f_sub_id;
+    }
+    return null;
+  };
+
+  // Get the regular (non-sub) player ID for a given slot
+  const ftcGetRegular = (team, matchType, slot) => {
+    if (!team) return null;
+    if (matchType === 'mens')   return slot === 1 ? team.m1_id : team.m2_id;
+    if (matchType === 'womens') return slot === 1 ? team.f1_id : team.f2_id;
+    if (matchType === 'mixed1') return slot === 1 ? team.mixed1_ma_id : team.mixed1_fa_id;
+    if (matchType === 'mixed2') return slot === 1 ? team.mixed2_ma_id : team.mixed2_fa_id;
+    return null;
+  };
+
+  window.ftcToggleSub = (slotIdx) => {
+    const btn     = document.getElementById(`ftc-me-toggle-${slotIdx}`);
+    const nameEl  = document.getElementById(`ftc-me-name-${slotIdx}`);
+    if (!btn || !nameEl) return;
+    const isSub   = btn.dataset.issub === 'true';
+    const regular = parseInt(btn.dataset.regular, 10);
+    const sub     = parseInt(btn.dataset.sub, 10);
+    const newVal  = isSub ? regular : sub;
+    // Update local ftcMatches
+    const matchId = parseInt(btn.dataset.mid, 10);
+    const field   = btn.dataset.field;
+    const match   = ftcMatches.find(x => x.id === matchId);
+    if (match) match[field] = newVal;
+    // Update UI
+    const pName = (id) => {
+      const p = ladderPlayers.find(x => x.id === id);
+      return p ? `${p.first_name} ${p.last_name}` : `#${id}`;
+    };
+    nameEl.textContent = pName(newVal);
+    btn.dataset.issub  = String(!isSub);
+    btn.style.background = !isSub ? '#174CCC' : '#e0e7f5';
+    btn.style.color      = !isSub ? 'white'   : '#6b7a99';
+    btn.textContent      = !isSub ? 'Undo Sub' : 'Use Sub';
+  };
+
+  window.ftcSaveMatchEdit = async () => {
+    const matchId = parseInt(document.getElementById('ftc-match-edit-id').value, 10);
+    const m = ftcMatches.find(x => x.id === matchId);
+    if (!m) return;
+    const saveBtn = document.getElementById('ftc-match-edit-save');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+    try {
+      await api(`ftc_ladder_matches?id=eq.${matchId}`, 'PATCH', {
+        team_a_p1_id: m.team_a_p1_id,
+        team_a_p2_id: m.team_a_p2_id,
+        team_b_p1_id: m.team_b_p1_id,
+        team_b_p2_id: m.team_b_p2_id,
+      });
+      toast('Match players updated.');
+      document.getElementById('ftc-match-edit-modal').style.display = 'none';
+      document.body.style.overflow = '';
+      ftcMatches = await api(`ftc_ladder_matches?ladder_id=eq.${currentLadder.id}&select=*&order=schedule_id,match_type`);
+      renderFtcSchedule();
+    } catch (err) {
+      toast(`Error: ${err.message}`, true);
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; }
+    }
+  };
+
+  window.ftcCloseMatchEdit = () => {
+    document.getElementById('ftc-match-edit-modal').style.display = 'none';
+    document.body.style.overflow = '';
   };
 
   /* ─── FTC LADDER — PHASE 2: TEAM REGISTRATION ────────────── */
