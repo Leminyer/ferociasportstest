@@ -949,6 +949,16 @@ window.selectLadderType = (type) => {
     const modal = document.getElementById('lp-modal');
     if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
     const searchEl = document.getElementById('lp-search');
+    // Reset gender filter to 'all' on open
+    _lpGenderFilter = 'all';
+    ['all','male','female'].forEach(g => {
+      const btn = document.getElementById(`lp-filter-${g}`);
+      if (!btn) return;
+      const active = g === 'all';
+      btn.style.background  = active ? '#174CCC' : 'white';
+      btn.style.borderColor = active ? '#174CCC' : '#e0e7f5';
+      btn.style.color       = active ? 'white'   : '#6b7a99';
+    });
     if (searchEl) {
       searchEl.value = '';
       if (!searchEl._lpWired) {
@@ -1018,8 +1028,9 @@ window.selectLadderType = (type) => {
             onclick="lpSegClick(this,'sub',${p.id})">Sub</button>
         </div>` : '';
 
+      const gender = (p.gender || '').toLowerCase(); // 'male' or 'female'
       return `<div class="lp-player-row-new ${isEnrolled ? 'lp-selected' : ''}"
-          data-name="${esc(fullName.toLowerCase())}" data-pid="${p.id}"
+          data-name="${esc(fullName.toLowerCase())}" data-pid="${p.id}" data-gender="${esc(gender)}"
           onclick="lpRowClick(event,${p.id})">
         <div class="lp-cb-box ${isEnrolled ? 'lp-cb-checked' : ''}" data-pid="${p.id}" style="pointer-events:none;">
           ${isEnrolled ? checkSVG : ''}
@@ -7517,13 +7528,36 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   });
 
   // Input handler — search + auto-calc previews
+  // ── Ladder Participants gender filter ─────────────────────────────────
+  let _lpGenderFilter = 'all'; // 'all' | 'male' | 'female'
+
+  window.lpGenderFilter = (gender) => {
+    _lpGenderFilter = gender;
+    // Update pill styles
+    ['all','male','female'].forEach(g => {
+      const btn = document.getElementById(`lp-filter-${g}`);
+      if (!btn) return;
+      const active = g === gender;
+      btn.style.background   = active ? '#174CCC' : 'white';
+      btn.style.borderColor  = active ? '#174CCC' : '#e0e7f5';
+      btn.style.color        = active ? 'white'   : '#6b7a99';
+    });
+    lpApplyFilters();
+  };
+
+  window.lpApplyFilters = () => {
+    const q = (document.getElementById('lp-search')?.value || '').toLowerCase();
+    document.querySelectorAll('#lp-enrolled .lp-player-row-new').forEach((row) => {
+      const nameMatch   = row.dataset.name?.includes(q) ?? true;
+      const genderMatch = _lpGenderFilter === 'all' || row.dataset.gender === _lpGenderFilter;
+      row.style.display = (nameMatch && genderMatch) ? '' : 'none';
+    });
+  };
+
   document.addEventListener('input', (e) => {
     const el = e.target;
     if (el.id === 'lp-search') {
-      const q = el.value.toLowerCase();
-      document.querySelectorAll('#lp-enrolled .lp-player-row').forEach((row) => {
-        row.style.display = row.dataset.name.includes(q) ? '' : 'none';
-      });
+      lpApplyFilters();
       return;
     }
     if (el.id === 'player-search-entry') {

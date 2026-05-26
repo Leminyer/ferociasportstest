@@ -2945,12 +2945,21 @@
       </button>
     </div>
 
-    <!-- Search bar -->
+    <!-- Search bar + gender filter -->
     <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:0.5px solid #e0e7f5;background:#fafbff;flex-shrink:0;">
       <div style="flex:1;display:flex;align-items:center;gap:8px;background:#f0f2f8;border:0.5px solid #e0e7f5;border-radius:8px;padding:7px 12px;outline:none;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="lp-search" placeholder="Search ladder participants..." autocomplete="off"
           style="border:none;background:transparent;outline:none;box-shadow:none;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;color:#0d1f4a;width:100%;padding:0;line-height:1.4;-webkit-appearance:none;">
+      </div>
+      <!-- Gender filter pills -->
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button id="lp-filter-all" onclick="lpGenderFilter('all')"
+          style="padding:5px 12px;border-radius:99px;border:0.5px solid #174CCC;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;">All</button>
+        <button id="lp-filter-male" onclick="lpGenderFilter('male')"
+          style="padding:5px 12px;border-radius:99px;border:0.5px solid #e0e7f5;background:white;color:#6b7a99;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;">Male</button>
+        <button id="lp-filter-female" onclick="lpGenderFilter('female')"
+          style="padding:5px 12px;border-radius:99px;border:0.5px solid #e0e7f5;background:white;color:#6b7a99;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;">Female</button>
       </div>
     </div>
 
