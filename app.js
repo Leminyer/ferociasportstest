@@ -6579,53 +6579,47 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
             const expandId      = `ftc-match-expand-${s.id}`;
             const chevId        = `ftc-match-chev-${s.id}`;
 
-            // Build expandable match detail rows
-            const matchDetailHtml = subMatches.length > 0 ? `
-              <div id="${expandId}" style="display:none;border-top:0.5px solid #e0e7f5;background:#fafbff;">
-                ${(() => {
-                  const c1 = courtParts[0] || null;
-                  const c2 = courtParts[1] || null;
-                  const useTwoCourts = !!c2;
-                  const typeOrder = ['mens','womens','mixed1','mixed2'];
-                  const c1Matches = subMatches.filter(m => ['mens','mixed1'].includes(m.match_type));
-                  const c2Matches = subMatches.filter(m => ['womens','mixed2'].includes(m.match_type));
-
-                  const renderMatchDetailRow = (m) => {
-                    const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#6b7a99' };
-                    return `<div style="display:grid;grid-template-columns:110px 1fr 20px 1fr 32px;align-items:center;gap:4px;padding:8px 0;border-bottom:0.5px solid #f0f2f8;">
-                      <span style="font-size:9px;font-weight:800;color:#6b7a99;text-transform:uppercase;letter-spacing:.3px;">${info.label}</span>
-                      <div style="font-size:11px;font-weight:700;color:#0d1f4a;line-height:1.4;">${pName(m.team_a_p1_id)}<br>${pName(m.team_a_p2_id)}</div>
-                      <span style="font-size:9px;font-weight:800;color:#b0bbd6;text-align:center;">vs</span>
-                      <div style="font-size:11px;font-weight:700;color:#6b7a99;line-height:1.4;text-align:right;">${pName(m.team_b_p1_id)}<br>${pName(m.team_b_p2_id)}</div>
-                      <button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(${m.id})" style="font-size:9px;padding:3px 6px;">Sub</button>
-                    </div>`;
-                  };
-
-                  if (!useTwoCourts) {
-                    const ordered = typeOrder.map(t => subMatches.find(m => m.match_type === t)).filter(Boolean);
-                    return `<div style="padding:0 16px;">
-                      <div style="font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">
-                        <span style="width:7px;height:7px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Court ${c1||'—'}
-                      </div>
-                      ${ordered.map(m => renderMatchDetailRow(m)).join('')}
-                    </div>`;
-                  }
-                  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:0.5px solid #e0e7f5;padding:0 16px;">
-                    <div style="padding:0;border-right:0.5px solid #e0e7f5;padding-right:20px;">
-                      <div style="font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">
-                        <span style="width:7px;height:7px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Court ${c1}
-                      </div>
-                      ${c1Matches.map(m => renderMatchDetailRow(m)).join('')}
-                    </div>
-                    <div style="padding:0;">
-                      <div style="font-size:9px;font-weight:800;color:#24BC96;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">
-                        <span style="width:7px;height:7px;border-radius:50%;background:#24BC96;display:inline-block;"></span>Court ${c2}
-                      </div>
-                      ${c2Matches.map(m => renderMatchDetailRow(m)).join('')}
-                    </div>
-                  </div>`;
-                })()}
-              </div>` : '';
+            // Build expandable match detail rows — extracted from template to avoid IIFE-in-template parse issues
+            const buildMatchDetailHtml = (subMatches, courtParts) => {
+              const c1 = courtParts[0] || null;
+              const c2 = courtParts[1] || null;
+              const useTwoCourts = !!c2;
+              const typeOrder = ['mens','womens','mixed1','mixed2'];
+              const c1Matches = subMatches.filter(m => ['mens','mixed1'].includes(m.match_type));
+              const c2Matches = subMatches.filter(m => ['womens','mixed2'].includes(m.match_type));
+              const renderMatchDetailRow = (m) => {
+                const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#6b7a99' };
+                return '<div style="display:grid;grid-template-columns:110px 1fr 20px 1fr 32px;align-items:center;gap:4px;padding:8px 0;border-bottom:0.5px solid #f0f2f8;">' +
+                  '<span style="font-size:9px;font-weight:800;color:#6b7a99;text-transform:uppercase;letter-spacing:.3px;">' + info.label + '</span>' +
+                  '<div style="font-size:11px;font-weight:700;color:#0d1f4a;line-height:1.4;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
+                  '<span style="font-size:9px;font-weight:800;color:#b0bbd6;text-align:center;">vs</span>' +
+                  '<div style="font-size:11px;font-weight:700;color:#6b7a99;line-height:1.4;text-align:right;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
+                  '<button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(' + m.id + ')" style="font-size:9px;padding:3px 6px;">Sub</button>' +
+                  '</div>';
+              };
+              if (!useTwoCourts) {
+                const ordered = typeOrder.map(t => subMatches.find(m => m.match_type === t)).filter(Boolean);
+                return '<div style="padding:0 16px;">' +
+                  '<div style="font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">' +
+                  '<span style="width:7px;height:7px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Court ' + (c1||'—') + '</div>' +
+                  ordered.map(m => renderMatchDetailRow(m)).join('') + '</div>';
+              }
+              return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:0.5px solid #e0e7f5;padding:0 16px;">' +
+                '<div style="padding:0;border-right:0.5px solid #e0e7f5;padding-right:20px;">' +
+                '<div style="font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">' +
+                '<span style="width:7px;height:7px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Court ' + c1 + '</div>' +
+                c1Matches.map(m => renderMatchDetailRow(m)).join('') + '</div>' +
+                '<div style="padding:0;">' +
+                '<div style="font-size:9px;font-weight:800;color:#24BC96;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">' +
+                '<span style="width:7px;height:7px;border-radius:50%;background:#24BC96;display:inline-block;"></span>Court ' + c2 + '</div>' +
+                c2Matches.map(m => renderMatchDetailRow(m)).join('') + '</div>' +
+              '</div>';
+            };
+            const matchDetailHtml = subMatches.length > 0
+              ? '<div id="' + expandId + '" style="display:none;border-top:0.5px solid #e0e7f5;background:#fafbff;">' +
+                buildMatchDetailHtml(subMatches, courtParts) +
+                '</div></div>'
+              : '';
 
             return `<div>
               <div style="display:grid;grid-template-columns:1fr 90px 110px 160px 100px 40px;gap:8px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;cursor:${subMatches.length?'pointer':'default'};"
