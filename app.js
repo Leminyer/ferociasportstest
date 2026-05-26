@@ -6443,10 +6443,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
   // Match type display labels
   const FTC_MATCH_LABELS = {
-    mens:   { label: "Men's Doubles",   color: '#174CCC', bg: '#e8f0ff' },
-    womens: { label: "Women's Doubles", color: '#F26024', bg: 'rgba(242,96,36,0.08)' },
-    mixed1: { label: 'Mixed #1',        color: '#24BC96', bg: 'rgba(36,188,150,0.08)' },
-    mixed2: { label: 'Mixed #2',        color: '#9a6e00', bg: 'rgba(154,110,0,0.08)'  },
+    mens:   { label: "Men's Doubles",   abbr: 'MD',  color: '#174CCC', bg: '#e8f0ff' },
+    womens: { label: "Women's Doubles", abbr: 'WD',  color: '#F26024', bg: 'rgba(242,96,36,0.08)' },
+    mixed1: { label: 'Mixed #1',        abbr: 'MX1', color: '#24BC96', bg: 'rgba(36,188,150,0.08)' },
+    mixed2: { label: 'Mixed #2',        abbr: 'MX2', color: '#9a6e00', bg: 'rgba(154,110,0,0.08)'  },
   };
 
   // ── Render schedule list — table layout per week (smart accordion) ───────
@@ -6549,7 +6549,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       // BYE in this week
       const byeRow = matchups.find(m => m.is_bye);
       const byeHtml = byeRow
-        ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:#fff8f4;border-bottom:0.5px solid #f4d5c8;">
+        ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:7px 16px;background:#fff8f4;border-bottom:0.5px solid #f4d5c8;">
             <span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(242,96,36,0.12);color:#F26024;">BYE / REST</span>
             <span style="font-size:11px;font-weight:700;color:#F26024;">${teamName(byeRow.team_a_id)} sits out this week</span>
            </div>`
@@ -6627,85 +6627,118 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               const c1Matches = subMatches.filter(m => ['mens','mixed1'].includes(m.match_type));
               const c2Matches = subMatches.filter(m => ['womens','mixed2'].includes(m.match_type));
 
+              // ── Match counter shared across courts ───────────────────
+              let matchCounter = 0;
+
               const renderMatchDetailRow = (m) => {
-                const info   = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#6b7a99' };
-                const scored = m.score_a !== null && m.score_b !== null;
-                const aWins  = scored && m.score_a > m.score_b;
-                const bWins  = scored && m.score_b > m.score_a;
-                const scoreA = scored ? String(m.score_a) : '—';
-                const scoreB = scored ? String(m.score_b) : '—';
-                const ptsA   = scored ? '+' + m.league_pts_a + ' pts' : '';
-                const ptsB   = scored ? '+' + m.league_pts_b + ' pts' : '';
-                // Box styles
-                const boxStyleA = aWins
-                  ? 'flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:white;border:1px solid #24BC96;border-radius:8px;flex-direction:column;align-items:flex-start;gap:4px;'
-                  : bWins
-                    ? 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;'
-                    : 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:white;border:0.5px solid #e0e7f5;border-radius:8px;';
-                const boxStyleB = bWins
-                  ? 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:white;border:1px solid #24BC96;border-radius:8px;'
-                  : aWins
-                    ? 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;'
-                    : 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:white;border:0.5px solid #e0e7f5;border-radius:8px;';
-                const nameColorA = (scored && bWins) ? '#b0bbd6' : '#0d1f4a';
-                const nameColorB = (scored && aWins) ? '#b0bbd6' : '#6b7a99';
-                const scoreColorA = aWins ? '#24BC96' : '#b0bbd6';
-                const scoreColorB = bWins ? '#24BC96' : '#b0bbd6';
+                matchCounter++;
+                const gameNum = matchCounter;
+                const info    = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#6b7a99' };
+                const scored  = m.score_a !== null && m.score_b !== null;
+                const aWins   = scored && m.score_a > m.score_b;
+                const bWins   = scored && m.score_b > m.score_a;
+                const scoreA  = scored ? String(m.score_a) : '—';
+                const scoreB  = scored ? String(m.score_b) : '—';
+                const ptsA    = scored ? '+' + m.league_pts_a + ' pts' : '';
+                const ptsB    = scored ? '+' + m.league_pts_b + ' pts' : '';
+                const nameA   = (scored && bWins) ? '#b0bbd6' : '#0d1f4a';
+                const nameB   = (scored && aWins) ? '#b0bbd6' : '#0d1f4a';
+                const sclrA   = aWins ? '#24BC96' : '#b0bbd6';
+                const sclrB   = bWins ? '#24BC96' : '#b0bbd6';
+                const bgA     = bWins ? '#f8f9ff' : 'white';
+                const bgB     = aWins ? '#f8f9ff' : 'white';
+                const borderA = aWins ? '1px solid #24BC96' : '0.5px solid #e0e7f5';
+                const borderB = bWins ? '1px solid #24BC96' : '0.5px solid #e0e7f5';
+
                 return (
-                  '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid #f0f2f8;">' +
-                  // Match type label
-                  '<span style="font-size:9px;font-weight:800;color:#6b7a99;width:80px;flex-shrink:0;text-transform:uppercase;letter-spacing:.3px;">' + info.label + '</span>' +
-                  // Team A box
-                  '<div style="' + boxStyleA + '">' +
-                    '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;">' +
-                      '<div style="font-size:12px;font-weight:700;color:' + nameColorA + ';line-height:1.5;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
-                      '<div style="text-align:right;">' +
-                        '<div style="font-size:20px;font-weight:800;color:' + scoreColorA + ';">' + scoreA + '</div>' +
-                        (ptsA ? '<div style="font-size:9px;font-weight:600;color:' + scoreColorA + ';">' + ptsA + '</div>' : '') +
-                      '</div>' +
+                  '<tr style="border-bottom:0.5px solid #f0f2f8;">' +
+                  // #  Match type label
+                  '<td style="padding:10px 0 10px 12px;vertical-align:middle;white-space:nowrap;">' +
+                    '<div style="font-size:11px;font-weight:800;color:#6b7a99;">' + gameNum + '</div>' +
+                    '<div style="font-size:11px;font-weight:700;color:#0d1f4a;">' + info.label + '</div>' +
+                    '<div style="font-size:9px;font-weight:700;color:#b0bbd6;">' + (info.abbr||'') + '</div>' +
+                  '</td>' +
+                  // Team A (home)
+                  '<td style="padding:10px 8px;vertical-align:middle;">' +
+                    '<div style="padding:8px 12px;background:' + bgA + ';border:' + borderA + ';border-radius:8px;">' +
+                      '<div style="font-size:12px;font-weight:700;color:' + nameA + ';line-height:1.5;margin-bottom:6px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
+                      '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'A\')" style="font-size:9px;padding:2px 8px;">Sub Team A</button>' +
                     '</div>' +
-                    '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'A\')" style="font-size:9px;padding:2px 8px;">Sub Team A</button>' +
-                  '</div>' +
-                  // VS separator
-                  '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;">' +
-                    '<span style="font-size:10px;font-weight:700;color:#b0bbd6;">vs</span>' +
+                  '</td>' +
+                  // Score center
+                  '<td style="padding:10px 8px;vertical-align:middle;text-align:center;">' +
+                    '<div style="display:flex;align-items:center;justify-content:center;gap:8px;">' +
+                      '<div style="font-size:20px;font-weight:800;color:' + sclrA + ';">' + scoreA + '</div>' +
+                      '<span style="font-size:10px;font-weight:700;color:#b0bbd6;">vs</span>' +
+                      '<div style="font-size:20px;font-weight:800;color:' + sclrB + ';">' + scoreB + '</div>' +
+                    '</div>' +
                     (scored
-                      ? '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenScoreModal(' + m.id + ')" style="font-size:9px;padding:2px 8px;">Edit</button>'
-                      : '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenScoreModal(' + m.id + ')" style="background:#174CCC;color:white;border-color:#174CCC;font-size:9px;padding:2px 8px;">Score</button>') +
-                  '</div>' +
-                  // Team B box
-                  '<div style="' + boxStyleB + '">' +
-                    '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;">' +
-                      '<div style="font-size:12px;font-weight:700;color:' + nameColorB + ';line-height:1.5;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
-                      '<div style="text-align:right;">' +
-                        '<div style="font-size:20px;font-weight:800;color:' + scoreColorB + ';">' + scoreB + '</div>' +
-                        (ptsB ? '<div style="font-size:9px;font-weight:600;color:' + scoreColorB + ';">' + ptsB + '</div>' : '') +
-                      '</div>' +
+                      ? (ptsA ? '<div style="font-size:9px;color:#6b7a99;margin-top:2px;">' + ptsA + ' / ' + ptsB + '</div>' : '')
+                      : '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenScoreModal(' + m.id + ')" style="margin-top:4px;border:1px solid #174CCC;color:#174CCC;background:white;font-size:10px;">Report Score</button>') +
+                  '</td>' +
+                  // Team B (away)
+                  '<td style="padding:10px 8px;vertical-align:middle;">' +
+                    '<div style="padding:8px 12px;background:' + bgB + ';border:' + borderB + ';border-radius:8px;">' +
+                      '<div style="font-size:12px;font-weight:700;color:' + nameB + ';line-height:1.5;margin-bottom:6px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
+                      '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'B\')" style="font-size:9px;padding:2px 8px;">Sub Team B</button>' +
                     '</div>' +
-                    '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'B\')" style="font-size:9px;padding:2px 8px;">Sub Team B</button>' +
-                  '</div>' +
-                  '</div>'
+                  '</td>' +
+                  // Status
+                  '<td style="padding:10px 8px;vertical-align:middle;white-space:nowrap;">' +
+                    '<span class="ftc-status-pill ' + (scored ? 'ftc-status-completed' : 'ftc-status-scheduled') + '">' + (scored ? 'Complete' : 'Scheduled') + '</span>' +
+                  '</td>' +
+                  // Actions
+                  '<td style="padding:10px 8px 10px 0;vertical-align:middle;text-align:right;white-space:nowrap;">' +
+                    (scored ? '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenScoreModal(' + m.id + ')" title="Edit score"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' : '') +
+                  '</td>' +
+                  '</tr>'
                 );
               };
 
-              const renderCourtBlock = (courtLabel, courtColor, matches) => {
+              const renderCourtBlock = (courtLabel, courtColor, matches, teamAName, teamBName) => {
                 return (
-                  '<div style="border-top:0.5px solid #e0e7f5;">' +
-                  '<div style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:white;border-bottom:0.5px solid #e0e7f5;">' +
-                    '<span style="width:8px;height:8px;border-radius:50%;background:' + courtColor + ';display:inline-block;"></span>' +
-                    '<span style="font-size:10px;font-weight:800;color:' + courtColor + ';text-transform:uppercase;letter-spacing:.5px;">Court ' + courtLabel + '</span>' +
-                  '</div>' +
+                  '<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin:8px 12px;overflow:hidden;background:#f8f9ff;">' +
+                  // Court header row with column labels
+                  '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">' +
+                  '<colgroup>' +
+                    '<col style="width:130px;">' +
+                    '<col style="width:auto;">' +
+                    '<col style="width:180px;">' +
+                    '<col style="width:auto;">' +
+                    '<col style="width:100px;">' +
+                    '<col style="width:50px;">' +
+                  '</colgroup>' +
+                  '<thead>' +
+                  '<tr style="background:#f8f9ff;">' +
+                    '<th style="font-size:10px;font-weight:800;color:' + courtColor + ';padding:8px 0 8px 12px;text-align:left;display:flex;align-items:center;gap:5px;">' +
+                      '<span style="width:8px;height:8px;border-radius:50%;background:' + courtColor + ';display:inline-block;"></span>' +
+                      'Court ' + courtLabel +
+                    '</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">' + esc(teamAName) + ' (Home)</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:center;text-transform:uppercase;letter-spacing:.4px;">Score</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">' + esc(teamBName) + ' (Away)</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Status</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px 8px 8px 0;text-align:right;text-transform:uppercase;letter-spacing:.4px;">Actions</th>' +
+                  '</tr>' +
+                  '<tr style="border-top:0.5px solid #e0e7f5;background:white;"><td colspan="6" style="padding:0;"></td></tr>' +
+                  '</thead>' +
+                  '<tbody>' +
                   matches.map(m => renderMatchDetailRow(m)).join('') +
+                  '</tbody>' +
+                  '</table>' +
                   '</div>'
                 );
               };
 
+              // Get team names for column headers
+              const tAn = ftcTeams.find(t => t.id === (subMatches[0]?.team_a_id))?.name || 'Team A';
+              const tBn = ftcTeams.find(t => t.id === (subMatches[0]?.team_b_id))?.name || 'Team B';
               if (!useTwoCourts) {
                 const ordered = typeOrder.map(t => subMatches.find(m => m.match_type === t)).filter(Boolean);
-                return renderCourtBlock(c1 || '—', '#174CCC', ordered);
+                return renderCourtBlock(c1 || '—', '#174CCC', ordered, tAn, tBn);
               }
-              return renderCourtBlock(c1, '#174CCC', c1Matches) +
-                     renderCourtBlock(c2, '#24BC96', c2Matches);
+              return renderCourtBlock(c1, '#174CCC', c1Matches, tAn, tBn) +
+                     renderCourtBlock(c2, '#24BC96', c2Matches, tAn, tBn);
             }
             // Check for 2-2 tiebreaker situation
             const regularSubMatches  = subMatches.filter(m => !m.is_tiebreaker);
