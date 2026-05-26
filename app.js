@@ -6005,6 +6005,15 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     return FTC_TEAM_COLORS[idx >= 0 ? idx % FTC_TEAM_COLORS.length : 0];
   };
 
+  // Auto-set day of week when start date is picked
+  window.ftcAutoSetDay = (dateStr) => {
+    if (!dateStr) return;
+    const d = new Date(dateStr + 'T00:00:00');
+    const dayEl = document.getElementById('ftc-sch-day');
+    if (dayEl) dayEl.value = String(d.getDay()); // 0=Sun … 6=Sat
+    ftcUpdateSchStats();
+  };
+
   window.ftcUpdateSchStats = () => {
     const n = ftcTeams.length;
     const weeks = document.getElementById('ftc-sch-weeks')?.value || '6';
@@ -6031,6 +6040,11 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
   const loadFtcSchedule = async () => {
     if (!currentLadder) return;
+    // Reset preview card — hide it on every fresh load
+    const previewCard = document.getElementById('ftc-sch-preview-card');
+    const previewWeeks = document.getElementById('ftc-preview-weeks');
+    if (previewCard)  previewCard.style.display = 'none';
+    if (previewWeeks) previewWeeks.innerHTML = '';
     // Ensure ftcTeams is loaded — may be empty if navigating directly to Schedule tab
     if (!ftcTeams.length) {
       try {
@@ -6125,22 +6139,19 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       const matchups = round.matchups.filter(m => !m.bye);
       const byes     = round.matchups.filter(m => m.bye);
 
-      // Week header — same as session-date-header style
+      // Week header — BYE team shown right-aligned inside the header row
+      const byeText = byes.length
+        ? `<span style="font-size:11px;font-weight:700;color:#F26024;margin-left:auto;">BYE / Rest: ${byes.map(b => tName(b.teamA)).join(', ')}</span>`
+        : '';
+
       weeksHtml += `<div style="margin-bottom:10px;">
-        <div style="display:flex;align-items:center;gap:12px;flex:1;padding:10px 14px;border-radius:8px;background:#e8f0ff;border:0.5px solid #c5d6f5;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;padding:10px 14px;border-radius:8px;background:#e8f0ff;border:0.5px solid #c5d6f5;margin-bottom:8px;">
           <span style="font-size:11px;font-weight:800;color:#174CCC;display:flex;align-items:center;gap:8px;">
-            <span style="width:20px;height:20px;border-radius:50%;background:#174CCC;color:white;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">${round.week}</span>
+            <span style="width:20px;height:20px;border-radius:50%;background:#174CCC;color:white;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${round.week}</span>
             Week ${round.week} &nbsp;·&nbsp; ${dateStr}
           </span>
+          ${byeText}
         </div>`;
-
-      // Bye teams
-      byes.forEach(b => {
-        weeksHtml += `<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--orange-light,#fff3ee);border:1px solid rgba(242,96,36,0.15);border-radius:8px;margin-bottom:6px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--orange,#F26024)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span style="font-size:12px;font-weight:800;color:var(--orange,#F26024);">BYE / Rest: ${tName(b.teamA)}</span>
-        </div>`;
-      });
 
       // Each matchup → court blocks (sessions style)
       // Courts are assigned per matchup: matchup 0 gets courts[0]+courts[1],
@@ -6164,23 +6175,23 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
             const label = gameLabels[matchTypes.indexOf(type)];
             const color = gameColors[matchTypes.indexOf(type)];
             return `<div class="sess-game-row">
-              <span class="sess-game-label" style="font-size:10px;color:${color};font-weight:800;">${label}</span>
+              <span class="sess-game-label" style="font-size:10px;color:${color};font-weight:800;min-width:100px;max-width:100px;">${label}</span>
               <div class="sess-game-body">
-                <div class="sess-team-block sess-team-pending">
-                  <div class="sess-team-names">
+                <div class="sess-team-block sess-team-pending" style="flex:1;">
+                  <div class="sess-team-names" style="color:#0d1f4a;">
                     ${esc(pLabel(p1a))}<br>${esc(pLabel(p2a))}
                   </div>
                   <div class="sess-team-score">
-                    <span class="sess-score-num sess-score-pending">—</span>
+                    <span class="sess-score-num sess-score-pending" style="font-size:18px;">—</span>
                   </div>
                 </div>
-                <div class="sess-vs"><div class="sess-vs-line"></div><span>VS</span><div class="sess-vs-line"></div></div>
-                <div class="sess-team-block sess-team-pending">
-                  <div class="sess-team-names pending">
+                <div class="sess-vs"><div class="sess-vs-line"></div><span>vs</span><div class="sess-vs-line"></div></div>
+                <div class="sess-team-block sess-team-lose" style="flex:1;">
+                  <div class="sess-team-names lose">
                     ${esc(pLabel(p1b))}<br>${esc(pLabel(p2b))}
                   </div>
                   <div class="sess-team-score">
-                    <span class="sess-score-num sess-score-pending">—</span>
+                    <span class="sess-score-num sess-score-lose" style="font-size:18px;">—</span>
                   </div>
                 </div>
               </div>
@@ -6189,8 +6200,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
           return `<div class="court-block">
             <div class="court-block-hdr">
-              <span class="court-block-label">${courtLabel}</span>
-              <span style="font-size:10px;font-weight:700;color:#6b7a99;">${tName(m.teamA)} vs ${tName(m.teamB)}</span>
+              <span class="court-block-label" style="font-size:11px;">${courtLabel}</span>
+              <span style="font-size:11px;font-weight:600;color:#6b7a99;">${tName(m.teamA)} vs ${tName(m.teamB)}</span>
             </div>
             ${gameRows}
           </div>`;
