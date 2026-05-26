@@ -1963,20 +1963,8 @@
 
     <!-- Compact create form -->
     <div class="card" style="padding:16px 20px;margin-bottom:20px;">
-      <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#6b7a99;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
-        <span style="width:6px;height:6px;border-radius:50%;background:#174CCC;display:inline-block;"></span>
-        New Ladder
-      </div>
+      <div style="font-size:16px;font-weight:800;color:#0d1f4a;margin-bottom:14px;">New Ladder</div>
       <form id="create-ladder-form">
-
-        <!-- Step 1: Choose Ladder Format -->
-        <div style="margin-bottom:4px;">
-          <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#6b7a99;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-            <span style="width:6px;height:6px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Step 1
-          </div>
-          <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:2px;">Choose Ladder Format</div>
-          <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:14px;">Select how players will compete during the season.</div>
-        </div>
 
         <!-- Format cards -->
         <div style="display:flex;gap:8px;margin-bottom:16px;">
@@ -2021,16 +2009,7 @@
 
         <input type="hidden" id="new-ladder-type" value="rotating_partner">
 
-        <!-- Divider -->
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-          <div style="flex:1;height:1px;background:#e0e7f5;"></div>
-          <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#b0bbd6;white-space:nowrap;">
-            <span style="width:6px;height:6px;border-radius:50%;background:#174CCC;display:inline-block;margin-right:4px;vertical-align:middle;"></span>Step 2 — Ladder Details
-          </div>
-          <div style="flex:1;height:1px;background:#e0e7f5;"></div>
-        </div>
-
-        <!-- Step 2: Ladder Details -->
+        <!-- Ladder Details -->
         <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:12px;">
           <div style="display:flex;flex-direction:column;gap:4px;">
             <div class="lop-create-label">Ladder Name <span style="color:#e53935;">*</span></div>
@@ -2046,8 +2025,8 @@
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;">
-          <button type="submit" class="ap-submit-btn" style="padding:8px 18px;font-size:11px;white-space:nowrap;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          <button type="submit" style="padding:7px 16px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
             Launch Ladder
           </button>
         </div>

@@ -698,9 +698,15 @@ window.selectLadderType = (type) => {
         <!-- Tabs at top -->
         <div class="lop-tabs">
           <button class="lop-tab active" onclick="lopTab(event,'${l.id}','overview')">${ovSVG} Overview</button>
-          <button class="lop-tab" onclick="lopTab(event,'${l.id}','players')">${plrSVG} Players</button>
-          <button class="lop-tab" onclick="lopTab(event,'${l.id}','sessions')">${sessSVG} Sessions</button>
-          <button class="lop-tab" onclick="lopTab(event,'${l.id}','standings')">${stndSVG} Standings</button>
+          ${l.ladder_type === 'ftc' ? `
+            <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-teams')">${plrSVG} Teams</button>
+            <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-schedule')">${sessSVG} Schedule</button>
+            <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-playoffs')">${stndSVG} Playoffs</button>
+          ` : l.ladder_type === 'rotating_partner' ? `
+            <button class="lop-tab" onclick="lopTab(event,'${l.id}','players')">${plrSVG} Players</button>
+            <button class="lop-tab" onclick="lopTab(event,'${l.id}','sessions')">${sessSVG} Sessions</button>
+            <button class="lop-tab" onclick="lopTab(event,'${l.id}','standings')">${stndSVG} Standings</button>
+          ` : ''}
         </div>
         <!-- Card body -->
         <div class="lop-body">
@@ -770,32 +776,40 @@ window.selectLadderType = (type) => {
   };
 
   // Quick access tab handler
-  window.lopTab = (e, ladderId, tab) => {
+  window.lopTab = async (e, ladderId, tab) => {
     // Update tab styles for this card
     const card = document.getElementById(`lop-card-${ladderId}`);
     if (!card) return;
     card.querySelectorAll('.lop-tab').forEach(t => t.classList.remove('active'));
     e.currentTarget.classList.add('active');
 
-    if (tab === 'overview') return; // already showing
+    if (tab === 'overview') return; // already showing overview inline
 
-    // Navigate to the right page with this ladder pre-selected
+    // Set this ladder as the current one and select it in the sidebar dropdown
     const ladder = allLadders.find(l => String(l.id) === String(ladderId));
     if (!ladder) return;
     currentLadder = ladder;
     const sel = document.getElementById('ladder-selector');
     if (sel) sel.value = ladderId;
     updateLadderBanner();
+    await loadLadderPlayers(); // ensure ladderPlayers is populated
 
+    // Rotating Partner tabs
     if (tab === 'players') {
       showPage('ladder', document.getElementById('sb-standings'));
-      // Switch to players tab inside ladder page
-      const plrTab = document.querySelector('[data-action="switchLadderTab"][data-tab="players"]');
-      if (plrTab) plrTab.click();
+      await loadLadder();
     } else if (tab === 'sessions') {
-      showPage('sessions', document.getElementById('sb-standings'));
+      showPage('sessions', document.getElementById('sb-sessions'));
     } else if (tab === 'standings') {
       showPage('ladder', document.getElementById('sb-standings'));
+      await loadLadder();
+    // FTC tabs
+    } else if (tab === 'ftc-teams') {
+      showPage('ftc-teams', document.getElementById('sb-ftc-teams'));
+    } else if (tab === 'ftc-schedule') {
+      showPage('ftc-schedule', document.getElementById('sb-ftc-schedule'));
+    } else if (tab === 'ftc-playoffs') {
+      showPage('ftc-playoffs', document.getElementById('sb-ftc-playoffs'));
     }
   };
 
