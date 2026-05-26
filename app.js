@@ -6061,7 +6061,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     }
   };
 
-  // ── Preview schedule (no save) ────────────────────────────────────────
+  // ── Preview schedule — sessions-style court blocks ──────────────────
   window.ftcPreviewSchedule = () => {
     if (ftcTeams.length < 2) {
       toast('Register at least 2 teams before generating a schedule.', true);
@@ -6074,66 +6074,131 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     ftcUpdateSchStats();
     const firstMatchDate = ftcNextWeekday(startDate, targetDay);
-    const rounds = ftcGenerateRoundRobin(ftcTeams, weeks);
+    const rounds         = ftcGenerateRoundRobin(ftcTeams, weeks);
 
-    // Update preview card title
+    // Parse courts from input
+    const courtStr = document.getElementById('ftc-sch-court')?.value?.trim() || '';
+    const courts   = courtStr ? courtStr.split(',').map(c => c.trim()).filter(Boolean) : [];
+
+    // Update preview card header
     const titleTxt = document.getElementById('ftc-preview-title-txt');
     if (titleTxt) titleTxt.textContent = `PREVIEW — ${weeks} WEEKS`;
 
-    // Build court legend from actual court input
-    const courtStr = document.getElementById('ftc-sch-court')?.value?.trim() || '';
-    const courts = courtStr ? courtStr.split(',').map(c => c.trim()).filter(Boolean) : [];
+    // Court legend
     const legendEl = document.getElementById('ftc-preview-legend');
     if (legendEl) {
       legendEl.innerHTML = courts.map((c, i) =>
-        `<div class="ftc-legend-item"><span class="ftc-ldot" style="background:${FTC_COURT_COLORS[i % FTC_COURT_COLORS.length]};"></span>Court ${esc(c)}</div>`
+        `<div class="ftc-legend-item"><span class="ftc-ldot" style="background:${FTC_COURT_COLORS[i%FTC_COURT_COLORS.length]};"></span>Court ${esc(c)}</div>`
       ).join('');
     }
 
-    // Build team name + initials helper
+    // Player name helper (from ladderPlayers)
     const tName = (t) => t ? esc(t.name || `Team ${ftcTeams.indexOf(t)+1}`) : '—';
-    const tInit = (t) => t ? ftcTeamInitials(t.name || `T${ftcTeams.indexOf(t)+1}`) : '?';
-    const tColor = (t) => t ? FTC_TEAM_COLORS[ftcTeams.indexOf(t) % FTC_TEAM_COLORS.length] : '#174CCC';
 
-    // Build team shield HTML
-    const shield = (t) => `<div class="ftc-team-shield" style="background:${tColor(t)};">${tInit(t)}</div>`;
+    // Game type labels per sub-match index (0-3 per matchup)
+    const gameLabels = ["Men's Doubles", "Women's Doubles", "Mixed #1", "Mixed #2"];
+    // Colors matching FTC_MATCH_LABELS
+    const gameColors = ['#174CCC', '#F26024', '#24BC96', '#9a6e00'];
 
-    // Build week rows
+    // Player names per team per match type
+    const matchPlayers = (team, matchType) => {
+      if (!team) return ['TBD', 'TBD'];
+      if (matchType === 'mens')   return [team.m1_id, team.m2_id];
+      if (matchType === 'womens') return [team.f1_id, team.f2_id];
+      if (matchType === 'mixed1') return [team.mixed1_ma_id, team.mixed1_fa_id];
+      if (matchType === 'mixed2') return [team.mixed2_ma_id, team.mixed2_fa_id];
+      return [null, null];
+    };
+    const pLabel = (id) => {
+      if (!id) return 'TBD';
+      const p = ladderPlayers.find(x => x.id === id);
+      return p ? `${p.first_name} ${p.last_name}` : `#${id}`;
+    };
+
+    // Build week rows using sessions court-block style
     let weeksHtml = '';
+    const matchTypes = ['mens','womens','mixed1','mixed2'];
+
     rounds.forEach((round, i) => {
-      const date = ftcAddWeeks(firstMatchDate, i);
+      const date     = ftcAddWeeks(firstMatchDate, i);
+      const dateStr  = ftcFmtDate(date);
       const matchups = round.matchups.filter(m => !m.bye);
       const byes     = round.matchups.filter(m => m.bye);
 
-      // Build court blocks for this week (each matchup gets its own court column)
-      let courtBlocks = matchups.map((m, ci) => {
-        const courtLabel = courts[ci] ? `Court ${esc(courts[ci])}` : `Match ${ci+1}`;
-        const courtColor = FTC_COURT_COLORS[ci % FTC_COURT_COLORS.length];
-        return `<div class="ftc-court-block">
-          <div class="ftc-court-lbl">
-            <span class="ftc-ldot" style="background:${courtColor};"></span>
-            <span style="color:${courtColor};">${courtLabel}</span>
-          </div>
-          <div class="ftc-matchup-teams">
-            <div class="ftc-team-side">${shield(m.teamA)}<span class="ftc-team-name">${tName(m.teamA)}</span></div>
-            <span class="ftc-vs-sep">vs</span>
-            <div class="ftc-team-side">${shield(m.teamB)}<span class="ftc-team-name">${tName(m.teamB)}</span></div>
-          </div>
+      // Week header — same as session-date-header style
+      weeksHtml += `<div style="margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:12px;flex:1;padding:10px 14px;border-radius:8px;background:#e8f0ff;border:0.5px solid #c5d6f5;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:800;color:#174CCC;display:flex;align-items:center;gap:8px;">
+            <span style="width:20px;height:20px;border-radius:50%;background:#174CCC;color:white;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">${round.week}</span>
+            Week ${round.week} &nbsp;·&nbsp; ${dateStr}
+          </span>
         </div>`;
-      }).join('');
 
-      // Bye column
-      if (byes.length) {
-        courtBlocks += `<div class="ftc-bye-block"><div class="ftc-bye-txt">Bye / Rest</div></div>`;
-      }
+      // Bye teams
+      byes.forEach(b => {
+        weeksHtml += `<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--orange-light,#fff3ee);border:1px solid rgba(242,96,36,0.15);border-radius:8px;margin-bottom:6px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--orange,#F26024)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span style="font-size:12px;font-weight:800;color:var(--orange,#F26024);">BYE / Rest: ${tName(b.teamA)}</span>
+        </div>`;
+      });
 
-      weeksHtml += `<div class="ftc-wk-row">
-        <div class="ftc-wk-left">
-          <div class="ftc-wk-badge">Week ${round.week}</div>
-          <div class="ftc-wk-date">${ftcFmtDate(date)}</div>
-        </div>
-        <div class="ftc-wk-courts">${courtBlocks}</div>
-      </div>`;
+      // Each matchup → court blocks (sessions style)
+      matchups.forEach((m, mi) => {
+        const useTwoCourts = courts.length >= 2;
+        const court1 = courts[0] || `C${mi*2+1}`;
+        const court2 = courts[1] || (useTwoCourts ? `C${mi*2+2}` : court1);
+
+        // Court 1 — Men's Doubles + Mixed #1
+        const court1Types = useTwoCourts ? ['mens','mixed1'] : matchTypes;
+        const court2Types = ['womens','mixed2'];
+
+        const renderCourtBlock = (courtNum, types) => {
+          const courtLabel = `Court ${courtNum}`;
+          const gameRows = types.map((type, gi) => {
+            const [p1a, p2a] = matchPlayers(m.teamA, type);
+            const [p1b, p2b] = matchPlayers(m.teamB, type);
+            const label = gameLabels[matchTypes.indexOf(type)];
+            const color = gameColors[matchTypes.indexOf(type)];
+            return `<div class="sess-game-row">
+              <span class="sess-game-label" style="font-size:10px;color:${color};font-weight:800;">${label}</span>
+              <div class="sess-game-body">
+                <div class="sess-team-block sess-team-pending">
+                  <div class="sess-team-names">
+                    ${esc(pLabel(p1a))}<br>${esc(pLabel(p2a))}
+                  </div>
+                  <div class="sess-team-score">
+                    <span class="sess-score-num sess-score-pending">—</span>
+                  </div>
+                </div>
+                <div class="sess-vs"><div class="sess-vs-line"></div><span>VS</span><div class="sess-vs-line"></div></div>
+                <div class="sess-team-block sess-team-pending">
+                  <div class="sess-team-names pending">
+                    ${esc(pLabel(p1b))}<br>${esc(pLabel(p2b))}
+                  </div>
+                  <div class="sess-team-score">
+                    <span class="sess-score-num sess-score-pending">—</span>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+          }).join('');
+
+          return `<div class="court-block">
+            <div class="court-block-hdr">
+              <span class="court-block-label">${courtLabel}</span>
+              <span style="font-size:10px;font-weight:700;color:#6b7a99;">${tName(m.teamA)} vs ${tName(m.teamB)}</span>
+            </div>
+            ${gameRows}
+          </div>`;
+        };
+
+        weeksHtml += renderCourtBlock(court1, court1Types);
+        if (useTwoCourts) {
+          weeksHtml += renderCourtBlock(court2, court2Types);
+        }
+      });
+
+      weeksHtml += `</div>`; // close week div
     });
 
     const weeksEl = document.getElementById('ftc-preview-weeks');
