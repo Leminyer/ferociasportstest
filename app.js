@@ -6548,11 +6548,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
       // BYE in this week
       const byeRow = matchups.find(m => m.is_bye);
-      const byeHtml = byeRow
-        ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:7px 16px;background:#fff8f4;border-bottom:0.5px solid #f4d5c8;">
-            <span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(242,96,36,0.12);color:#F26024;">BYE / REST</span>
-            <span style="font-size:11px;font-weight:700;color:#F26024;">${teamName(byeRow.team_a_id)} sits out this week</span>
-           </div>`
+      const byeInline = byeRow
+        ? ` <span style="font-size:10px;font-weight:700;color:#F26024;margin-left:8px;">· BYE: ${teamName(byeRow.team_a_id)}</span>`
         : '';
 
       html += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:8px;background:white;">
@@ -6566,8 +6563,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               <div style="font-size:12px;font-weight:800;color:#0d1f4a;display:flex;align-items:center;gap:6px;">
                 Week ${weekNum} &nbsp;${statusPill}
               </div>
-              <div style="font-size:10px;font-weight:600;color:#6b7a99;margin-top:1px;">
-                ${firstDate ? ftcFmtDate(firstDate) : 'No date set'} &nbsp;·&nbsp; ${nonByeCount} matchup${nonByeCount!==1?'s':''}
+              <div style="font-size:10px;font-weight:600;color:#6b7a99;margin-top:1px;display:flex;align-items:center;flex-wrap:wrap;">
+                ${firstDate ? ftcFmtDate(firstDate) : 'No date set'} &nbsp;·&nbsp; ${nonByeCount} matchup${nonByeCount!==1?'s':''}${byeInline}
               </div>
             </div>
           </div>
@@ -6582,7 +6579,6 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
         <!-- Week body -->
         <div id="ftc-week-body-${weekNum}" style="display:${isOpen?'block':'none'};">
-          ${byeHtml}
           <!-- Table using <table> for guaranteed column alignment -->
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
@@ -6641,27 +6637,28 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 const scoreB  = scored ? String(m.score_b) : '—';
                 const ptsA    = scored ? '+' + m.league_pts_a + ' pts' : '';
                 const ptsB    = scored ? '+' + m.league_pts_b + ' pts' : '';
+                // Fix 4: winner bg green, loser bg gray
+                const bgA     = aWins ? 'rgba(36,188,150,0.08)' : bWins ? '#f8f9ff' : 'white';
+                const bgB     = bWins ? 'rgba(36,188,150,0.08)' : aWins ? '#f8f9ff' : 'white';
                 const nameA   = (scored && bWins) ? '#b0bbd6' : '#0d1f4a';
                 const nameB   = (scored && aWins) ? '#b0bbd6' : '#0d1f4a';
                 const sclrA   = aWins ? '#24BC96' : '#b0bbd6';
                 const sclrB   = bWins ? '#24BC96' : '#b0bbd6';
-                const bgA     = bWins ? '#f8f9ff' : 'white';
-                const bgB     = aWins ? '#f8f9ff' : 'white';
-                const borderA = aWins ? '1px solid #24BC96' : '0.5px solid #e0e7f5';
-                const borderB = bWins ? '1px solid #24BC96' : '0.5px solid #e0e7f5';
 
                 return (
                   '<tr style="border-bottom:0.5px solid #f0f2f8;">' +
-                  // #  Match type label
+                  // Fix 3: number + label on same line
                   '<td style="padding:10px 0 10px 12px;vertical-align:middle;white-space:nowrap;">' +
-                    '<div style="font-size:11px;font-weight:800;color:#6b7a99;">' + gameNum + '</div>' +
-                    '<div style="font-size:11px;font-weight:700;color:#0d1f4a;">' + info.label + '</div>' +
-                    '<div style="font-size:9px;font-weight:700;color:#b0bbd6;">' + (info.abbr||'') + '</div>' +
+                    '<div style="display:flex;align-items:center;gap:5px;">' +
+                      '<span style="font-size:11px;font-weight:800;color:#6b7a99;">' + gameNum + '</span>' +
+                      '<span style="font-size:11px;font-weight:700;color:#0d1f4a;">' + info.label + '</span>' +
+                    '</div>' +
+                    '<div style="font-size:9px;font-weight:700;color:#b0bbd6;margin-top:1px;">' + (info.abbr||'') + '</div>' +
                   '</td>' +
-                  // Team A (home)
+                  // Fix 6: Team A — no box, just players + sub button
                   '<td style="padding:10px 8px;vertical-align:middle;">' +
-                    '<div style="padding:8px 12px;background:' + bgA + ';border:' + borderA + ';border-radius:8px;">' +
-                      '<div style="font-size:12px;font-weight:700;color:' + nameA + ';line-height:1.5;margin-bottom:6px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
+                    '<div style="padding:8px 12px;background:' + bgA + ';border-radius:6px;">' +
+                      '<div style="font-size:12px;font-weight:700;color:' + nameA + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
                       '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'A\')" style="font-size:9px;padding:2px 8px;">Sub Team A</button>' +
                     '</div>' +
                   '</td>' +
@@ -6676,10 +6673,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                       ? (ptsA ? '<div style="font-size:9px;color:#6b7a99;margin-top:2px;">' + ptsA + ' / ' + ptsB + '</div>' : '')
                       : '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenScoreModal(' + m.id + ')" style="margin-top:4px;border:1px solid #174CCC;color:#174CCC;background:white;font-size:10px;">Report Score</button>') +
                   '</td>' +
-                  // Team B (away)
+                  // Fix 6: Team B — no box, just players + sub button
                   '<td style="padding:10px 8px;vertical-align:middle;">' +
-                    '<div style="padding:8px 12px;background:' + bgB + ';border:' + borderB + ';border-radius:8px;">' +
-                      '<div style="font-size:12px;font-weight:700;color:' + nameB + ';line-height:1.5;margin-bottom:6px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
+                    '<div style="padding:8px 12px;background:' + bgB + ';border-radius:6px;">' +
+                      '<div style="font-size:12px;font-weight:700;color:' + nameB + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
                       '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'B\')" style="font-size:9px;padding:2px 8px;">Sub Team B</button>' +
                     '</div>' +
                   '</td>' +
@@ -6697,26 +6694,30 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
               const renderCourtBlock = (courtLabel, courtColor, matches, teamAName, teamBName) => {
                 return (
+                  // Fix 4: gray box with rounded corners per court
                   '<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin:8px 12px;overflow:hidden;background:#f8f9ff;">' +
-                  // Court header row with column labels
                   '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">' +
                   '<colgroup>' +
                     '<col style="width:130px;">' +
                     '<col style="width:auto;">' +
-                    '<col style="width:180px;">' +
+                    '<col style="width:160px;">' +
                     '<col style="width:auto;">' +
                     '<col style="width:100px;">' +
-                    '<col style="width:50px;">' +
+                    '<col style="width:46px;">' +
                   '</colgroup>' +
                   '<thead>' +
+                  // Fix 2: white bg, no separator line below team names row
                   '<tr style="background:#f8f9ff;">' +
-                    '<th style="font-size:10px;font-weight:800;color:' + courtColor + ';padding:8px 0 8px 12px;text-align:left;display:flex;align-items:center;gap:5px;">' +
-                      '<span style="width:8px;height:8px;border-radius:50%;background:' + courtColor + ';display:inline-block;"></span>' +
-                      'Court ' + courtLabel +
+                    '<th style="padding:8px 0 8px 12px;text-align:left;">' +
+                      '<div style="display:flex;align-items:center;gap:5px;">' +
+                        '<span style="width:8px;height:8px;border-radius:50%;background:' + courtColor + ';display:inline-block;"></span>' +
+                        '<span style="font-size:10px;font-weight:800;color:' + courtColor + ';text-transform:uppercase;letter-spacing:.5px;">Court ' + courtLabel + '</span>' +
+                      '</div>' +
                     '</th>' +
-                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">' + esc(teamAName) + ' (Home)</th>' +
+                    // Fix 5: Remove (Home) and (Away)
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">' + esc(teamAName) + '</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:center;text-transform:uppercase;letter-spacing:.4px;">Score</th>' +
-                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">' + esc(teamBName) + ' (Away)</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">' + esc(teamBName) + '</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Status</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px 8px 8px 0;text-align:right;text-transform:uppercase;letter-spacing:.4px;">Actions</th>' +
                   '</tr>' +
