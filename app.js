@@ -6549,9 +6549,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       // BYE in this week
       const byeRow = matchups.find(m => m.is_bye);
       const byeText = byeRow
-        ? `<span style="display:inline-flex;align-items:center;gap:5px;margin-left:10px;">
-            <span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;border:1px solid #F26024;color:#F26024;letter-spacing:.3px;">BYE / REST</span>
-            <span style="font-size:10px;font-weight:700;color:#F26024;">${teamName(byeRow.team_a_id)}</span>
+        ? `<span style="display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:3px 10px 3px 5px;background:rgba(242,96,36,0.08);border-radius:99px;">
+            <span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;background:#F26024;color:white;letter-spacing:.3px;">BYE / REST</span>
+            <span style="font-size:10px;font-weight:700;color:#F26024;">${teamName(byeRow.team_a_id)} sits out this week</span>
            </span>`
         : '';
 
@@ -6586,12 +6586,12 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
           <!-- Table using <table> for guaranteed column alignment -->
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
-              <col style="width:auto;">
+              <col style="width:220px;">
               <col style="width:90px;">
+              <col style="width:100px;">
+              <col style="width:160px;">
               <col style="width:110px;">
-              <col style="width:170px;">
-              <col style="width:110px;">
-              <col style="width:130px;">
+              <col style="width:160px;">
             </colgroup>
             <thead>
               <tr style="background:white;">
@@ -6600,7 +6600,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:7px 0;text-align:left;">Courts</th>
                 <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:7px 0;text-align:left;">Matches</th>
                 <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:7px 0;text-align:left;">Status</th>
-                <th style="padding:7px 16px 7px 0;text-align:right;"></th>
+                <th style="padding:7px 16px;text-align:right;"></th>
               </tr>
             </thead>
             <tbody>
@@ -6794,7 +6794,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 <td style="padding:11px 0;vertical-align:middle;">
                   <span class="ftc-status-pill ${rowStatus}">${s.status}</span>
                 </td>
-                <td style="padding:11px 16px 11px 0;text-align:right;vertical-align:middle;white-space:nowrap;">
+                <td style="padding:11px 16px;text-align:right;vertical-align:middle;white-space:nowrap;">
                   ${subMatches.length ? `<span id="${chevId}" style="font-size:10px;color:#6b7a99;display:inline-block;transform:rotate(0deg);transition:transform .15s;margin-right:6px;">▼</span>` : ''}
                   <button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenOverrideModal(${s.id},'${s.match_date||''}','${s.match_time||''}','${esc(s.court||'')}')">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
