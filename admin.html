@@ -1331,13 +1331,7 @@
 
     <!-- SECTION 1: Hero Banner -->
     <div class="ftc-hero">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:#e8f0ff;border:0.5px solid #c5d6f5;">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#174CCC;">League Headquarters</span>
-        </div>
-      </div>
-      <div class="ftc-hero-title" id="ftc-hero-title">Ferocia Team Challenge</div>
+      <div style="font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#174CCC;margin-bottom:8px;">League Headquarters</div>
       <div class="ftc-hero-sub" id="ftc-hero-sub">Season 1 &bull; Loading...</div>
       <div class="ftc-hero-stats">
         <div class="ftc-hero-stat">
@@ -1691,8 +1685,10 @@
 .ftc-status-pill{font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:2px 8px;border-radius:99px;}
 .ftc-status-scheduled{background:#e8f0ff;color:#174CCC;}
 .ftc-status-completed{background:rgba(36,188,150,0.12);color:#085041;}
-.ftc-edit-mini{padding:4px 10px;border:0.5px solid #c5d6f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s;}
-.ftc-edit-mini:hover{background:#e8f0ff;border-color:#174CCC;}
+.ftc-edit-mini{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border:1px solid #174CCC;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;}
+.ftc-edit-mini:hover{background:#174CCC;color:white;}
+.ftc-edit-mini.danger{border-color:#e53935;color:#e53935;}
+.ftc-edit-mini.danger:hover{background:#e53935;color:white;}
 /* Schedule list week cards */
 .ftc-week-card{background:white;border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.04);}
 .ftc-week-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;cursor:pointer;}
@@ -1706,14 +1702,14 @@
 .ftc-bye-badge{font-size:10px;font-weight:700;color:#6b7a99;background:#f4f5f8;padding:3px 8px;border-radius:99px;}
 </style>
 
-    <!-- Page Header: title + subtext + step indicator -->
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
-      <div style="display:flex;align-items:flex-start;gap:12px;">
-        <div style="width:44px;height:44px;border-radius:10px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <!-- Page Header: white card with title + subtext + step indicator -->
+    <div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:16px 20px;margin-bottom:14px;box-shadow:0 1px 4px rgba(23,76,204,0.06);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
         <div>
-          <div style="font-size:20px;font-weight:800;color:#0d1f4a;line-height:1.2;margin-bottom:3px;">Season Schedule</div>
+          <div style="font-size:18px;font-weight:800;color:#0d1f4a;line-height:1.2;margin-bottom:2px;">Season Schedule</div>
           <div style="font-size:11px;font-weight:600;color:#6b7a99;">Create and manage your season schedule.</div>
         </div>
       </div>
@@ -3359,7 +3355,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20260529"></script>
+<script src="app.js?v=20260530"></script>
 <script src="tournament.js?v=20260526"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────
