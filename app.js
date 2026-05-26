@@ -6053,10 +6053,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         );
       } catch (e) { /* non-fatal */ }
     }
-    // Pre-fill start date from ladder start_date
+    // Pre-fill start date from ladder start_date, then auto-set day of week
     const startEl = document.getElementById('ftc-sch-start-date');
     if (startEl && !startEl.value && currentLadder.start_date) {
       startEl.value = currentLadder.start_date;
+    }
+    // Always sync day of week to whatever start date is set
+    if (startEl && startEl.value) {
+      ftcAutoSetDay(startEl.value);
     }
     ftcUpdateSchStats();
     const el = document.getElementById('ftc-schedule-list');
