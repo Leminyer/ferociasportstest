@@ -6143,10 +6143,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       });
 
       // Each matchup → court blocks (sessions style)
+      // Courts are assigned per matchup: matchup 0 gets courts[0]+courts[1],
+      // matchup 1 gets courts[2]+courts[3], etc.
       matchups.forEach((m, mi) => {
         const useTwoCourts = courts.length >= 2;
-        const court1 = courts[0] || `C${mi*2+1}`;
-        const court2 = courts[1] || (useTwoCourts ? `C${mi*2+2}` : court1);
+        const c1idx = mi * (useTwoCourts ? 2 : 1);
+        const c2idx = c1idx + 1;
+        const court1 = courts[c1idx] || courts[c1idx % courts.length] || `C${c1idx+1}`;
+        const court2 = useTwoCourts ? (courts[c2idx] || courts[c2idx % courts.length] || `C${c2idx+1}`) : court1;
 
         // Court 1 — Men's Doubles + Mixed #1
         const court1Types = useTwoCourts ? ['mens','mixed1'] : matchTypes;
