@@ -6618,7 +6618,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
             const matchDetailHtml = subMatches.length > 0
               ? '<div id="' + expandId + '" style="display:none;border-top:0.5px solid #e0e7f5;background:#fafbff;">' +
                 buildMatchDetailHtml(subMatches, courtParts) +
-                '</div></div>'
+                '</div>'
               : '';
 
             return `<div>
