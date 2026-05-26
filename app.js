@@ -6147,7 +6147,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     const tName = (t) => t ? esc(t.name || `Team ${ftcTeams.indexOf(t)+1}`) : '—';
 
-    let weeksHtml = `<div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:12px;">Review your season schedule. Click any week to see matchups.</div>`;
+    let weeksHtml = '';
 
     rounds.forEach((round, i) => {
       const date    = ftcAddWeeks(firstMatchDate, i);
@@ -6186,7 +6186,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         <!-- Week body -->
         <div id="ftc-prv-week-${round.week}" style="display:${isFirst?'block':'none'};">
           <!-- Table header -->
-          <div style="display:grid;grid-template-columns:1fr 90px 110px 160px 100px;gap:8px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
+          <div style="display:grid;grid-template-columns:minmax(160px,1fr) 80px 100px 150px 90px;gap:12px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matchup</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Time</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Courts</div>
@@ -6203,7 +6203,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
             const time   = document.getElementById('ftc-sch-time')?.value || '';
             const timeDisplay = time ? fmtTime12(time) : '—';
 
-            return `<div style="display:grid;grid-template-columns:1fr 90px 110px 160px 100px;gap:8px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;">
+            return `<div style="display:grid;grid-template-columns:minmax(160px,1fr) 80px 100px 150px 90px;gap:12px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;">
               <div style="display:flex;align-items:center;gap:8px;">
                 <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${tName(m.teamA)}</span>
                 <span style="font-size:9px;font-weight:700;color:#b0bbd6;background:#f0f2f8;padding:2px 6px;border-radius:99px;">vs</span>
@@ -6559,7 +6559,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         <div id="ftc-week-body-${weekNum}" style="display:${isOpen?'block':'none'};">
           ${byeHtml}
           <!-- Table header -->
-          <div style="display:grid;grid-template-columns:1fr 90px 110px 160px 100px 40px;gap:8px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
+          <div style="display:grid;grid-template-columns:minmax(160px,1fr) 80px 100px 150px 90px 40px;gap:12px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matchup</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Time</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Courts</div>
@@ -6624,7 +6624,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               : '';
 
             return `<div>
-              <div style="display:grid;grid-template-columns:1fr 90px 110px 160px 100px 40px;gap:8px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;cursor:${subMatches.length?'pointer':'default'};"
+              <div style="display:grid;grid-template-columns:minmax(160px,1fr) 80px 100px 150px 90px 40px;gap:12px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;cursor:${subMatches.length?'pointer':'default'};"
                 onclick="${subMatches.length?`ftcToggleMatchExpand('${s.id}')`:''}" >
                 <div style="display:flex;align-items:center;gap:8px;">
                   <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_a_id)}</span>
