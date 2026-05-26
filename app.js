@@ -6636,29 +6636,53 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 const scoreB = scored ? String(m.score_b) : '—';
                 const ptsA   = scored ? '+' + m.league_pts_a + ' pts' : '';
                 const ptsB   = scored ? '+' + m.league_pts_b + ' pts' : '';
+                // Box styles
+                const boxStyleA = aWins
+                  ? 'flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:white;border:1px solid #24BC96;border-radius:8px;flex-direction:column;align-items:flex-start;gap:4px;'
+                  : bWins
+                    ? 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;'
+                    : 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:white;border:0.5px solid #e0e7f5;border-radius:8px;';
+                const boxStyleB = bWins
+                  ? 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:white;border:1px solid #24BC96;border-radius:8px;'
+                  : aWins
+                    ? 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;'
+                    : 'flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 12px;background:white;border:0.5px solid #e0e7f5;border-radius:8px;';
+                const nameColorA = (scored && bWins) ? '#b0bbd6' : '#0d1f4a';
+                const nameColorB = (scored && aWins) ? '#b0bbd6' : '#6b7a99';
+                const scoreColorA = aWins ? '#24BC96' : '#b0bbd6';
+                const scoreColorB = bWins ? '#24BC96' : '#b0bbd6';
                 return (
                   '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid #f0f2f8;">' +
+                  // Match type label
                   '<span style="font-size:9px;font-weight:800;color:#6b7a99;width:80px;flex-shrink:0;text-transform:uppercase;letter-spacing:.3px;">' + info.label + '</span>' +
-                  '<div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:white;border:0.5px solid ' + (aWins ? '#24BC96' : '#e0e7f5') + ';border-radius:8px;">' +
-                    '<div style="font-size:12px;font-weight:700;color:#0d1f4a;line-height:1.5;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
-                    '<div style="text-align:right;">' +
-                      '<div style="font-size:20px;font-weight:800;color:' + (aWins ? '#24BC96' : '#6b7a99') + ';">' + scoreA + '</div>' +
-                      (ptsA ? '<div style="font-size:9px;font-weight:600;color:' + (aWins ? '#24BC96' : '#6b7a99') + ';">' + ptsA + '</div>' : '') +
+                  // Team A box
+                  '<div style="' + boxStyleA + '">' +
+                    '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;">' +
+                      '<div style="font-size:12px;font-weight:700;color:' + nameColorA + ';line-height:1.5;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
+                      '<div style="text-align:right;">' +
+                        '<div style="font-size:20px;font-weight:800;color:' + scoreColorA + ';">' + scoreA + '</div>' +
+                        (ptsA ? '<div style="font-size:9px;font-weight:600;color:' + scoreColorA + ';">' + ptsA + '</div>' : '') +
+                      '</div>' +
                     '</div>' +
+                    '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'A\')" style="font-size:9px;padding:2px 8px;">Sub Team A</button>' +
                   '</div>' +
-                  '<span style="font-size:10px;font-weight:700;color:#b0bbd6;flex-shrink:0;">vs</span>' +
-                  '<div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:white;border:0.5px solid ' + (bWins ? '#24BC96' : '#e0e7f5') + ';border-radius:8px;">' +
-                    '<div style="font-size:12px;font-weight:700;color:#6b7a99;line-height:1.5;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
-                    '<div style="text-align:right;">' +
-                      '<div style="font-size:20px;font-weight:800;color:' + (bWins ? '#24BC96' : '#6b7a99') + ';">' + scoreB + '</div>' +
-                      (ptsB ? '<div style="font-size:9px;font-weight:600;color:' + (bWins ? '#24BC96' : '#6b7a99') + ';">' + ptsB + '</div>' : '') +
-                    '</div>' +
-                  '</div>' +
-                  '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">' +
+                  // VS separator
+                  '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;">' +
+                    '<span style="font-size:10px;font-weight:700;color:#b0bbd6;">vs</span>' +
                     (scored
-                      ? '<button class="ftc-edit-mini" onclick="ftcOpenScoreModal(' + m.id + ')">Edit score</button>'
-                      : '<button class="ftc-edit-mini" onclick="ftcOpenScoreModal(' + m.id + ')" style="background:#174CCC;color:white;border-color:#174CCC;">+ Score</button>') +
-                    '<button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(' + m.id + ')">Sub</button>' +
+                      ? '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenScoreModal(' + m.id + ')" style="font-size:9px;padding:2px 8px;">Edit</button>'
+                      : '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenScoreModal(' + m.id + ')" style="background:#174CCC;color:white;border-color:#174CCC;font-size:9px;padding:2px 8px;">Score</button>') +
+                  '</div>' +
+                  // Team B box
+                  '<div style="' + boxStyleB + '">' +
+                    '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;">' +
+                      '<div style="font-size:12px;font-weight:700;color:' + nameColorB + ';line-height:1.5;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
+                      '<div style="text-align:right;">' +
+                        '<div style="font-size:20px;font-weight:800;color:' + scoreColorB + ';">' + scoreB + '</div>' +
+                        (ptsB ? '<div style="font-size:9px;font-weight:600;color:' + scoreColorB + ';">' + ptsB + '</div>' : '') +
+                      '</div>' +
+                    '</div>' +
+                    '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'B\')" style="font-size:9px;padding:2px 8px;">Sub Team B</button>' +
                   '</div>' +
                   '</div>'
                 );
@@ -6667,7 +6691,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               const renderCourtBlock = (courtLabel, courtColor, matches) => {
                 return (
                   '<div style="border-top:0.5px solid #e0e7f5;">' +
-                  '<div style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:#f8f9ff;">' +
+                  '<div style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:white;border-bottom:0.5px solid #e0e7f5;">' +
                     '<span style="width:8px;height:8px;border-radius:50%;background:' + courtColor + ';display:inline-block;"></span>' +
                     '<span style="font-size:10px;font-weight:800;color:' + courtColor + ';text-transform:uppercase;letter-spacing:.5px;">Court ' + courtLabel + '</span>' +
                   '</div>' +
@@ -7073,6 +7097,57 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   };
 
   // ── Individual match edit (player sub toggle) ────────────────────────
+  // Open match edit filtered to one team's slots only
+  window.ftcOpenMatchEditTeam = (matchId, team) => {
+    // Temporarily filter: show only slots for the specified team (A or B)
+    const m = ftcMatches.find(x => x.id === matchId);
+    if (!m) return;
+    const tA = ftcTeams.find(t => t.id === m.team_a_id);
+    const tB = ftcTeams.find(t => t.id === m.team_b_id);
+    const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#174CCC' };
+    const pName = (id) => {
+      if (!id) return 'TBD';
+      const p = ladderPlayers.find(x => x.id === id);
+      return p ? `${p.first_name} ${p.last_name}` : `#${id}`;
+    };
+    const allSlots = [
+      { label: `${esc(tA?.name||'Team A')} — Player 1`, pid: m.team_a_p1_id, subId: ftcGetSub(tA, m.match_type, 1), field: 'team_a_p1_id', team: 'A', slot: 1 },
+      { label: `${esc(tA?.name||'Team A')} — Player 2`, pid: m.team_a_p2_id, subId: ftcGetSub(tA, m.match_type, 2), field: 'team_a_p2_id', team: 'A', slot: 2 },
+      { label: `${esc(tB?.name||'Team B')} — Player 1`, pid: m.team_b_p1_id, subId: ftcGetSub(tB, m.match_type, 1), field: 'team_b_p1_id', team: 'B', slot: 1 },
+      { label: `${esc(tB?.name||'Team B')} — Player 2`, pid: m.team_b_p2_id, subId: ftcGetSub(tB, m.match_type, 2), field: 'team_b_p2_id', team: 'B', slot: 2 },
+    ];
+    // Filter to the requested team
+    const slots = allSlots.filter(s => s.team === team);
+    const titleEl = document.getElementById('ftc-match-edit-title');
+    if (titleEl) titleEl.textContent = `${info.label} — Sub ${team === 'A' ? esc(tA?.name||'Team A') : esc(tB?.name||'Team B')}`;
+    const idEl = document.getElementById('ftc-match-edit-id');
+    if (idEl) idEl.value = matchId;
+    const bodyEl = document.getElementById('ftc-match-edit-body');
+    if (bodyEl) {
+      bodyEl.innerHTML = slots.map((s, i) => {
+        const isSub = s.subId && s.pid === s.subId;
+        const subName = s.subId ? pName(s.subId) : null;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid #f4f5f8;">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#6b7a99;margin-bottom:2px;">${s.label}</div>
+            <div style="font-size:13px;font-weight:800;color:#0d1f4a;" id="ftc-me-name-${i}">${pName(s.pid)}</div>
+            ${subName ? `<div style="font-size:10px;font-weight:600;color:#24BC96;margin-top:1px;">Sub available: ${subName}</div>` : '<div style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:1px;">No sub available</div>'}
+          </div>
+          ${subName ? `<div style="display:flex;align-items:center;gap:8px;">
+            <button id="ftc-me-toggle-${i}"
+              data-mid="${matchId}" data-field="${s.field}" data-regular="${isSub ? ftcGetRegular(s.team==='A'?tA:tB, m.match_type, s.slot) : s.pid}" data-sub="${s.subId}" data-issub="${isSub}"
+              onclick="ftcToggleSub(${i})"
+              style="padding:5px 12px;border-radius:99px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;border:none;background:${isSub ? '#174CCC' : '#e0e7f5'};color:${isSub ? 'white' : '#6b7a99'};">
+              ${isSub ? 'Undo Sub' : 'Use Sub'}
+            </button>
+          </div>` : ''}
+        </div>`;
+      }).join('');
+    }
+    document.getElementById('ftc-match-edit-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
+
   window.ftcOpenMatchEdit = (matchId) => {
     const m = ftcMatches.find(x => x.id === matchId);
     if (!m) return;
