@@ -6548,8 +6548,11 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
       // BYE in this week
       const byeRow = matchups.find(m => m.is_bye);
-      const byeInline = byeRow
-        ? ` <span style="font-size:10px;font-weight:700;color:#F26024;margin-left:8px;">· BYE: ${teamName(byeRow.team_a_id)}</span>`
+      const byeRow2 = byeRow
+        ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:5px 16px;border-bottom:0.5px solid #e0e7f5;">
+            <span style="font-size:9px;font-weight:800;color:#F26024;text-transform:uppercase;letter-spacing:.5px;">BYE / REST</span>
+            <span style="font-size:11px;font-weight:700;color:#F26024;">${teamName(byeRow.team_a_id)} sits out this week</span>
+           </div>`
         : '';
 
       html += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:8px;background:white;">
@@ -6563,8 +6566,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               <div style="font-size:12px;font-weight:800;color:#0d1f4a;display:flex;align-items:center;gap:6px;">
                 Week ${weekNum} &nbsp;${statusPill}
               </div>
-              <div style="font-size:10px;font-weight:600;color:#6b7a99;margin-top:1px;display:flex;align-items:center;flex-wrap:wrap;">
-                ${firstDate ? ftcFmtDate(firstDate) : 'No date set'} &nbsp;·&nbsp; ${nonByeCount} matchup${nonByeCount!==1?'s':''}${byeInline}
+              <div style="font-size:10px;font-weight:600;color:#6b7a99;margin-top:1px;">
+                ${firstDate ? ftcFmtDate(firstDate) : 'No date set'} &nbsp;·&nbsp; ${nonByeCount} matchup${nonByeCount!==1?'s':''}
               </div>
             </div>
           </div>
@@ -6579,6 +6582,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
         <!-- Week body -->
         <div id="ftc-week-body-${weekNum}" style="display:${isOpen?'block':'none'};">
+          ${byeRow2}
           <!-- Table using <table> for guaranteed column alignment -->
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
@@ -6638,8 +6642,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 const ptsA    = scored ? '+' + m.league_pts_a + ' pts' : '';
                 const ptsB    = scored ? '+' + m.league_pts_b + ' pts' : '';
                 // Fix 4: winner bg green, loser bg gray
-                const bgA     = aWins ? 'rgba(36,188,150,0.08)' : bWins ? '#f8f9ff' : 'white';
-                const bgB     = bWins ? 'rgba(36,188,150,0.08)' : aWins ? '#f8f9ff' : 'white';
+                const bgA     = bWins ? '#f8f9ff' : 'white';
+                const bgB     = aWins ? '#f8f9ff' : 'white';
                 const nameA   = (scored && bWins) ? '#b0bbd6' : '#0d1f4a';
                 const nameB   = (scored && aWins) ? '#b0bbd6' : '#0d1f4a';
                 const sclrA   = aWins ? '#24BC96' : '#b0bbd6';
@@ -6707,7 +6711,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                   '</colgroup>' +
                   '<thead>' +
                   // Fix 2: white bg, no separator line below team names row
-                  '<tr style="background:#f8f9ff;">' +
+                  '<tr style="background:white;">' +
                     '<th style="padding:8px 0 8px 12px;text-align:left;">' +
                       '<div style="display:flex;align-items:center;gap:5px;">' +
                         '<span style="width:8px;height:8px;border-radius:50%;background:' + courtColor + ';display:inline-block;"></span>' +
@@ -6715,13 +6719,13 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                       '</div>' +
                     '</th>' +
                     // Fix 5: Remove (Home) and (Away)
-                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">' + esc(teamAName) + '</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Team ' + esc(teamAName) + '</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:center;text-transform:uppercase;letter-spacing:.4px;">Score</th>' +
-                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">' + esc(teamBName) + '</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Team ' + esc(teamBName) + '</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Status</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px 8px 8px 0;text-align:right;text-transform:uppercase;letter-spacing:.4px;">Actions</th>' +
                   '</tr>' +
-                  '<tr style="border-top:0.5px solid #e0e7f5;background:white;"><td colspan="6" style="padding:0;"></td></tr>' +
+                  
                   '</thead>' +
                   '<tbody>' +
                   matches.map(m => renderMatchDetailRow(m)).join('') +
