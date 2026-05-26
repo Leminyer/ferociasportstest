@@ -6589,12 +6589,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               const c2Matches = subMatches.filter(m => ['womens','mixed2'].includes(m.match_type));
               const renderMatchDetailRow = (m) => {
                 const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#6b7a99' };
-                return '<div style="display:grid;grid-template-columns:110px 1fr 20px 1fr 32px;align-items:center;gap:4px;padding:8px 0;border-bottom:0.5px solid #f0f2f8;">' +
-                  '<span style="font-size:9px;font-weight:800;color:#6b7a99;text-transform:uppercase;letter-spacing:.3px;">' + info.label + '</span>' +
-                  '<div style="font-size:11px;font-weight:700;color:#0d1f4a;line-height:1.4;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
-                  '<span style="font-size:9px;font-weight:800;color:#b0bbd6;text-align:center;">vs</span>' +
-                  '<div style="font-size:11px;font-weight:700;color:#6b7a99;line-height:1.4;text-align:right;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
-                  '<button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(' + m.id + ')" style="font-size:9px;padding:3px 6px;">Sub</button>' +
+                return '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid #f0f2f8;">' +
+                  '<span style="font-size:9px;font-weight:800;color:#6b7a99;text-transform:uppercase;letter-spacing:.3px;width:100px;flex-shrink:0;">' + info.label + '</span>' +
+                  '<div style="display:flex;align-items:center;justify-content:center;gap:8px;flex:1;">' +
+                    '<div style="font-size:11px;font-weight:700;color:#0d1f4a;line-height:1.4;text-align:right;width:160px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
+                    '<span style="font-size:9px;font-weight:800;color:#b0bbd6;flex-shrink:0;">vs</span>' +
+                    '<div style="font-size:11px;font-weight:700;color:#6b7a99;line-height:1.4;width:160px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
+                  '</div>' +
+                  '<button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(' + m.id + ')" style="font-size:9px;padding:3px 6px;flex-shrink:0;">Sub</button>' +
                   '</div>';
               };
               if (!useTwoCourts) {
