@@ -6101,7 +6101,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     }
   };
 
-  // ── Preview schedule — sessions-style court blocks ──────────────────
+  // ── Preview schedule — table layout per week (accordion) ──────────────
   window.ftcPreviewSchedule = () => {
     if (ftcTeams.length < 2) {
       toast('Register at least 2 teams before generating a schedule.', true);
@@ -6116,13 +6116,12 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const firstMatchDate = ftcNextWeekday(startDate, targetDay);
     const rounds         = ftcGenerateRoundRobin(ftcTeams, weeks);
 
-    // Parse courts from input
     const courtStr = document.getElementById('ftc-sch-court')?.value?.trim() || '';
     const courts   = courtStr ? courtStr.split(',').map(c => c.trim()).filter(Boolean) : [];
 
     // Update preview card header
     const titleTxt = document.getElementById('ftc-preview-title-txt');
-    if (titleTxt) titleTxt.textContent = `PREVIEW — ${weeks} WEEKS`;
+    if (titleTxt) titleTxt.textContent = 'SEASON PREVIEW';
 
     // Court legend
     const legendEl = document.getElementById('ftc-preview-legend');
@@ -6132,114 +6131,82 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       ).join('');
     }
 
-    // Player name helper (from ladderPlayers)
     const tName = (t) => t ? esc(t.name || `Team ${ftcTeams.indexOf(t)+1}`) : '—';
 
-    // Game type labels per sub-match index (0-3 per matchup)
-    const gameLabels = ["Men's Doubles", "Women's Doubles", "Mixed #1", "Mixed #2"];
-    // Colors matching FTC_MATCH_LABELS
-    const gameColors = ['#174CCC', '#F26024', '#24BC96', '#9a6e00'];
-
-    // Player names per team per match type
-    const matchPlayers = (team, matchType) => {
-      if (!team) return ['TBD', 'TBD'];
-      if (matchType === 'mens')   return [team.m1_id, team.m2_id];
-      if (matchType === 'womens') return [team.f1_id, team.f2_id];
-      if (matchType === 'mixed1') return [team.mixed1_ma_id, team.mixed1_fa_id];
-      if (matchType === 'mixed2') return [team.mixed2_ma_id, team.mixed2_fa_id];
-      return [null, null];
-    };
-    const pLabel = (id) => {
-      if (!id) return 'TBD';
-      const p = ladderPlayers.find(x => x.id === id);
-      return p ? `${p.first_name} ${p.last_name}` : `#${id}`;
-    };
-
-    // Build week rows using sessions court-block style
-    let weeksHtml = '';
-    const matchTypes = ['mens','womens','mixed1','mixed2'];
+    let weeksHtml = `<div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:12px;">Review your season schedule. Click any week to see matchups.</div>`;
 
     rounds.forEach((round, i) => {
-      const date     = ftcAddWeeks(firstMatchDate, i);
-      const dateStr  = ftcFmtDate(date);
+      const date    = ftcAddWeeks(firstMatchDate, i);
+      const dateStr = ftcFmtDate(date);
+      const isFirst = i === 0;
       const matchups = round.matchups.filter(m => !m.bye);
       const byes     = round.matchups.filter(m => m.bye);
+      const byeText  = byes.length ? byes.map(b => tName(b.teamA)).join(', ') : null;
+      // "Complete by" = date of next week
+      const completeByDate = ftcFmtDate(ftcAddWeeks(firstMatchDate, i + 1));
 
-      // Week header — BYE team shown right-aligned inside the header row
-      const byeText = byes.length
-        ? `<span style="font-size:11px;font-weight:700;color:#F26024;margin-left:auto;">BYE / Rest: ${byes.map(b => tName(b.teamA)).join(', ')}</span>`
-        : '';
-
-      weeksHtml += `<div style="margin-bottom:10px;">
-        <div style="display:flex;align-items:center;padding:10px 14px;border-radius:8px;background:#e8f0ff;border:0.5px solid #c5d6f5;margin-bottom:8px;">
-          <span style="font-size:11px;font-weight:800;color:#174CCC;display:flex;align-items:center;gap:8px;">
-            <span style="width:20px;height:20px;border-radius:50%;background:#174CCC;color:white;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${round.week}</span>
-            Week ${round.week} &nbsp;·&nbsp; ${dateStr}
-          </span>
-          ${byeText}
-        </div>`;
-
-      // Each matchup → court blocks (sessions style)
-      // Courts are assigned per matchup: matchup 0 gets courts[0]+courts[1],
-      // matchup 1 gets courts[2]+courts[3], etc.
-      matchups.forEach((m, mi) => {
-        const useTwoCourts = courts.length >= 2;
-        const c1idx = mi * (useTwoCourts ? 2 : 1);
-        const c2idx = c1idx + 1;
-        const court1 = courts[c1idx] || courts[c1idx % courts.length] || `C${c1idx+1}`;
-        const court2 = useTwoCourts ? (courts[c2idx] || courts[c2idx % courts.length] || `C${c2idx+1}`) : court1;
-
-        // Court 1 — Men's Doubles + Mixed #1
-        const court1Types = useTwoCourts ? ['mens','mixed1'] : matchTypes;
-        const court2Types = ['womens','mixed2'];
-
-        const renderCourtBlock = (courtNum, types) => {
-          const courtLabel = `Court ${courtNum}`;
-          const gameRows = types.map((type, gi) => {
-            const [p1a, p2a] = matchPlayers(m.teamA, type);
-            const [p1b, p2b] = matchPlayers(m.teamB, type);
-            const label = gameLabels[matchTypes.indexOf(type)];
-            const color = gameColors[matchTypes.indexOf(type)];
-            return `<div class="sess-game-row">
-              <span class="sess-game-label" style="font-size:10px;color:${color};font-weight:800;min-width:100px;max-width:100px;">${label}</span>
-              <div class="sess-game-body">
-                <div class="sess-team-block sess-team-pending" style="flex:1;">
-                  <div class="sess-team-names" style="color:#0d1f4a;">
-                    ${esc(pLabel(p1a))}<br>${esc(pLabel(p2a))}
-                  </div>
-                  <div class="sess-team-score">
-                    <span class="sess-score-num sess-score-pending" style="font-size:18px;">—</span>
-                  </div>
-                </div>
-                <div class="sess-vs"><div class="sess-vs-line"></div><span>vs</span><div class="sess-vs-line"></div></div>
-                <div class="sess-team-block sess-team-lose" style="flex:1;">
-                  <div class="sess-team-names lose">
-                    ${esc(pLabel(p1b))}<br>${esc(pLabel(p2b))}
-                  </div>
-                  <div class="sess-team-score">
-                    <span class="sess-score-num sess-score-lose" style="font-size:18px;">—</span>
-                  </div>
-                </div>
+      weeksHtml += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:8px;overflow:hidden;background:white;">
+        <!-- Week header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;background:white;"
+          onclick="ftcPrvToggleWeek(${round.week})">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="width:22px;height:22px;border-radius:50%;background:#174CCC;color:white;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${round.week}</span>
+            <div>
+              <div style="font-size:12px;font-weight:800;color:#0d1f4a;display:flex;align-items:center;gap:6px;">
+                Week ${round.week}
+                <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#e8f0ff;color:#174CCC;">Scheduled</span>
+                ${byeText ? `<span style="font-size:9px;font-weight:700;color:#F26024;">BYE: ${byeText}</span>` : ''}
               </div>
-            </div>`;
-          }).join('');
-
-          return `<div class="court-block">
-            <div class="court-block-hdr">
-              <span class="court-block-label" style="font-size:11px;">${courtLabel}</span>
-              <span style="font-size:11px;font-weight:800;color:#0d1f4a;">${tName(m.teamA)}&nbsp;<span style="font-size:10px;font-weight:700;color:#6b7a99;">vs</span>&nbsp;${tName(m.teamB)}</span>
+              <div style="font-size:10px;font-weight:600;color:#6b7a99;margin-top:1px;">${dateStr} &nbsp;·&nbsp; ${matchups.length} matchup${matchups.length!==1?'s':''}</div>
             </div>
-            ${gameRows}
-          </div>`;
-        };
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:#24BC96;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Complete by ${completeByDate}
+            </div>
+            <span id="ftc-prv-chevron-${round.week}" style="font-size:11px;color:#6b7a99;transition:transform .2s;display:inline-block;transform:${isFirst?'rotate(180deg)':'rotate(0deg)'};">▼</span>
+          </div>
+        </div>
 
-        weeksHtml += renderCourtBlock(court1, court1Types);
-        if (useTwoCourts) {
-          weeksHtml += renderCourtBlock(court2, court2Types);
-        }
-      });
+        <!-- Week body -->
+        <div id="ftc-prv-week-${round.week}" style="display:${isFirst?'block':'none'};">
+          <!-- Table header -->
+          <div style="display:grid;grid-template-columns:1fr 80px 90px 130px 90px;gap:0;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matchup</div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Time</div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Courts</div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matches</div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Status</div>
+          </div>
+          <!-- Matchup rows -->
+          ${matchups.map((m, mi) => {
+            const c1idx  = mi * (courts.length >= 2 ? 2 : 1);
+            const c2idx  = c1idx + 1;
+            const court1 = courts[c1idx] || courts[c1idx % Math.max(courts.length,1)] || '—';
+            const court2 = courts.length >= 2 ? (courts[c2idx] || courts[c2idx % courts.length] || '—') : null;
+            const courtDisplay = court2 ? `${court1} – ${court2}` : court1;
+            const time   = document.getElementById('ftc-sch-time')?.value || '';
+            const timeDisplay = time ? fmtTime12(time) : '—';
 
-      weeksHtml += `</div>`; // close week div
+            return `<div style="display:grid;grid-template-columns:1fr 80px 90px 130px 90px;gap:0;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${tName(m.teamA)}</span>
+                <span style="font-size:9px;font-weight:700;color:#b0bbd6;background:#f0f2f8;padding:2px 6px;border-radius:99px;">vs</span>
+                <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${tName(m.teamB)}</span>
+              </div>
+              <div style="font-size:11px;font-weight:600;color:#6b7a99;">${timeDisplay}</div>
+              <div style="font-size:11px;font-weight:600;color:#6b7a99;">${courtDisplay}</div>
+              <div style="display:flex;align-items:center;gap:5px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span style="font-size:11px;font-weight:700;color:#6b7a99;">4</span>
+                <span style="font-size:10px;font-weight:600;color:#b0bbd6;">MD, WD, MX1, MX2</span>
+              </div>
+              <div><span style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:99px;background:#e8f0ff;color:#174CCC;">Scheduled</span></div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
     });
 
     const weeksEl = document.getElementById('ftc-preview-weeks');
@@ -6248,11 +6215,18 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const card = document.getElementById('ftc-sch-preview-card');
     if (card) card.style.display = 'block';
 
-    // Hide the schedule list while preview is shown to avoid duplicate content
     const schedEl = document.getElementById('ftc-schedule-list');
     if (schedEl) schedEl.style.display = 'none';
   };
 
+  window.ftcPrvToggleWeek = (week) => {
+    const body = document.getElementById(`ftc-prv-week-${week}`);
+    const chev = document.getElementById(`ftc-prv-chevron-${week}`);
+    if (!body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+  };
   // ── Create matches for existing schedule (no matches yet) ───────────────
   window.ftcGenerateMatchesForSchedule = async () => {
     if (!currentLadder || !ftcTeams.length) return;
@@ -6428,7 +6402,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     mixed2: { label: 'Mixed #2',        color: '#9a6e00', bg: 'rgba(154,110,0,0.08)'  },
   };
 
-  // ── Render schedule list ──────────────────────────────────────────────
+  // ── Render schedule list — table layout per week (smart accordion) ───────
   const renderFtcSchedule = () => {
     const el = document.getElementById('ftc-schedule-list');
     if (!ftcSchedule.length) {
@@ -6456,8 +6430,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       matchesBySchedule[m.schedule_id].push(m);
     });
 
-    // If schedule exists but NO individual matches exist at all,
-    // show a single action prompt — not empty rows per matchup.
+    // If schedule exists but NO individual matches exist at all
     const nonByeSchedule = ftcSchedule.filter(s => !s.is_bye);
     const totalMatchRows  = nonByeSchedule.reduce((sum, s) => sum + (matchesBySchedule[s.id]?.length || 0), 0);
     if (nonByeSchedule.length > 0 && totalMatchRows === 0) {
@@ -6466,7 +6439,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;margin-bottom:12px;opacity:0.4;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">Schedule ready — matches not yet created</div>
         <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;line-height:1.6;">
-          ${totalWeeks} week${totalWeeks!==1?'s':''} scheduled. Click below to create the individual match lineups<br>(Men's Doubles, Women's Doubles, Mixed #1, Mixed #2) for each matchup.
+          ${totalWeeks} week${totalWeeks!==1?'s':''} scheduled. Click below to create the individual match lineups.
         </div>
         <button onclick="ftcGenerateMatchesForSchedule()" style="padding:9px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
@@ -6490,143 +6463,193 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const totalWeeks = Object.keys(byWeek).length;
     const completed  = ftcSchedule.filter(s => s.status === 'completed').length;
 
+    // Determine current week = first week with at least one non-completed non-bye matchup
+    const sortedWeekNums = Object.keys(byWeek).map(Number).sort((a,b) => a-b);
+    let currentWeek = sortedWeekNums[0];
+    for (const wn of sortedWeekNums) {
+      const hasIncomplete = byWeek[wn].some(s => !s.is_bye && s.status !== 'completed');
+      if (hasIncomplete) { currentWeek = wn; break; }
+    }
+
     let html = `<div style="font-size:11px;font-weight:700;color:#6b7a99;margin-bottom:10px;">
-      ${totalWeeks} week${totalWeeks!==1?'s':''} · ${ftcSchedule.filter(s=>!s.is_bye).length} matchups · ${completed} completed
+      ${totalWeeks} week${totalWeeks!==1?'s':''} · ${nonByeSchedule.length} matchups · ${completed} completed
     </div>`;
 
-    Object.keys(byWeek).sort((a,b) => a-b).forEach(week => {
-      const matchups  = byWeek[week];
-      const firstDate = matchups[0]?.match_date;
-      const allDone   = matchups.every(m => m.status === 'completed');
-      const anyDone   = matchups.some(m => m.status === 'completed');
+    sortedWeekNums.forEach(weekNum => {
+      const matchups    = byWeek[weekNum];
+      const isOpen      = weekNum === currentWeek;
+      const firstDate   = matchups[0]?.match_date;
+      const allDone     = matchups.every(m => m.status === 'completed');
+      const anyDone     = matchups.some(m => m.status === 'completed');
+      const nonByeCount = matchups.filter(m => !m.is_bye).length;
 
-      html += `<div class="ftc-week-card">
-        <div class="ftc-week-hdr" onclick="ftcToggleWeek(${week})">
-          <div class="ftc-week-label">
-            <span style="width:22px;height:22px;border-radius:50%;background:${allDone?'#24BC96':anyDone?'#F26024':'#174CCC'};color:white;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${week}</span>
-            Week ${week}
-            ${allDone?'<span class="ftc-status-pill ftc-status-completed">Complete</span>':anyDone?'<span class="ftc-status-pill" style="background:rgba(242,96,36,0.1);color:#F26024;">In Progress</span>':'<span class="ftc-status-pill ftc-status-scheduled">Scheduled</span>'}
+      // "Complete by" = date of next week's matchup (7 days later)
+      const completeByDate = firstDate
+        ? ftcFmtDate(ftcAddWeeks(firstDate, 1))
+        : '—';
+
+      const statusPill = allDone
+        ? `<span class="ftc-status-pill ftc-status-completed">Complete</span>`
+        : anyDone
+          ? `<span class="ftc-status-pill" style="background:rgba(242,96,36,0.1);color:#F26024;">In Progress</span>`
+          : `<span class="ftc-status-pill ftc-status-scheduled">Scheduled</span>`;
+
+      const weekColor = allDone ? '#24BC96' : anyDone ? '#F26024' : '#174CCC';
+
+      // BYE in this week
+      const byeRow = matchups.find(m => m.is_bye);
+      const byeHtml = byeRow
+        ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:#fff8f4;border-bottom:0.5px solid #f4d5c8;">
+            <span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(242,96,36,0.12);color:#F26024;">BYE / REST</span>
+            <span style="font-size:11px;font-weight:700;color:#F26024;">${teamName(byeRow.team_a_id)} sits out this week</span>
+           </div>`
+        : '';
+
+      html += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:8px;overflow:hidden;background:white;">
+
+        <!-- Week header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;"
+          onclick="ftcToggleWeek(${weekNum})">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="width:22px;height:22px;border-radius:50%;background:${weekColor};color:white;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${weekNum}</span>
+            <div>
+              <div style="font-size:12px;font-weight:800;color:#0d1f4a;display:flex;align-items:center;gap:6px;">
+                Week ${weekNum} &nbsp;${statusPill}
+              </div>
+              <div style="font-size:10px;font-weight:600;color:#6b7a99;margin-top:1px;">
+                ${firstDate ? ftcFmtDate(firstDate) : 'No date set'} &nbsp;·&nbsp; ${nonByeCount} matchup${nonByeCount!==1?'s':''}
+              </div>
+            </div>
           </div>
-          <div class="ftc-week-meta">${firstDate ? ftcFmtDate(firstDate) : 'No date set'} · ${matchups.filter(m=>!m.is_bye).length} matchup${matchups.filter(m=>!m.is_bye).length!==1?'s':''}</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:#24BC96;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Complete by ${completeByDate}
+            </div>
+            <span id="ftc-wk-chev-${weekNum}" style="font-size:11px;color:#6b7a99;transition:transform .2s;display:inline-block;transform:${isOpen?'rotate(180deg)':'rotate(0deg)'};">▼</span>
+          </div>
         </div>
-        <div class="ftc-week-body" id="ftc-week-body-${week}">`;
 
-      matchups.forEach(s => {
-        if (s.is_bye) {
-          html += `<div class="ftc-matchup-row">
-            <div class="ftc-matchup-block">
-              <span class="ftc-bye-badge">BYE / REST</span>
-              <span style="font-size:12px;font-weight:700;color:#6b7a99;">${teamName(s.team_a_id)} sits out this week</span>
-            </div>
-          </div>`;
-          return;
-        }
+        <!-- Week body -->
+        <div id="ftc-week-body-${weekNum}" style="display:${isOpen?'block':'none'};">
+          ${byeHtml}
+          <!-- Table header -->
+          <div style="display:grid;grid-template-columns:1fr 80px 100px 140px 90px 36px;gap:0;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matchup</div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Time</div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Courts</div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matches</div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Status</div>
+            <div></div>
+          </div>
 
-        // Matchup header
-        const courtParts = s.court ? s.court.split(',').map(c => c.trim()) : [];
-        const court1 = courtParts[0] || null;
-        const court2 = courtParts[1] || null;
-        const useTwoCourts = !!court2;
+          <!-- Matchup rows -->
+          ${matchups.filter(m => !m.is_bye).map(s => {
+            const subMatches    = matchesBySchedule[s.id] || [];
+            const courtParts    = s.court ? s.court.split(',').map(c => c.trim()) : [];
+            const courtDisplay  = courtParts.length >= 2 ? `${courtParts[0]} – ${courtParts[1]}` : (courtParts[0] || '—');
+            const timeDisplay   = s.match_time ? fmtTime12(s.match_time) : '—';
+            const rowStatus     = s.status === 'completed' ? 'ftc-status-completed' : 'ftc-status-scheduled';
+            const matchCount    = subMatches.length || 4;
+            const expandId      = `ftc-match-expand-${s.id}`;
+            const chevId        = `ftc-match-chev-${s.id}`;
 
-        html += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:10px;overflow:hidden;">
-          <!-- Matchup header -->
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_a_id)}</span>
-              <span style="font-size:10px;font-weight:800;color:#b0bbd6;background:#f0f2f8;padding:2px 8px;border-radius:99px;">VS</span>
-              <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_b_id)}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              ${s.match_time ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">${fmtTime12(s.match_time)}</span>` : ''}
-              ${s.match_date ? `<span style="font-size:10px;font-weight:600;color:#6b7a99;">${ftcFmtDate(s.match_date)}</span>` : ''}
-              <span class="ftc-status-pill ${s.status==='completed'?'ftc-status-completed':'ftc-status-scheduled'}">${s.status}</span>
-              <button class="ftc-edit-mini" onclick="ftcOpenOverrideModal(${s.id}, '${s.match_date||''}', '${s.match_time||''}', '${esc(s.court||'')}')">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit Matchup
-              </button>
-            </div>
-          </div>`;
+            // Build expandable match detail rows
+            const matchDetailHtml = subMatches.length > 0 ? `
+              <div id="${expandId}" style="display:none;border-top:0.5px solid #e0e7f5;background:#fafbff;">
+                ${(() => {
+                  const c1 = courtParts[0] || null;
+                  const c2 = courtParts[1] || null;
+                  const useTwoCourts = !!c2;
+                  const typeOrder = ['mens','womens','mixed1','mixed2'];
+                  const c1Matches = subMatches.filter(m => ['mens','mixed1'].includes(m.match_type));
+                  const c2Matches = subMatches.filter(m => ['womens','mixed2'].includes(m.match_type));
 
-        // Individual sub-matches
-        const subMatches = matchesBySchedule[s.id] || [];
-        const typeOrder  = ['mens','womens','mixed1','mixed2'];
+                  const renderMatchDetailRow = (m) => {
+                    const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color:'#6b7a99' };
+                    return `<div style="display:grid;grid-template-columns:110px 1fr 28px 1fr 32px;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid #f0f2f8;">
+                      <span style="font-size:9px;font-weight:800;color:${info.color};text-transform:uppercase;letter-spacing:.3px;">${info.label}</span>
+                      <div style="font-size:11px;font-weight:700;color:#0d1f4a;line-height:1.4;">${pName(m.team_a_p1_id)}<br>${pName(m.team_a_p2_id)}</div>
+                      <span style="font-size:9px;font-weight:800;color:#b0bbd6;text-align:center;">vs</span>
+                      <div style="font-size:11px;font-weight:700;color:#6b7a99;line-height:1.4;text-align:right;">${pName(m.team_b_p1_id)}<br>${pName(m.team_b_p2_id)}</div>
+                      <button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(${m.id})" style="font-size:9px;padding:3px 6px;">Sub</button>
+                    </div>`;
+                  };
 
-        // Group by court for display
-        const court1Matches = subMatches.filter(m => ['mens','mixed1'].includes(m.match_type));
-        const court2Matches = subMatches.filter(m => ['womens','mixed2'].includes(m.match_type));
+                  if (!useTwoCourts) {
+                    const ordered = typeOrder.map(t => subMatches.find(m => m.match_type === t)).filter(Boolean);
+                    return `<div style="padding:0 16px;">
+                      <div style="font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">
+                        <span style="width:7px;height:7px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Court ${c1||'—'}
+                      </div>
+                      ${ordered.map(m => renderMatchDetailRow(m)).join('')}
+                    </div>`;
+                  }
+                  return `<div style="display:grid;grid-template-columns:1fr 1fr;border-top:0.5px solid #e0e7f5;">
+                    <div style="padding:0 16px;border-right:0.5px solid #e0e7f5;">
+                      <div style="font-size:9px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">
+                        <span style="width:7px;height:7px;border-radius:50%;background:#174CCC;display:inline-block;"></span>Court ${c1}
+                      </div>
+                      ${c1Matches.map(m => renderMatchDetailRow(m)).join('')}
+                    </div>
+                    <div style="padding:0 16px;">
+                      <div style="font-size:9px;font-weight:800;color:#24BC96;text-transform:uppercase;letter-spacing:.5px;padding:7px 0 4px;display:flex;align-items:center;gap:5px;">
+                        <span style="width:7px;height:7px;border-radius:50%;background:#24BC96;display:inline-block;"></span>Court ${c2}
+                      </div>
+                      ${c2Matches.map(m => renderMatchDetailRow(m)).join('')}
+                    </div>
+                  </div>`;
+                })()}
+              </div>` : '';
 
-        const renderMatchRow = (m) => {
-          const info = FTC_MATCH_LABELS[m.match_type] || { label: m.match_type, color: '#6b7a99', bg: '#f4f5f8' };
-          return `<div style="display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center;gap:8px;padding:9px 0;border-bottom:0.5px solid #f4f5f8;">
-            <div style="width:8px;height:8px;border-radius:50%;background:${info.color};flex-shrink:0;"></div>
-            <div style="display:flex;flex-direction:column;gap:1px;">
-              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:${info.color};">${info.label}</div>
-              <div style="font-size:12px;font-weight:700;color:#0d1f4a;">${pName(m.team_a_p1_id)}</div>
-              <div style="font-size:12px;font-weight:700;color:#0d1f4a;">${pName(m.team_a_p2_id)}</div>
-            </div>
-            <div style="font-size:10px;font-weight:800;color:#b0bbd6;text-align:center;padding:0 4px;">vs</div>
-            <div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">
-              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:${info.color};">&nbsp;</div>
-              <div style="font-size:12px;font-weight:700;color:#6b7a99;">${pName(m.team_b_p1_id)}</div>
-              <div style="font-size:12px;font-weight:700;color:#6b7a99;">${pName(m.team_b_p2_id)}</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-              <button class="ftc-edit-mini" onclick="ftcOpenMatchEdit(${m.id})" title="Edit players / sub">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </button>
-            </div>
-          </div>`;
-        };
-
-        if (subMatches.length === 0) {
-          // No individual matches yet — offer to regenerate
-          html += `<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fafbff;border-top:0.5px solid #e0e7f5;">
-            <span style="font-size:11px;font-weight:600;color:#b0bbd6;">Individual matches not yet created for this matchup.</span>
-            <button onclick="ftcGenerateMatchesForSchedule()" style="padding:4px 12px;border:0.5px solid #174CCC;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;white-space:nowrap;">Create Matches</button>
-          </div>`;
-        } else if (!useTwoCourts) {
-          // Single court — all 4 matches in one block
-          const orderedMatches = typeOrder.map(t => subMatches.find(m => m.match_type === t)).filter(Boolean);
-          html += `<div style="padding:0 16px;">
-            <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid #e0e7f5;">
-              <div style="width:9px;height:9px;border-radius:50%;background:#174CCC;"></div>
-              <span style="font-size:10px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;">Court ${court1 || '—'}</span>
-            </div>
-            ${orderedMatches.map(m => renderMatchRow(m)).join('')}
-          </div>`;
-        } else {
-          // Two courts side by side
-          html += `<div style="display:grid;grid-template-columns:1fr 1fr;border-top:0.5px solid #e0e7f5;">
-            <div style="padding:0 16px;border-right:0.5px solid #e0e7f5;">
-              <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid #e0e7f5;">
-                <div style="width:9px;height:9px;border-radius:50%;background:#174CCC;"></div>
-                <span style="font-size:10px;font-weight:800;color:#174CCC;text-transform:uppercase;letter-spacing:.5px;">Court ${court1}</span>
+            return `<div>
+              <div style="display:grid;grid-template-columns:1fr 80px 100px 140px 90px 36px;gap:0;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;cursor:${subMatches.length?'pointer':'default'};"
+                onclick="${subMatches.length?`ftcToggleMatchExpand('${s.id}')`:''}" >
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_a_id)}</span>
+                  <span style="font-size:9px;font-weight:700;color:#b0bbd6;background:#f0f2f8;padding:2px 6px;border-radius:99px;">vs</span>
+                  <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_b_id)}</span>
+                </div>
+                <div style="font-size:11px;font-weight:600;color:#6b7a99;">${timeDisplay}</div>
+                <div style="font-size:11px;font-weight:600;color:#6b7a99;">${courtDisplay}</div>
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  <span style="font-size:11px;font-weight:700;color:#6b7a99;">${matchCount}</span>
+                  <span style="font-size:10px;font-weight:600;color:#b0bbd6;">MD, WD, MX1, MX2</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span class="ftc-status-pill ${rowStatus}">${s.status}</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+                  ${subMatches.length ? `<span id="${chevId}" style="font-size:10px;color:#6b7a99;display:inline-block;transform:rotate(0deg);transition:transform .15s;">▼</span>` : ''}
+                  <button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenOverrideModal(${s.id},'${s.match_date||''}','${s.match_time||''}','${esc(s.court||'')}')" style="font-size:9px;padding:3px 7px;">Edit</button>
+                </div>
               </div>
-              ${court1Matches.map(m => renderMatchRow(m)).join('')}
-            </div>
-            <div style="padding:0 16px;">
-              <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid #e0e7f5;">
-                <div style="width:9px;height:9px;border-radius:50%;background:#24BC96;"></div>
-                <span style="font-size:10px;font-weight:800;color:#24BC96;text-transform:uppercase;letter-spacing:.5px;">Court ${court2}</span>
-              </div>
-              ${court2Matches.map(m => renderMatchRow(m)).join('')}
-            </div>
-          </div>`;
-        }
-
-        html += `</div>`; // close matchup card
-      });
-
-      html += `</div></div>`; // close week-body + week-card
+              ${matchDetailHtml}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
     });
 
     el.innerHTML = html;
   };
 
+  window.ftcToggleMatchExpand = (schedId) => {
+    const body = document.getElementById(`ftc-match-expand-${schedId}`);
+    const chev = document.getElementById(`ftc-match-chev-${schedId}`);
+    if (!body) return;
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+  };
   window.ftcToggleWeek = (week) => {
     const body = document.getElementById(`ftc-week-body-${week}`);
+    const chev = document.getElementById(`ftc-wk-chev-${week}`);
     if (!body) return;
-    body.style.display = body.style.display === 'none' ? 'block' : 'none';
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
   };
 
   // ── Override modal ────────────────────────────────────────────────────
