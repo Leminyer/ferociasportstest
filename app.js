@@ -6070,6 +6070,16 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       ftcMatches = await api(
         `ftc_ladder_matches?ladder_id=eq.${currentLadder.id}&select=*&order=schedule_id,match_type`
       );
+      // Toggle delete/generate buttons based on whether schedule exists
+      const _delBtn = document.getElementById('ftc-delete-schedule-btn');
+      const _genBtn = document.getElementById('ftc-generate-schedule-btn');
+      if (ftcSchedule.length > 0) {
+        if (_delBtn) _delBtn.style.display = 'inline-flex';
+        if (_genBtn) _genBtn.style.display = 'none';
+      } else {
+        if (_delBtn) _delBtn.style.display = 'none';
+        if (_genBtn) _genBtn.style.display = 'inline-flex';
+      }
       renderFtcSchedule();
     } catch (err) {
       el.innerHTML = `<div class="error">Error: ${esc(err.message)}</div>`;
@@ -6407,12 +6417,6 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   const renderFtcSchedule = () => {
     const el = document.getElementById('ftc-schedule-list');
     if (!ftcSchedule.length) {
-      // No schedule — show generate, hide delete
-      const delBtnE = document.getElementById('ftc-delete-schedule-btn');
-      const genBtnE = document.getElementById('ftc-generate-schedule-btn');
-      if (delBtnE) delBtnE.style.display = 'none';
-      if (genBtnE) genBtnE.style.display = 'inline-flex';
-
       el.innerHTML = `<div class="card" style="padding:40px 24px;text-align:center;">
         <div style="margin-bottom:14px;">
           <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#b0bbd6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -6470,12 +6474,6 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     const totalWeeks = Object.keys(byWeek).length;
     const completed  = ftcSchedule.filter(s => s.status === 'completed').length;
-
-    // Show delete button, hide generate button when schedule exists
-    const delBtn = document.getElementById('ftc-delete-schedule-btn');
-    const genBtn = document.getElementById('ftc-generate-schedule-btn');
-    if (delBtn) delBtn.style.display = 'inline-flex';
-    if (genBtn) genBtn.style.display = 'none';
 
     let html = `<div style="font-size:11px;font-weight:700;color:#6b7a99;margin-bottom:10px;">
       ${totalWeeks} week${totalWeeks!==1?'s':''} · ${ftcSchedule.filter(s=>!s.is_bye).length} matchups · ${completed} completed
