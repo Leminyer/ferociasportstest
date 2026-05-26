@@ -6713,6 +6713,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               </tr>
               ${matchDetailHtml ? `<tr><td colspan="6" style="padding:0;">${matchDetailHtml}</td></tr>` : ''}`;
           }).join('')}
+            </tbody>
+          </table>
         </div>
       </div>`;
     });
