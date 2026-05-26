@@ -6060,6 +6060,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     }
     ftcUpdateSchStats();
     const el = document.getElementById('ftc-schedule-list');
+    el.style.display = '';
     el.innerHTML = '<div class="loading">Loading schedule...</div>';
     try {
       ftcSchedule = await api(
@@ -6201,7 +6202,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
           return `<div class="court-block">
             <div class="court-block-hdr">
               <span class="court-block-label" style="font-size:11px;">${courtLabel}</span>
-              <span style="font-size:11px;font-weight:600;color:#6b7a99;">${tName(m.teamA)} vs ${tName(m.teamB)}</span>
+              <span style="font-size:11px;font-weight:700;color:#0d1f4a;">${tName(m.teamA)} <span style="font-weight:600;color:#b0bbd6;">vs</span> ${tName(m.teamB)}</span>
             </div>
             ${gameRows}
           </div>`;
@@ -6221,6 +6222,55 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     const card = document.getElementById('ftc-sch-preview-card');
     if (card) card.style.display = 'block';
+
+    // Hide the schedule list while preview is shown to avoid duplicate content
+    const schedEl = document.getElementById('ftc-schedule-list');
+    if (schedEl) schedEl.style.display = 'none';
+  };
+
+  // ── Create matches for existing schedule (no matches yet) ───────────────
+  window.ftcGenerateMatchesForSchedule = async () => {
+    if (!currentLadder || !ftcTeams.length) return;
+    try {
+      const scheduleRows = await api(
+        `ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}&select=id,team_a_id,team_b_id,is_bye,court&order=week_number,id`
+      );
+      const matchTypes = ['mens','womens','mixed1','mixed2'];
+      const matchRows  = [];
+      scheduleRows.filter(s => !s.is_bye).forEach(s => {
+        const tA = ftcTeams.find(t => t.id === s.team_a_id);
+        const tB = ftcTeams.find(t => t.id === s.team_b_id);
+        if (!tA || !tB) return;
+        const courtParts = s.court ? s.court.split(',').map(c => c.trim()) : [];
+        const court1 = courtParts[0] || null;
+        const court2 = courtParts[1] || court1;
+        const assignments = {
+          mens:   { ap1: tA.m1_id,       ap2: tA.m2_id,       bp1: tB.m1_id,       bp2: tB.m2_id,       court: court1 },
+          womens: { ap1: tA.f1_id,        ap2: tA.f2_id,        bp1: tB.f1_id,        bp2: tB.f2_id,        court: court2 },
+          mixed1: { ap1: tA.mixed1_ma_id, ap2: tA.mixed1_fa_id, bp1: tB.mixed1_ma_id, bp2: tB.mixed1_fa_id, court: court1 },
+          mixed2: { ap1: tA.mixed2_ma_id, ap2: tA.mixed2_fa_id, bp1: tB.mixed2_ma_id, bp2: tB.mixed2_fa_id, court: court2 },
+        };
+        matchTypes.forEach(type => {
+          const a = assignments[type];
+          matchRows.push({
+            schedule_id: s.id, ladder_id: currentLadder.id, match_type: type,
+            team_a_id: s.team_a_id, team_b_id: s.team_b_id,
+            team_a_p1_id: a.ap1||null, team_a_p2_id: a.ap2||null,
+            team_b_p1_id: a.bp1||null, team_b_p2_id: a.bp2||null,
+            court: a.court, status: 'pending',
+          });
+        });
+      });
+      if (matchRows.length) {
+        await api('ftc_ladder_matches', 'POST', matchRows);
+        toast(`${matchRows.length} individual matches created!`);
+        await loadFtcSchedule();
+      } else {
+        toast('No matchups found to create matches for.', true);
+      }
+    } catch (err) {
+      toast(`Error: ${err.message}`, true);
+    }
   };
 
   // ── Generate and save schedule to DB ─────────────────────────────────
@@ -6470,9 +6520,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         };
 
         if (subMatches.length === 0) {
-          // No individual matches yet — show placeholder
-          html += `<div style="padding:16px;text-align:center;font-size:11px;font-weight:600;color:#b0bbd6;">
-            Individual matches not yet generated. Regenerate the schedule to create them.
+          // No individual matches yet — offer to regenerate
+          html += `<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fafbff;border-top:0.5px solid #e0e7f5;">
+            <span style="font-size:11px;font-weight:600;color:#b0bbd6;">Individual matches not yet created for this matchup.</span>
+            <button onclick="ftcGenerateMatchesForSchedule()" style="padding:4px 12px;border:0.5px solid #174CCC;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#174CCC;cursor:pointer;white-space:nowrap;">Create Matches</button>
           </div>`;
         } else if (!useTwoCourts) {
           // Single court — all 4 matches in one block

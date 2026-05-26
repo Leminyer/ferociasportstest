@@ -1778,7 +1778,7 @@
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px;">
         <div class="ftc-gen-field">
           <div class="ftc-gen-flabel">Start Date <span class="ftc-gen-flabel-req">*</span></div>
-          <input type="date" id="ftc-sch-start-date" class="ftc-gen-input">
+          <input type="date" id="ftc-sch-start-date" class="ftc-gen-input" oninput="ftcAutoSetDay(this.value)" onchange="ftcAutoSetDay(this.value)">
           <div class="ftc-gen-hint">When the season will begin</div>
         </div>
         <div class="ftc-gen-field">
