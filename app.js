@@ -6549,13 +6549,16 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       // BYE in this week
       const byeRow = matchups.find(m => m.is_bye);
       const byeText = byeRow
-        ? `<span style="font-size:10px;font-weight:700;color:#F26024;margin-left:10px;">· BYE: ${teamName(byeRow.team_a_id)}</span>`
+        ? `<span style="display:inline-flex;align-items:center;gap:5px;margin-left:10px;">
+            <span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;border:1px solid #F26024;color:#F26024;letter-spacing:.3px;">BYE / REST</span>
+            <span style="font-size:10px;font-weight:700;color:#F26024;">${teamName(byeRow.team_a_id)}</span>
+           </span>`
         : '';
 
       html += `<div style="border:0.5px solid #e0e7f5;border-radius:10px;margin-bottom:8px;background:white;">
 
         <!-- Week header -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;position:relative;"
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;position:relative;background:#f8f9ff;border-radius:10px 10px 0 0;"
           onclick="ftcToggleWeek(${weekNum})">
           <div style="display:flex;align-items:center;gap:10px;">
             <span style="width:22px;height:22px;border-radius:50%;background:${weekColor};color:white;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${weekNum}</span>
@@ -6568,7 +6571,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               </div>
             </div>
           </div>
-          ${byeText ? `<div style="position:absolute;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;color:#F26024;pointer-events:none;">${byeText}</div>` : ''}
+          ${byeText ? `<div style="position:absolute;left:50%;transform:translateX(-50%);pointer-events:none;display:flex;align-items:center;">${byeText}</div>` : ''}
           <div style="display:flex;align-items:center;gap:10px;">
             <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:#24BC96;">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -6647,7 +6650,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 const sclrB   = bWins ? '#24BC96' : '#b0bbd6';
 
                 return (
-                  '<tr style="border-bottom:0.5px solid #f0f2f8;">' +
+                  '<tr style="border-bottom:0.5px solid #f0f2f8;background:#f8f9ff;">' +
                   // Fix 3: number + label on same line
                   '<td style="padding:10px 0 10px 12px;vertical-align:middle;white-space:nowrap;">' +
                     '<div style="display:flex;align-items:baseline;gap:5px;">' +
@@ -6770,7 +6773,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                 '</div>'
               : '';
 
-            return `<tr style="border-bottom:0.5px solid #f4f5f8;cursor:${subMatches.length?'pointer':'default'};"
+            return `<tr style="cursor:${subMatches.length?'pointer':'default'};"
                 onclick="${subMatches.length?`ftcToggleMatchExpand('${s.id}')`:''}">
                 <td style="padding:11px 16px;vertical-align:middle;">
                   <div style="display:flex;align-items:center;gap:8px;">
