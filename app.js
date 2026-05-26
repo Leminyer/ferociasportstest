@@ -6662,11 +6662,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                     '</div>' +
                   '</td>' +
                   // Fix 6: Team A — no box, just players + sub button
-                  '<td style="padding:10px 8px;vertical-align:middle;">' +
-                    '<div style="padding:8px 12px;background:' + bgA + ';border-radius:6px;">' +
-                      '<div style="font-size:12px;font-weight:700;color:' + nameA + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
-                      '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'A\')" style="font-size:9px;padding:2px 8px;">Sub Team A</button>' +
-                    '</div>' +
+                  '<td style="padding:10px 8px 10px 16px;vertical-align:middle;">' +
+                    '<div style="font-size:12px;font-weight:700;color:' + nameA + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
+                    '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'A\')" style="font-size:9px;padding:2px 8px;">Sub Team A</button>' +
                   '</td>' +
                   // Score center
                   '<td style="padding:10px 8px;vertical-align:middle;text-align:center;">' +
@@ -6681,17 +6679,15 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                   '</td>' +
                   // Fix 6: Team B — no box, just players + sub button
                   '<td style="padding:10px 8px;vertical-align:middle;">' +
-                    '<div style="padding:8px 12px;background:' + bgB + ';border-radius:6px;">' +
-                      '<div style="font-size:12px;font-weight:700;color:' + nameB + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
-                      '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'B\')" style="font-size:9px;padding:2px 8px;">Sub Team B</button>' +
-                    '</div>' +
+                    '<div style="font-size:12px;font-weight:700;color:' + nameB + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
+                    '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'B\')" style="font-size:9px;padding:2px 8px;">Sub Team B</button>' +
                   '</td>' +
                   // Status
-                  '<td style="padding:10px 8px;vertical-align:middle;white-space:nowrap;">' +
+                  '<td style="padding:10px 8px;vertical-align:middle;text-align:center;white-space:nowrap;">' +
                     '<span class="ftc-status-pill ' + (scored ? 'ftc-status-completed' : 'ftc-status-scheduled') + '">' + (scored ? 'Complete' : 'Scheduled') + '</span>' +
                   '</td>' +
                   // Actions
-                  '<td style="padding:10px 8px 10px 0;vertical-align:middle;text-align:right;white-space:nowrap;">' +
+                  '<td style="padding:10px 8px;vertical-align:middle;text-align:center;white-space:nowrap;">' +
                     (scored ? '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenScoreModal(' + m.id + ')" title="Edit score"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' : '') +
                   '</td>' +
                   '</tr>'
@@ -6705,11 +6701,11 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                   '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">' +
                   '<colgroup>' +
                     '<col style="width:130px;">' +
-                    '<col style="width:auto;">' +
-                    '<col style="width:160px;">' +
-                    '<col style="width:auto;">' +
+                    '<col style="width:280px;">' +
+                    '<col style="width:200px;">' +
+                    '<col style="width:280px;">' +
                     '<col style="width:100px;">' +
-                    '<col style="width:46px;">' +
+                    '<col style="width:80px;">' +
                   '</colgroup>' +
                   '<thead>' +
                   // Fix 2: white bg, no separator line below team names row
@@ -6721,11 +6717,11 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                       '</div>' +
                     '</th>' +
                     // Fix 5: Remove (Home) and (Away)
-                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Team ' + esc(teamAName) + '</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px 8px 8px 16px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Team ' + esc(teamAName) + '</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:center;text-transform:uppercase;letter-spacing:.4px;">Score</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Team ' + esc(teamBName) + '</th>' +
-                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Status</th>' +
-                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px 8px 8px 0;text-align:right;text-transform:uppercase;letter-spacing:.4px;">Actions</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:center;text-transform:uppercase;letter-spacing:.4px;">Status</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:center;text-transform:uppercase;letter-spacing:.4px;">Actions</th>' +
                   '</tr>' +
                   
                   '</thead>' +
