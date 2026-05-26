@@ -6164,7 +6164,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
 
     const tName = (t) => t ? esc(t.name || `Team ${ftcTeams.indexOf(t)+1}`) : '—';
 
-    let weeksHtml = '';
+    let weeksHtml = `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:20px 24px;box-shadow:0 1px 4px rgba(23,76,204,0.06);">
+      <div style="font-size:16px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Season Preview</div>
+      <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Review your season schedule. Click any week to see matchups.</div>`;
 
     rounds.forEach((round, i) => {
       const date    = ftcAddWeeks(firstMatchDate, i);
@@ -6203,7 +6205,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         <!-- Week body -->
         <div id="ftc-prv-week-${round.week}" style="display:${isFirst?'block':'none'};">
           <!-- Table header -->
-          <div style="display:grid;grid-template-columns:minmax(160px,1fr) 80px 100px 150px 90px;gap:12px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
+          <div style="display:grid;grid-template-columns:minmax(180px,1fr) 85px 110px 160px 110px;gap:16px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matchup</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Time</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Courts</div>
@@ -6220,7 +6222,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
             const time   = document.getElementById('ftc-sch-time')?.value || '';
             const timeDisplay = time ? fmtTime12(time) : '—';
 
-            return `<div style="display:grid;grid-template-columns:minmax(160px,1fr) 80px 100px 150px 90px;gap:12px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;">
+            return `<div style="display:grid;grid-template-columns:minmax(180px,1fr) 85px 110px 160px 110px;gap:16px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;">
               <div style="display:flex;align-items:center;gap:8px;">
                 <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${tName(m.teamA)}</span>
                 <span style="font-size:9px;font-weight:700;color:#b0bbd6;background:#f0f2f8;padding:2px 6px;border-radius:99px;">vs</span>
@@ -6240,6 +6242,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       </div>`;
     });
 
+    weeksHtml += '</div>'; // close white card
     const weeksEl = document.getElementById('ftc-preview-weeks');
     if (weeksEl) weeksEl.innerHTML = weeksHtml;
 
@@ -6513,9 +6516,12 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       if (hasIncomplete) { currentWeek = wn; break; }
     }
 
-    let html = `<div style="font-size:11px;font-weight:700;color:#6b7a99;margin-bottom:10px;">
-      ${totalWeeks} week${totalWeeks!==1?'s':''} · ${nonByeSchedule.length} matchups · ${completed} completed
-    </div>`;
+    let html = `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:20px 24px;box-shadow:0 1px 4px rgba(23,76,204,0.06);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:16px;font-weight:800;color:#0d1f4a;">Season Schedule</div>
+        <div style="font-size:11px;font-weight:700;color:#6b7a99;">${totalWeeks} week${totalWeeks!==1?'s':''} · ${nonByeSchedule.length} matchups · ${completed} completed</div>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Review your season schedule. Click any week to see matchups.</div>`;
 
     sortedWeekNums.forEach(weekNum => {
       const matchups    = byWeek[weekNum];
@@ -6576,7 +6582,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         <div id="ftc-week-body-${weekNum}" style="display:${isOpen?'block':'none'};">
           ${byeHtml}
           <!-- Table header -->
-          <div style="display:grid;grid-template-columns:minmax(160px,1fr) 80px 100px 150px 90px 40px;gap:12px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
+          <div style="display:grid;grid-template-columns:minmax(180px,1fr) 85px 110px 160px 110px auto;gap:16px;padding:6px 16px;background:#f8f9ff;border-top:0.5px solid #e0e7f5;border-bottom:0.5px solid #e0e7f5;">
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Matchup</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Time</div>
             <div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;">Courts</div>
@@ -6641,7 +6647,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               : '';
 
             return `<div>
-              <div style="display:grid;grid-template-columns:minmax(160px,1fr) 80px 100px 150px 90px 40px;gap:12px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;cursor:${subMatches.length?'pointer':'default'};"
+              <div style="display:grid;grid-template-columns:minmax(180px,1fr) 85px 110px 160px 110px auto;gap:16px;padding:10px 16px;border-bottom:0.5px solid #f4f5f8;align-items:center;cursor:${subMatches.length?'pointer':'default'};"
                 onclick="${subMatches.length?`ftcToggleMatchExpand('${s.id}')`:''}" >
                 <div style="display:flex;align-items:center;gap:8px;">
                   <span style="font-size:13px;font-weight:800;color:#0d1f4a;">${teamName(s.team_a_id)}</span>
@@ -6673,6 +6679,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       </div>`;
     });
 
+    html += '</div>'; // close white card
     el.innerHTML = html;
   };
 
