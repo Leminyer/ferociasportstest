@@ -7587,9 +7587,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                     '</div>' +
                   '</td>' +
                   // Fix 6: Team A — no box, just players + sub button
-                  '<td style="padding:10px 8px 10px 16px;vertical-align:middle;">' +
+                  '<td style="padding:10px 8px 10px 16px;vertical-align:middle;text-align:right;">' +
                     '<div style="font-size:12px;font-weight:700;color:' + nameA + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
-                    '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'A\')" style="font-size:9px;padding:2px 8px;">Sub Team A</button>' +
+                    '<div style="display:flex;justify-content:flex-end;"><button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'A\')" style="font-size:9px;padding:2px 8px;">Sub Team A</button></div>' +
                   '</td>' +
                   // Score center
                   '<td style="padding:10px 8px;vertical-align:middle;text-align:center;">' +
