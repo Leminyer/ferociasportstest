@@ -1906,7 +1906,7 @@
   </div>
 
   <!-- FTC Score Recording Modal -->
-  <div class="modal-bg" id="ftc-score-modal" style="display:none;align-items:center;justify-content:center;">
+  <div class="modal-bg" id="ftc-score-modal" style="display:none;align-items:center;justify-content:center;z-index:1010;">
     <div style="background:white;border-radius:14px;overflow:hidden;width:100%;max-width:500px;box-shadow:0 24px 80px rgba(8,15,46,0.25);">
       <!-- Header -->
       <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:18px 20px 14px;border-bottom:0.5px solid #e0e7f5;">
@@ -1976,7 +1976,7 @@
   </div>
 
   <!-- FTC Tiebreaker Modal -->
-  <div class="modal-bg" id="ftc-tiebreaker-modal" style="display:none;align-items:center;justify-content:center;">
+  <div class="modal-bg" id="ftc-tiebreaker-modal" style="display:none;align-items:center;justify-content:center;z-index:1020;">
     <div style="background:white;border-radius:14px;overflow:hidden;width:100%;max-width:500px;box-shadow:0 24px 80px rgba(8,15,46,0.25);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:18px 20px 14px;border-bottom:0.5px solid #e0e7f5;">
         <div>
@@ -2063,8 +2063,55 @@
   </div>
   <div id="page-ftc-playoffs" class="page">
     <div id="ftc-playoffs-title" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;margin-bottom:14px;display:none;"></div>
-    <div class="card" style="padding:32px;text-align:center;color:#6b7a99;font-size:13px;font-weight:600;">
-      Playoffs coming in Phase 6.
+
+    <!-- Step indicator -->
+    <div id="ftc-playoff-steps" style="display:flex;align-items:center;gap:0;margin-bottom:16px;"></div>
+
+    <!-- Setup section -->
+    <div id="ftc-playoff-setup"></div>
+
+    <!-- Bracket section -->
+    <div id="ftc-playoff-bracket"></div>
+
+    <!-- Champion section -->
+    <div id="ftc-playoff-champion" style="display:none;"></div>
+  </div>
+
+  <!-- FTC Playoff Match Scores Modal (stays open while score modal is on top) -->
+  <div class="modal-bg" id="ftc-playoff-scores-modal" style="display:none;align-items:center;justify-content:center;z-index:1000;">
+    <div style="background:white;border-radius:14px;width:100%;max-width:640px;max-height:90vh;overflow:hidden;box-shadow:0 24px 80px rgba(8,15,46,0.25);display:flex;flex-direction:column;">
+      <!-- Header -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px 12px;border-bottom:0.5px solid #e0e7f5;flex-shrink:0;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#0d1f4a;margin-bottom:3px;">Playoff Match Scores</div>
+          <div style="font-size:11px;font-weight:600;color:#6b7a99;" id="ftc-psm-subtitle">—</div>
+        </div>
+        <button onclick="ftcClosePlayoffScoresModal()" style="width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;color:#e53935;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <!-- Format + status bar -->
+      <div style="padding:10px 20px;border-bottom:0.5px solid #f4f5f8;display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap;">
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;border:0.5px solid #e0e7f5;background:#f8f9ff;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+          <span style="font-size:11px;font-weight:700;color:#6b7a99;">Playoff · Play to 11 · Win by 1</span>
+        </div>
+        <div id="ftc-psm-lead" style="font-size:11px;font-weight:800;color:#24BC96;"></div>
+      </div>
+      <!-- Column headers -->
+      <div id="ftc-psm-col-headers" style="display:grid;grid-template-columns:100px 1fr 130px 1fr 80px;gap:8px;padding:8px 16px 4px;flex-shrink:0;">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;"></div>
+        <div id="ftc-psm-hdr-a" style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;"></div>
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;text-align:center;">Score</div>
+        <div id="ftc-psm-hdr-b" style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;"></div>
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;text-align:center;">Actions</div>
+      </div>
+      <!-- Match rows -->
+      <div id="ftc-psm-rows" style="overflow-y:auto;flex:1;"></div>
+      <!-- Tiebreaker banner -->
+      <div id="ftc-psm-tie-banner" style="display:none;flex-shrink:0;"></div>
+      <!-- Footer -->
+      <div style="padding:10px 20px;border-top:0.5px solid #e0e7f5;display:flex;justify-content:flex-end;flex-shrink:0;">
+        <button onclick="ftcClosePlayoffScoresModal()" style="padding:7px 20px;border:none;border-radius:99px;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">Done</button>
+      </div>
     </div>
   </div>
 
@@ -3502,7 +3549,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20260546"></script>
+<script src="app.js?v=20260547"></script>
 <script src="tournament.js?v=20260526"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────

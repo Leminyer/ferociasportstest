@@ -6331,12 +6331,550 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   };
 
   /* ─── FTC LADDER — PLAYOFFS ───────────────────────────────── */
-  const loadFtcPlayoffs = () => {
+  // ── Playoff state ────────────────────────────────────────────────────────
+  let ftcPlayoffBracket  = null; // { format:'top4'|'top6', rounds:[...], champion:null }
+  let ftcPlayoffMatches  = [];   // playoff ftc_ladder_matches rows
+  let ftcPlayoffSchedule = [];   // playoff ftc_ladder_schedule rows (one per matchup)
+  let _ftcPlayoffScoresModalScheduleId = null; // currently open playoff scores modal
+
+  const loadFtcPlayoffs = async () => {
     if (!currentLadder) return;
     const el = document.getElementById('ftc-playoffs-title');
-    if (el) {
-      el.textContent = currentLadder.name || '';
-      el.style.display = 'block';
+    if (el) { el.textContent = currentLadder.name || ''; el.style.display = 'block'; }
+
+    // Ensure base data loaded
+    if (!ftcTeams.length) {
+      try { ftcTeams = await api(`ftc_ladder_teams?ladder_id=eq.${currentLadder.id}&select=*&order=id`); } catch(e) {}
+    }
+    if (!ftcMatches.length) {
+      try { ftcMatches = await api(`ftc_ladder_matches?ladder_id=eq.${currentLadder.id}&select=*&order=schedule_id,match_type`); } catch(e) {}
+    }
+    if (!ladderPlayers.length) { try { await loadLadderPlayers(); } catch(e) {} }
+
+    // Load playoff schedule + matches
+    try {
+      ftcPlayoffSchedule = await api(`ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}&is_playoff=eq.true&order=playoff_round,id`);
+    } catch(e) { ftcPlayoffSchedule = []; }
+    try {
+      const psIds = ftcPlayoffSchedule.map(s => s.id);
+      ftcPlayoffMatches = psIds.length
+        ? await api(`ftc_ladder_matches?schedule_id=in.(${psIds.join(',')})&select=*&order=schedule_id,match_type`)
+        : [];
+    } catch(e) { ftcPlayoffMatches = []; }
+
+    renderFtcPlayoffPage();
+  };
+
+  // ── Render the full playoffs page ─────────────────────────────────────────
+  const renderFtcPlayoffPage = () => {
+    const hasSchedule = ftcPlayoffSchedule.length > 0;
+    renderFtcPlayoffSteps(hasSchedule);
+    if (!hasSchedule) {
+      renderFtcPlayoffSetup();
+      document.getElementById('ftc-playoff-bracket').innerHTML = '';
+      document.getElementById('ftc-playoff-champion').style.display = 'none';
+    } else {
+      document.getElementById('ftc-playoff-setup').innerHTML = '';
+      renderFtcBracket();
+      renderFtcChampion();
+    }
+  };
+
+  // ── Step indicator ────────────────────────────────────────────────────────
+  const renderFtcPlayoffSteps = (hasBracket) => {
+    const el = document.getElementById('ftc-playoff-steps');
+    if (!el) return;
+    const steps = [
+      { label: 'Regular Season', done: true },
+      { label: 'Setup', done: hasBracket },
+      { label: 'Bracket', done: false, active: hasBracket },
+      { label: 'Champion', done: false },
+    ];
+    el.innerHTML = steps.map((s, i) => {
+      const cls = s.done ? 'background:#e8f0ff;color:#174CCC;' : s.active ? 'background:#174CCC;color:white;' : 'background:#f0f2f8;color:#6b7a99;';
+      const icon = s.done ? '✓ ' : `${i+1} `;
+      const line = i < steps.length-1 ? '<div style="flex:1;height:1px;background:#e0e7f5;max-width:24px;"></div>' : '';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:99px;font-size:11px;font-weight:700;${cls}">${icon}${s.label}</div>${line}`;
+    }).join('');
+  };
+
+  // ── Setup section — seeding table + settings ──────────────────────────────
+  const renderFtcPlayoffSetup = () => {
+    const el = document.getElementById('ftc-playoff-setup');
+    if (!el) return;
+
+    // Compute standings from regular season matches
+    const completedMatches = ftcMatches.filter(m => m.status === 'completed' && !m.is_tiebreaker);
+    const teamStats = {};
+    ftcTeams.forEach(t => { teamStats[t.id] = { team:t, pts:0, wins:0, losses:0, ptsFor:0, ptsAgainst:0 }; });
+    completedMatches.forEach(m => {
+      const aW = m.score_a > m.score_b;
+      if (teamStats[m.team_a_id]) { teamStats[m.team_a_id].pts += m.league_pts_a||0; teamStats[m.team_a_id].ptsFor += m.score_a||0; teamStats[m.team_a_id].ptsAgainst += m.score_b||0; if (aW) teamStats[m.team_a_id].wins++; else teamStats[m.team_a_id].losses++; }
+      if (teamStats[m.team_b_id]) { teamStats[m.team_b_id].pts += m.league_pts_b||0; teamStats[m.team_b_id].ptsFor += m.score_b||0; teamStats[m.team_b_id].ptsAgainst += m.score_a||0; if (!aW) teamStats[m.team_b_id].wins++; else teamStats[m.team_b_id].losses++; }
+    });
+    const ranked = Object.values(teamStats).sort((a,b) => (b.pts-a.pts)||(b.wins-a.wins)||((b.ptsFor-b.ptsAgainst)-(a.ptsFor-a.ptsAgainst)));
+    const rankBadgeStyle = ['background:linear-gradient(135deg,#f6d365,#fda085)','background:#C0C0C0;color:#444','background:#CD7F32','background:#174CCC'];
+
+    const rows = ranked.map((ts,i) => {
+      const diff = ts.ptsFor - ts.ptsAgainst;
+      const inTop = i < 4; // default top 4
+      return `<tr>
+        <td style="padding:8px 8px 8px 16px;"><span style="width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:white;${rankBadgeStyle[i]||'background:#e0e7f5;color:#6b7a99;'}">${i+1}</span></td>
+        <td style="font-size:13px;font-weight:800;color:${inTop?'#0d1f4a':'#b0bbd6'};">${esc(ts.team.name)}</td>
+        <td style="text-align:center;font-weight:700;color:#174CCC;">${ts.pts}</td>
+        <td style="text-align:center;font-weight:700;color:#24BC96;">${ts.wins}</td>
+        <td style="text-align:center;font-weight:700;color:#F26024;">${ts.losses}</td>
+        <td style="text-align:center;font-weight:700;color:${diff>=0?'#24BC96':'#F26024'};">${diff>=0?'+':''}${diff}</td>
+        <td style="text-align:center;" id="ftc-po-incl-${i}">
+          <span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;${inTop?'background:rgba(36,188,150,0.12);color:#085041;':'background:#f0f2f8;color:#b0bbd6;'}">${inTop?'✓ In':'Out'}</span>
+        </td>
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="card" style="margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Playoff Settings</div>
+        <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:14px;">Configure bracket before generating.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div>
+            <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:6px;">Teams advancing</div>
+            <select id="ftc-po-format" style="font-size:12px;font-weight:700;color:#0d1f4a;padding:8px 12px;border:0.5px solid #174CCC;border-radius:8px;background:white;width:100%;" onchange="ftcUpdatePlayoffFormat()">
+              <option value="top4">Top 4 teams (Semi → Final)</option>
+              <option value="top6">Top 6 teams (QF → Semi → Final)</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:6px;">Bracket format</div>
+            <select style="font-size:12px;font-weight:700;color:#0d1f4a;padding:8px 12px;border:0.5px solid #174CCC;border-radius:8px;background:white;width:100%;">
+              <option>Single elimination</option>
+            </select>
+          </div>
+        </div>
+        <div style="background:#f0f4ff;border-radius:8px;padding:10px 14px;border-left:3px solid #174CCC;font-size:11px;font-weight:600;color:#174CCC;margin-bottom:14px;">
+          Seeding auto-calculated from standings (pts → wins → diff).
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;">
+            <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:8px 8px 8px 16px;width:40px;">#</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:8px;">Team</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:8px;text-align:center;">Pts</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:8px;text-align:center;">W</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:8px;text-align:center;">L</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:8px;text-align:center;">Diff</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#6b7a99;padding:8px;text-align:center;width:80px;">Include</th>
+          </tr></thead>
+          <tbody id="ftc-po-seed-body">${rows}</tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+          <button onclick="ftcGeneratePlayoffBracket()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;border:none;border-radius:99px;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Generate Bracket
+          </button>
+        </div>
+      </div>`;
+  };
+
+  // Update include badges when format changes
+  window.ftcUpdatePlayoffFormat = () => {
+    const format = document.getElementById('ftc-po-format')?.value || 'top4';
+    const n = format === 'top6' ? 6 : 4;
+    const rows = document.querySelectorAll('#ftc-po-seed-body tr');
+    rows.forEach((row, i) => {
+      const cell = row.querySelector(`[id^="ftc-po-incl-"]`);
+      if (!cell) return;
+      const inTop = i < n;
+      cell.innerHTML = `<span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;${inTop?'background:rgba(36,188,150,0.12);color:#085041;':'background:#f0f2f8;color:#b0bbd6;'}">${inTop?'✓ In':'Out'}</span>`;
+      const teamNm = row.querySelector('td:nth-child(2)');
+      if (teamNm) teamNm.style.color = inTop ? '#0d1f4a' : '#b0bbd6';
+    });
+  };
+
+  // ── Generate bracket: create schedule + match rows in DB ─────────────────
+  window.ftcGeneratePlayoffBracket = async () => {
+    if (!currentLadder) return;
+    const format = document.getElementById('ftc-po-format')?.value || 'top4';
+    const n = format === 'top6' ? 6 : 4;
+
+    // Compute seeded teams (reuse standings logic)
+    const completedMatches = ftcMatches.filter(m => m.status === 'completed' && !m.is_tiebreaker);
+    const teamStats = {};
+    ftcTeams.forEach(t => { teamStats[t.id] = { team:t, pts:0, wins:0, losses:0, ptsFor:0, ptsAgainst:0 }; });
+    completedMatches.forEach(m => {
+      const aW = m.score_a > m.score_b;
+      if (teamStats[m.team_a_id]) { teamStats[m.team_a_id].pts+=m.league_pts_a||0; teamStats[m.team_a_id].ptsFor+=m.score_a||0; teamStats[m.team_a_id].ptsAgainst+=m.score_b||0; if(aW)teamStats[m.team_a_id].wins++;else teamStats[m.team_a_id].losses++; }
+      if (teamStats[m.team_b_id]) { teamStats[m.team_b_id].pts+=m.league_pts_b||0; teamStats[m.team_b_id].ptsFor+=m.score_b||0; teamStats[m.team_b_id].ptsAgainst+=m.score_a||0; if(!aW)teamStats[m.team_b_id].wins++;else teamStats[m.team_b_id].losses++; }
+    });
+    const seeded = Object.values(teamStats).sort((a,b)=>(b.pts-a.pts)||(b.wins-a.wins)||((b.ptsFor-b.ptsAgainst)-(a.ptsFor-a.ptsAgainst))).slice(0,n).map(ts=>ts.team);
+
+    // Build matchup schedule rows
+    // Top4: SF1=(1v4), SF2=(2v3), F=(winnersof)
+    // Top6: QF1=(3v6), QF2=(4v5), SF1=(1vQF1), SF2=(2vQF2), F
+    let scheduleRows = [];
+    if (format === 'top4') {
+      scheduleRows = [
+        { playoff_round:'semifinal', playoff_match_num:1, team_a_id:seeded[0]?.id, team_b_id:seeded[3]?.id, seed_a:1, seed_b:4 },
+        { playoff_round:'semifinal', playoff_match_num:2, team_a_id:seeded[1]?.id, team_b_id:seeded[2]?.id, seed_a:2, seed_b:3 },
+        { playoff_round:'final',     playoff_match_num:1, team_a_id:null, team_b_id:null, seed_a:null, seed_b:null },
+      ];
+    } else {
+      scheduleRows = [
+        { playoff_round:'quarterfinal', playoff_match_num:1, team_a_id:seeded[2]?.id, team_b_id:seeded[5]?.id, seed_a:3, seed_b:6 },
+        { playoff_round:'quarterfinal', playoff_match_num:2, team_a_id:seeded[3]?.id, team_b_id:seeded[4]?.id, seed_a:4, seed_b:5 },
+        { playoff_round:'semifinal',    playoff_match_num:1, team_a_id:seeded[0]?.id, team_b_id:null, seed_a:1, seed_b:null },
+        { playoff_round:'semifinal',    playoff_match_num:2, team_a_id:seeded[1]?.id, team_b_id:null, seed_a:2, seed_b:null },
+        { playoff_round:'final',        playoff_match_num:1, team_a_id:null, team_b_id:null, seed_a:null, seed_b:null },
+      ];
+    }
+
+    try {
+      // Insert schedule rows
+      const created = await api('ftc_ladder_schedule', 'POST', scheduleRows.map(r => ({
+        ladder_id: currentLadder.id,
+        week_number: 99, // sentinel for playoffs
+        is_playoff: true,
+        status: 'scheduled',
+        ...r,
+      })));
+      ftcPlayoffSchedule = Array.isArray(created) ? created : [created];
+
+      // For rounds where teams are known, create the 4 match rows
+      const matchTypes = ['mens','womens','mixed1','mixed2'];
+      const matchRows = [];
+      ftcPlayoffSchedule.filter(s => s.team_a_id && s.team_b_id).forEach(s => {
+        // Get player assignments from team registration
+        const tA = ftcTeams.find(t => t.id === s.team_a_id);
+        const tB = ftcTeams.find(t => t.id === s.team_b_id);
+        matchTypes.forEach(mt => {
+          matchRows.push({
+            schedule_id:    s.id,
+            ladder_id:      currentLadder.id,
+            match_type:     mt,
+            team_a_id:      s.team_a_id,
+            team_b_id:      s.team_b_id,
+            team_a_p1_id:   mt==='mens'?tA?.male_starter_1:mt==='womens'?tA?.female_starter_1:mt==='mixed1'?tA?.mixed_p1_m:tA?.mixed_p2_m,
+            team_a_p2_id:   mt==='mens'?tA?.male_starter_2:mt==='womens'?tA?.female_starter_2:mt==='mixed1'?tA?.mixed_p1_f:tA?.mixed_p2_f,
+            team_b_p1_id:   mt==='mens'?tB?.male_starter_1:mt==='womens'?tB?.female_starter_1:mt==='mixed1'?tB?.mixed_p1_m:tB?.mixed_p2_m,
+            team_b_p2_id:   mt==='mens'?tB?.male_starter_2:mt==='womens'?tB?.female_starter_2:mt==='mixed1'?tB?.mixed_p1_f:tB?.mixed_p2_f,
+            status:         'scheduled',
+          });
+        });
+      });
+      if (matchRows.length) {
+        const createdMatches = await api('ftc_ladder_matches', 'POST', matchRows);
+        ftcPlayoffMatches = Array.isArray(createdMatches) ? createdMatches : [createdMatches];
+      }
+      toast('Playoff bracket generated!');
+      renderFtcPlayoffPage();
+    } catch(err) {
+      toast(`Error generating bracket: ${err.message}`, true);
+    }
+  };
+
+  // ── Render the bracket ────────────────────────────────────────────────────
+  const renderFtcBracket = () => {
+    const el = document.getElementById('ftc-playoff-bracket');
+    if (!el || !ftcPlayoffSchedule.length) return;
+
+    const tName = (id) => { if (!id) return null; const t = ftcTeams.find(x => x.id === id); return t ? esc(t.name) : `#${id}`; };
+    const roundLabel = { quarterfinal:'Quarterfinals', semifinal:'Semifinals', final:'Final' };
+    const rounds = ['quarterfinal','semifinal','final'].filter(r => ftcPlayoffSchedule.some(s => s.playoff_round === r));
+
+    const renderMatchCard = (sched) => {
+      const matches = ftcPlayoffMatches.filter(m => m.schedule_id === sched.id && !m.is_tiebreaker);
+      const winsA = matches.filter(m => m.status==='completed' && m.winner_team_id===sched.team_a_id).length;
+      const winsB = matches.filter(m => m.status==='completed' && m.winner_team_id===sched.team_b_id).length;
+      const done  = sched.status === 'completed';
+      const hasBothTeams = sched.team_a_id && sched.team_b_id;
+      const nmA = tName(sched.team_a_id) || (sched.seed_a ? `Winner SF${sched.seed_a>2?sched.seed_a-2:sched.seed_a}` : 'TBD');
+      const nmB = tName(sched.team_b_id) || (sched.seed_b ? `Winner SF${sched.seed_b>2?sched.seed_b-2:sched.seed_b}` : 'TBD');
+      const winAStyle = done && winsA > winsB ? 'background:rgba(36,188,150,0.06);border-left:3px solid #24BC96;' : '';
+      const winBStyle = done && winsB > winsA ? 'background:rgba(36,188,150,0.06);border-left:3px solid #24BC96;' : '';
+      const isFinal   = sched.playoff_round === 'final';
+      const clickable = hasBothTeams;
+      const onclick   = clickable ? `ftcOpenPlayoffScoresModal(${sched.id})` : '';
+
+      return `<div style="border:${isFinal?'1.5px solid #174CCC':'0.5px solid #e0e7f5'};border-radius:8px;overflow:hidden;${clickable?'cursor:pointer;':'opacity:.6;'}transition:box-shadow .15s;" ${clickable?`onclick="${onclick}" onmouseover="this.style.boxShadow='0 2px 12px rgba(23,76,204,0.12)'" onmouseout="this.style.boxShadow='none'"`:''}  >
+        ${isFinal?`<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#174CCC;padding:4px 10px;background:#e8f0ff;text-align:center;display:flex;align-items:center;justify-content:center;gap:5px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg> Championship</div>`:''}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:0.5px solid #f4f5f8;background:white;${winAStyle}">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span style="font-size:9px;font-weight:800;color:#b0bbd6;width:14px;">${sched.seed_a||''}</span>
+            <span style="font-size:12px;font-weight:800;color:${sched.team_a_id?'#0d1f4a':'#b0bbd6'};">${nmA}</span>
+          </div>
+          <span style="font-size:13px;font-weight:800;color:${done&&winsA>winsB?'#24BC96':'#6b7a99'};">${hasBothTeams?winsA:'—'}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:${sched.team_b_id?'white':'#fafbff'};${winBStyle}">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span style="font-size:9px;font-weight:800;color:#b0bbd6;width:14px;">${sched.seed_b||''}</span>
+            <span style="font-size:12px;font-weight:800;color:${sched.team_b_id?'#0d1f4a':'#b0bbd6'};">${nmB}</span>
+          </div>
+          <span style="font-size:13px;font-weight:800;color:${done&&winsB>winsA?'#24BC96':'#6b7a99'};">${hasBothTeams?winsB:'—'}</span>
+        </div>
+        <div style="font-size:9px;font-weight:700;text-align:center;padding:3px;background:#f8f9ff;color:${done?'#24BC96':clickable?'#174CCC':'#b0bbd6'};">
+          ${done?'✓ Complete':clickable?'Click to enter scores':'Awaiting previous round'}
+        </div>
+      </div>`;
+    };
+
+    const champion = ftcPlayoffSchedule.find(s => s.playoff_round==='final' && s.status==='completed');
+    const champTeamId = champion ? (ftcPlayoffMatches.filter(m=>m.schedule_id===champion.id&&m.status==='completed').reduce((acc,m)=>{ if(m.winner_team_id===champion.team_a_id)acc.a++; else acc.b++; return acc; },{a:0,b:0})) : null;
+
+    let bracketHtml = `<div class="card" style="margin-bottom:14px;">
+      <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Playoff Bracket</div>
+      <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Click any matchup to enter or edit scores. Same 4-game format (MD, WD, MX1, MX2).</div>
+      <div style="display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:8px;">`;
+
+    rounds.forEach((round, ri) => {
+      const roundSchedules = ftcPlayoffSchedule.filter(s => s.playoff_round === round);
+      bracketHtml += `<div style="min-width:180px;flex-shrink:0;">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;text-align:center;margin-bottom:10px;">${roundLabel[round]||round}</div>
+        <div style="display:flex;flex-direction:column;gap:${round==='final'?'0':'20px'};">
+          ${roundSchedules.map(s => renderMatchCard(s)).join('')}
+        </div>
+      </div>`;
+      // Connector between rounds
+      if (ri < rounds.length - 1) {
+        bracketHtml += `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:32px;flex-shrink:0;padding-top:32px;">
+          <div style="width:16px;height:1px;background:#e0e7f5;"></div>
+        </div>`;
+      }
+    });
+
+    // Champion slot
+    const champFinal = ftcPlayoffSchedule.find(s => s.playoff_round==='final');
+    const champId = champFinal?.status==='completed' ? (ftcPlayoffMatches.filter(m=>m.schedule_id===champFinal.id&&!m.is_tiebreaker).reduce((a,m)=>{ if(m.winner_team_id===champFinal.team_a_id)a.wA++; else a.wB++; return a; },{wA:0,wB:0})) : null;
+    const champTeam = champId && champFinal ? (champId.wA > champId.wB ? ftcTeams.find(t=>t.id===champFinal.team_a_id) : ftcTeams.find(t=>t.id===champFinal.team_b_id)) : null;
+
+    bracketHtml += `<div style="display:flex;align-items:center;width:32px;flex-shrink:0;"><div style="height:1px;width:32px;background:#e0e7f5;"></div></div>
+      <div style="min-width:120px;flex-shrink:0;text-align:center;padding-top:32px;">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:10px;">Champion</div>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="${champTeam?'#174CCC':'#b0bbd6'}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:6px;"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+        <div style="font-size:13px;font-weight:800;color:${champTeam?'#0d1f4a':'#b0bbd6'};">${champTeam?esc(champTeam.name):'TBD'}</div>
+        <div style="font-size:9px;font-weight:600;color:#b0bbd6;margin-top:2px;">${champTeam?'Season Champion':'Awaiting Final'}</div>
+      </div>`;
+
+    bracketHtml += `</div></div>`;
+    el.innerHTML = bracketHtml;
+  };
+
+  // ── Render champion card ──────────────────────────────────────────────────
+  const renderFtcChampion = () => {
+    const champFinal = ftcPlayoffSchedule.find(s => s.playoff_round==='final' && s.status==='completed');
+    const el = document.getElementById('ftc-playoff-champion');
+    if (!el) return;
+    if (!champFinal) { el.style.display='none'; return; }
+    const results = ftcPlayoffMatches.filter(m=>m.schedule_id===champFinal.id&&!m.is_tiebreaker);
+    const wA = results.filter(m=>m.winner_team_id===champFinal.team_a_id).length;
+    const wB = results.filter(m=>m.winner_team_id===champFinal.team_b_id).length;
+    const champTeam = wA>wB ? ftcTeams.find(t=>t.id===champFinal.team_a_id) : ftcTeams.find(t=>t.id===champFinal.team_b_id);
+    const runnerUp  = wA>wB ? ftcTeams.find(t=>t.id===champFinal.team_b_id) : ftcTeams.find(t=>t.id===champFinal.team_a_id);
+    const champWins = Math.max(wA,wB); const runnerWins = Math.min(wA,wB);
+    const allPoMatches = ftcPlayoffMatches.filter(m=>!m.is_tiebreaker&&m.status==='completed');
+    const champPoWins  = allPoMatches.filter(m=>m.winner_team_id===champTeam?.id).length;
+    const champPoSeed  = ftcPlayoffSchedule.find(s=>s.team_a_id===champTeam?.id||s.team_b_id===champTeam?.id);
+    const seed = champPoSeed?.team_a_id===champTeam?.id ? champPoSeed.seed_a : champPoSeed?.seed_b;
+    el.style.display='block';
+    el.innerHTML=`<div class="card" style="text-align:center;padding:32px;border:1.5px solid #174CCC;background:linear-gradient(180deg,#f0f4ff,white);">
+      <div style="display:flex;justify-content:center;margin-bottom:12px;">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;color:#0d1f4a;margin-bottom:4px;">${esc(champTeam?.name||'Champion')}</div>
+      <div style="font-size:13px;font-weight:700;color:#174CCC;margin-bottom:2px;">${esc(currentLadder?.name||'')} Champions</div>
+      <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:20px;">Defeated ${esc(runnerUp?.name||'Runner-up')} ${champWins}–${runnerWins} in the Championship</div>
+      <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
+        <div style="background:white;border:0.5px solid #e0e7f5;border-radius:10px;padding:12px 20px;min-width:90px;">
+          <div style="font-size:22px;font-weight:800;color:#174CCC;">${champWins}–${runnerWins}</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:3px;">Final Score</div>
+        </div>
+        <div style="background:white;border:0.5px solid #e0e7f5;border-radius:10px;padding:12px 20px;min-width:90px;">
+          <div style="font-size:22px;font-weight:800;color:#24BC96;">${champPoWins}</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:3px;">Playoff Wins</div>
+        </div>
+        <div style="background:white;border:0.5px solid #e0e7f5;border-radius:10px;padding:12px 20px;min-width:90px;">
+          <div style="font-size:22px;font-weight:800;color:#F6A623;">${seed?`#${seed}`:'—'}</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:3px;">Regular Season Seed</div>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  // ── Playoff Match Scores Modal ────────────────────────────────────────────
+  window.ftcOpenPlayoffScoresModal = (scheduleId) => {
+    _ftcPlayoffScoresModalScheduleId = scheduleId;
+    const sched = ftcPlayoffSchedule.find(s => s.id === scheduleId);
+    if (!sched) return;
+    const tA = ftcTeams.find(t => t.id === sched.team_a_id);
+    const tB = ftcTeams.find(t => t.id === sched.team_b_id);
+    const roundLabels = { quarterfinal:'Quarterfinal', semifinal:'Semifinal', final:'Championship Final' };
+    document.getElementById('ftc-psm-subtitle').textContent =
+      `${esc(tA?.name||'—')} vs ${esc(tB?.name||'—')} · ${roundLabels[sched.playoff_round]||sched.playoff_round}`;
+    document.getElementById('ftc-psm-hdr-a').textContent = `Team ${tA?.name||'A'}`;
+    document.getElementById('ftc-psm-hdr-b').textContent = `Team ${tB?.name||'B'}`;
+    document.getElementById('ftc-playoff-scores-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    ftcRefreshPlayoffMatchModal(scheduleId);
+  };
+
+  window.ftcClosePlayoffScoresModal = () => {
+    document.getElementById('ftc-playoff-scores-modal').style.display = 'none';
+    _ftcPlayoffScoresModalScheduleId = null;
+    document.body.style.overflow = '';
+  };
+
+  window.ftcRefreshPlayoffMatchModal = (scheduleId) => {
+    if (!scheduleId) scheduleId = _ftcPlayoffScoresModalScheduleId;
+    if (!scheduleId) return;
+    const sched = ftcPlayoffSchedule.find(s => s.id === scheduleId);
+    if (!sched) return;
+    const tA = ftcTeams.find(t => t.id === sched.team_a_id);
+    const tB = ftcTeams.find(t => t.id === sched.team_b_id);
+    const matches = ftcPlayoffMatches.filter(m => m.schedule_id === scheduleId && !m.is_tiebreaker);
+    const winsA = matches.filter(m=>m.status==='completed'&&m.winner_team_id===sched.team_a_id).length;
+    const winsB = matches.filter(m=>m.status==='completed'&&m.winner_team_id===sched.team_b_id).length;
+    const total  = matches.filter(m=>m.status==='completed').length;
+
+    // Lead indicator
+    const leadEl = document.getElementById('ftc-psm-lead');
+    if (leadEl) {
+      if (total === 0) leadEl.textContent = '';
+      else if (winsA === winsB) leadEl.textContent = `Tied ${winsA}–${winsB}`;
+      else {
+        const leader = winsA>winsB ? tA?.name : tB?.name;
+        const lW = Math.max(winsA,winsB), lL = Math.min(winsA,winsB);
+        leadEl.textContent = `${esc(leader||'—')} leads ${lW}–${lL}`;
+      }
+    }
+
+    // Match type labels
+    const typeOrder = ['mens','womens','mixed1','mixed2'];
+    const typeLabels = { mens:"Men's Doubles", womens:"Women's Doubles", mixed1:'Mixed #1', mixed2:'Mixed #2' };
+    const typeBg  = { mens:'#e8f0ff', womens:'rgba(242,96,36,0.1)', mixed1:'rgba(36,188,150,0.1)', mixed2:'rgba(154,110,0,0.1)' };
+    const typeClr = { mens:'#174CCC', womens:'#F26024', mixed1:'#24BC96', mixed2:'#9a6e00' };
+
+    const pName = (id) => {
+      if (!id) return 'TBD';
+      const p = ladderPlayers.find(x => x.id === id);
+      return p ? `${p.first_name} ${p.last_name}` : `#${id}`;
+    };
+
+    const rowsHtml = typeOrder.map(mt => {
+      const m = matches.find(x => x.match_type === mt);
+      if (!m) return '';
+      const scored = m.score_a !== null && m.score_b !== null;
+      const aWins  = scored && m.score_a > m.score_b;
+      const bWins  = scored && m.score_b > m.score_a;
+      return `<div style="display:grid;grid-template-columns:100px 1fr 130px 1fr 80px;gap:8px;padding:10px 16px;border-bottom:0.5px solid #f0f2f8;align-items:center;background:${scored?'#fafffe':'white'};">
+        <span style="font-size:8px;font-weight:800;padding:2px 6px;border-radius:4px;text-transform:uppercase;background:${typeBg[mt]};color:${typeClr[mt]};display:inline-block;">${typeLabels[mt]}</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:${bWins?'#b0bbd6':'#0d1f4a'};line-height:1.4;">${pName(m.team_a_p1_id)}<br>${pName(m.team_a_p2_id)}</div>
+        </div>
+        <div style="text-align:center;">
+          ${scored
+            ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                <span style="font-size:20px;font-weight:800;color:${aWins?'#24BC96':'#b0bbd6'};">${m.score_a}</span>
+                <span style="font-size:10px;color:#b0bbd6;font-weight:700;">–</span>
+                <span style="font-size:20px;font-weight:800;color:${bWins?'#24BC96':'#b0bbd6'};">${m.score_b}</span>
+               </div>
+               <div style="font-size:9px;color:#6b7a99;margin-top:2px;">+${m.league_pts_a} / +${m.league_pts_b} pts</div>`
+            : `<div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                <span style="font-size:18px;font-weight:800;color:#b0bbd6;">—</span>
+                <span style="font-size:10px;color:#b0bbd6;font-weight:700;">vs</span>
+                <span style="font-size:18px;font-weight:800;color:#b0bbd6;">—</span>
+               </div>`}
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:${aWins?'#b0bbd6':'#0d1f4a'};line-height:1.4;">${pName(m.team_b_p1_id)}<br>${pName(m.team_b_p2_id)}</div>
+        </div>
+        <div style="text-align:center;display:flex;flex-direction:column;gap:4px;align-items:center;">
+          ${scored
+            ? `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(36,188,150,0.12);color:#085041;">+${Math.max(m.league_pts_a,m.league_pts_b)} pts</span>
+               <button class="ftc-edit-mini" onclick="ftcOpenScoreModal(${m.id},'playoff')" style="font-size:9px;padding:2px 8px;">Edit</button>`
+            : `<button class="ftc-edit-mini" onclick="ftcOpenScoreModal(${m.id},'playoff')" style="background:#174CCC;color:white;border-color:#174CCC;font-size:9px;padding:3px 10px;">+ Score</button>`}
+        </div>
+      </div>`;
+    }).join('');
+
+    const rowsEl = document.getElementById('ftc-psm-rows');
+    if (rowsEl) rowsEl.innerHTML = rowsHtml;
+
+    // Tiebreaker banner
+    const tieBanner = document.getElementById('ftc-psm-tie-banner');
+    if (tieBanner) {
+      const is22 = winsA===2 && winsB===2 && !ftcPlayoffMatches.find(m=>m.schedule_id===scheduleId&&m.is_tiebreaker);
+      const hasTb = ftcPlayoffMatches.find(m=>m.schedule_id===scheduleId&&m.is_tiebreaker&&m.status==='completed');
+      if (is22) {
+        tieBanner.style.display='block';
+        tieBanner.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(242,96,36,0.06);border-top:0.5px solid rgba(242,96,36,0.2);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span style="font-size:11px;font-weight:700;color:#F26024;">2–2 tie — tiebreaker required</span>
+          <button onclick="ftcOpenTiebreakerModal(${scheduleId},${sched.team_a_id},${sched.team_b_id})" style="margin-left:auto;padding:5px 14px;border:none;border-radius:99px;background:#F26024;color:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;">Record Tiebreaker</button>
+        </div>`;
+      } else if (hasTb) {
+        tieBanner.style.display='block';
+        tieBanner.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(36,188,150,0.06);border-top:0.5px solid rgba(36,188,150,0.2);">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:11px;font-weight:700;color:#085041;">Tiebreaker recorded · ${hasTb.score_a}–${hasTb.score_b}</span>
+        </div>`;
+      } else { tieBanner.style.display='none'; }
+    }
+  };
+
+  // ── Check playoff matchup status and advance bracket ─────────────────────
+  const ftcCheckAndUpdatePlayoffMatchupStatus = async (scheduleId) => {
+    const sched = ftcPlayoffSchedule.find(s => s.id === scheduleId);
+    if (!sched) return;
+    const slotMatches = ftcPlayoffMatches.filter(m => m.schedule_id === scheduleId && !m.is_tiebreaker);
+    if (slotMatches.length < 4 || !slotMatches.every(m => m.status === 'completed')) return;
+    const winsA = slotMatches.filter(m => m.winner_team_id === sched.team_a_id).length;
+    const winsB = slotMatches.filter(m => m.winner_team_id === sched.team_b_id).length;
+    if (winsA === 2 && winsB === 2) {
+      setTimeout(() => ftcOpenTiebreakerModal(scheduleId, sched.team_a_id, sched.team_b_id), 300);
+      return;
+    }
+    const winnerId = winsA > winsB ? sched.team_a_id : sched.team_b_id;
+    const winnerSeed = winsA > winsB ? sched.seed_a : sched.seed_b;
+    try {
+      await api(`ftc_ladder_schedule?id=eq.${scheduleId}`, 'PATCH', { status:'completed' });
+      const si = ftcPlayoffSchedule.findIndex(s => s.id === scheduleId);
+      if (si >= 0) ftcPlayoffSchedule[si].status = 'completed';
+      // Advance winner to next round
+      await ftcAdvancePlayoffWinner(sched, winnerId, winnerSeed);
+    } catch(e) { toast(`Error: ${e.message}`, true); }
+  };
+
+  const ftcAdvancePlayoffWinner = async (completedSched, winnerId, winnerSeed) => {
+    const round = completedSched.playoff_round;
+    const matchNum = completedSched.playoff_match_num;
+    let nextRound = null, teamSlot = null;
+    if (round === 'quarterfinal') { nextRound = 'semifinal'; teamSlot = matchNum === 1 ? 'b' : 'b'; }
+    else if (round === 'semifinal') { nextRound = 'final'; teamSlot = matchNum === 1 ? 'a' : 'b'; }
+    if (!nextRound) return;
+    const nextSched = ftcPlayoffSchedule.find(s => s.playoff_round === nextRound &&
+      (nextRound === 'final' ? (teamSlot === 'a' ? !s.team_a_id : !s.team_b_id) : s.playoff_match_num === matchNum));
+    if (!nextSched) return;
+    const patch = teamSlot === 'a'
+      ? { team_a_id: winnerId, seed_a: winnerSeed }
+      : { team_b_id: winnerId, seed_b: winnerSeed };
+    await api(`ftc_ladder_schedule?id=eq.${nextSched.id}`, 'PATCH', patch);
+    const ni = ftcPlayoffSchedule.findIndex(s => s.id === nextSched.id);
+    if (ni >= 0) Object.assign(ftcPlayoffSchedule[ni], patch);
+    // Create match rows for next round if both teams now known
+    const updated = ftcPlayoffSchedule.find(s => s.id === nextSched.id);
+    if (updated?.team_a_id && updated?.team_b_id) {
+      const typeOrder = ['mens','womens','mixed1','mixed2'];
+      const tA = ftcTeams.find(t => t.id === updated.team_a_id);
+      const tB = ftcTeams.find(t => t.id === updated.team_b_id);
+      const newMatches = typeOrder.map(mt => ({
+        schedule_id: updated.id, ladder_id: currentLadder.id, match_type: mt,
+        team_a_id: updated.team_a_id, team_b_id: updated.team_b_id,
+        team_a_p1_id: mt==='mens'?tA?.male_starter_1:mt==='womens'?tA?.female_starter_1:mt==='mixed1'?tA?.mixed_p1_m:tA?.mixed_p2_m,
+        team_a_p2_id: mt==='mens'?tA?.male_starter_2:mt==='womens'?tA?.female_starter_2:mt==='mixed1'?tA?.mixed_p1_f:tA?.mixed_p2_f,
+        team_b_p1_id: mt==='mens'?tB?.male_starter_1:mt==='womens'?tB?.female_starter_1:mt==='mixed1'?tB?.mixed_p1_m:tB?.mixed_p2_m,
+        team_b_p2_id: mt==='mens'?tB?.male_starter_2:mt==='womens'?tB?.female_starter_2:mt==='mixed1'?tB?.mixed_p1_f:tB?.mixed_p2_f,
+        status: 'scheduled',
+      }));
+      const created = await api('ftc_ladder_matches', 'POST', newMatches);
+      const arr = Array.isArray(created) ? created : [created];
+      ftcPlayoffMatches.push(...arr);
     }
   };
 
@@ -7289,7 +7827,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   };
 
   // Open score modal
-  window.ftcOpenScoreModal = (matchId) => {
+  window.ftcOpenScoreModal = (matchId, callerContext) => {
+    window._ftcScoreCallerContext = callerContext || 'schedule';
     const m = ftcMatches.find(x => x.id === matchId);
     if (!m) return;
     const tA   = ftcTeams.find(t => t.id === m.team_a_id);
@@ -7364,9 +7903,17 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       toast('Score recorded!');
       ftcCloseScoreModal();
 
-      // Check if all 4 matches in this schedule slot are done → update schedule status
-      await ftcCheckAndUpdateMatchupStatus(m.schedule_id);
-      renderFtcSchedule();
+      const ctx = window._ftcScoreCallerContext || 'schedule';
+      if (ctx === 'playoff') {
+        // Refresh playoff match scores modal + bracket without closing playoff modal
+        ftcRefreshPlayoffMatchModal(m.schedule_id);
+        await ftcCheckAndUpdatePlayoffMatchupStatus(m.schedule_id);
+        renderFtcBracket();
+      } else {
+        // Regular season flow
+        await ftcCheckAndUpdateMatchupStatus(m.schedule_id);
+        renderFtcSchedule();
+      }
     } catch (err) {
       toast(`Error: ${err.message}`, true);
     } finally {
@@ -7475,7 +8022,13 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       ftcMatches = await api(`ftc_ladder_matches?ladder_id=eq.${currentLadder.id}&select=*&order=schedule_id,match_type`);
       toast('Tiebreaker recorded!');
       ftcCloseTiebreakerModal();
-      renderFtcSchedule();
+      const tieCtx = window._ftcScoreCallerContext || 'schedule';
+      if (tieCtx === 'playoff') {
+        ftcRefreshPlayoffMatchModal(scheduleId);
+        renderFtcBracket();
+      } else {
+        renderFtcSchedule();
+      }
     } catch (err) {
       toast(`Error: ${err.message}`, true);
     }
