@@ -538,12 +538,16 @@ window.selectLadderType = (type) => {
     currentLadder = allLadders.find((l) => l.id === id) || null;
     updateLadderBanner();
     await loadLadderPlayers();
-    showPage('ladder', document.getElementById('sb-standings'));
+    if (currentLadder?.ladder_type === 'ftc') {
+      showPage('ftc-standings', document.getElementById('sb-ftc-standings'));
+    } else {
+      showPage('ladder', document.getElementById('sb-standings'));
+    }
   };
 
   const updateLadderBanner = () => {
     const ladderPages    = ['ladder', 'sessions', 'entry'];
-    const ftcPages       = ['ftc-teams', 'ftc-schedule', 'ftc-playoffs'];
+    const ftcPages       = ['ftc-standings', 'ftc-teams', 'ftc-schedule', 'ftc-playoffs'];
     const allLadderPages = [...ladderPages, ...ftcPages];
     const ladderNavBtns  = document.querySelectorAll('#sb-standings, #sb-sessions, #sb-entry, #sb-ftc-teams, #sb-ftc-schedule, #sb-ftc-playoffs');
     if (!currentLadder) {
