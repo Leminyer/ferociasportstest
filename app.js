@@ -7652,7 +7652,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                       '</div>' +
                     '</th>' +
                     // Fix 5: Remove (Home) and (Away)
-                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px 8px 8px 16px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Team ' + esc(teamAName) + '</th>' +
+                    '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px 8px 8px 16px;text-align:right;text-transform:uppercase;letter-spacing:.4px;">Team ' + esc(teamAName) + '</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:center;text-transform:uppercase;letter-spacing:.4px;">Score</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:left;text-transform:uppercase;letter-spacing:.4px;">Team ' + esc(teamBName) + '</th>' +
                     '<th style="font-size:9px;font-weight:800;color:#6b7a99;padding:8px;text-align:center;text-transform:uppercase;letter-spacing:.4px;">Status</th>' +
