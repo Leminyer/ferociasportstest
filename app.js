@@ -126,7 +126,7 @@ window.selectLadderType = (type) => {
     if (isLadderPage && currentLadder) {
       const isFTC = currentLadder.ladder_type === 'ftc';
       if (isFTC) {
-        ['sb-standings','sb-ftc-standings','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
+        ['sb-ftc-standings','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.style.display = 'flex';
         });
@@ -384,7 +384,7 @@ window.selectLadderType = (type) => {
         if (el) el.style.display = 'none';
       });
       if (isFTC) {
-        ['sb-standings','sb-ftc-standings','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
+        ['sb-ftc-standings','sb-ftc-teams','sb-ftc-schedule','sb-ftc-playoffs'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.style.display = 'flex';
         });
