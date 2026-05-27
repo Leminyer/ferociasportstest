@@ -858,6 +858,7 @@
     <button class="sb-sub-item" id="sb-standings" data-action="showPage" data-page="ladder" style="display:none;">Standings</button>
     <button class="sb-sub-item" id="sb-sessions" data-action="showPage" data-page="sessions" style="display:none;">Sessions</button>
     <button class="sb-sub-item" id="sb-entry" data-action="showPage" data-page="entry" style="display:none;">Record Session</button>
+    <button class="sb-sub-item" id="sb-ftc-standings" data-action="showPage" data-page="ftc-standings" style="display:none;">Standings</button>
     <button class="sb-sub-item" id="sb-ftc-teams" data-action="showPage" data-page="ftc-teams" style="display:none;">Teams</button>
     <button class="sb-sub-item" id="sb-ftc-schedule" data-action="showPage" data-page="ftc-schedule" style="display:none;">Schedule</button>
     <button class="sb-sub-item" id="sb-ftc-playoffs" data-action="showPage" data-page="ftc-playoffs" style="display:none;">Playoffs</button>
@@ -1237,6 +1238,27 @@
 
   <!-- LADDERS -->
   <!-- FTC Ladder Pages (placeholders for Phase 2+) -->
+  <div id="page-ftc-standings" class="page">
+    <div id="ftc-standings-title" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;margin-bottom:14px;display:none;"></div>
+    <!-- Stat cards -->
+    <div id="ftc-std-stats" class="ladder-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;"></div>
+    <!-- Podium row -->
+    <div id="ftc-std-podium" class="card" style="margin-bottom:14px;"></div>
+    <!-- Tabs -->
+    <div class="lop-tabs" style="background:white;border-radius:12px 12px 0 0;border:0.5px solid #e0e7f5;">
+      <button class="lop-tab active" onclick="ftcStdTab(event,'team')">Team Standings</button>
+      <button class="lop-tab" onclick="ftcStdTab(event,'player')">Player Stats</button>
+    </div>
+    <!-- Team standings table -->
+    <div id="ftc-std-team-tab" style="background:white;border:0.5px solid #e0e7f5;border-top:none;border-radius:0 0 12px 12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);">
+      <div id="ftc-std-team-table"><div class="loading">Loading standings...</div></div>
+    </div>
+    <!-- Player stats table -->
+    <div id="ftc-std-player-tab" style="display:none;background:white;border:0.5px solid #e0e7f5;border-top:none;border-radius:0 0 12px 12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);">
+      <div id="ftc-std-player-table"><div class="loading">Loading player stats...</div></div>
+    </div>
+  </div>
+
   <div id="page-ftc-teams" class="page">
     <div id="ftc-teams-title" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;margin-bottom:14px;display:none;"></div>
 <style>
@@ -3480,7 +3502,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20260544"></script>
+<script src="app.js?v=20260545"></script>
 <script src="tournament.js?v=20260526"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────
