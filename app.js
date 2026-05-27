@@ -6340,6 +6340,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   let ftcPlayoffMatches  = [];   // playoff ftc_ladder_matches rows
   let ftcPlayoffSchedule = [];   // playoff ftc_ladder_schedule rows (one per matchup)
   let _ftcPlayoffScoresModalScheduleId = null; // currently open playoff scores modal
+  // Debug exposure
+  window._dbg = { get ftcPlayoffSchedule(){ return ftcPlayoffSchedule; }, get ftcPlayoffMatches(){ return ftcPlayoffMatches; }, get ftcTeams(){ return ftcTeams; } };
 
   const loadFtcPlayoffs = async () => {
     if (!currentLadder) return;
