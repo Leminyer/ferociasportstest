@@ -6556,10 +6556,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
             match_type:     mt,
             team_a_id:      s.team_a_id,
             team_b_id:      s.team_b_id,
-            team_a_p1_id:   mt==='mens'?tA?.male_starter_1:mt==='womens'?tA?.female_starter_1:mt==='mixed1'?tA?.mixed_p1_m:tA?.mixed_p2_m,
-            team_a_p2_id:   mt==='mens'?tA?.male_starter_2:mt==='womens'?tA?.female_starter_2:mt==='mixed1'?tA?.mixed_p1_f:tA?.mixed_p2_f,
-            team_b_p1_id:   mt==='mens'?tB?.male_starter_1:mt==='womens'?tB?.female_starter_1:mt==='mixed1'?tB?.mixed_p1_m:tB?.mixed_p2_m,
-            team_b_p2_id:   mt==='mens'?tB?.male_starter_2:mt==='womens'?tB?.female_starter_2:mt==='mixed1'?tB?.mixed_p1_f:tB?.mixed_p2_f,
+            team_a_p1_id:   mt==='mens'?tA?.m1_id:mt==='womens'?tA?.f1_id:mt==='mixed1'?tA?.mixed1_ma_id:tA?.mixed2_ma_id,
+            team_a_p2_id:   mt==='mens'?tA?.m2_id:mt==='womens'?tA?.f2_id:mt==='mixed1'?tA?.mixed1_fa_id:tA?.mixed2_fa_id,
+            team_b_p1_id:   mt==='mens'?tB?.m1_id:mt==='womens'?tB?.f1_id:mt==='mixed1'?tB?.mixed1_ma_id:tB?.mixed2_ma_id,
+            team_b_p2_id:   mt==='mens'?tB?.m2_id:mt==='womens'?tB?.f2_id:mt==='mixed1'?tB?.mixed1_fa_id:tB?.mixed2_fa_id,
             status:         'scheduled',
           });
         });
@@ -6713,7 +6713,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   // ── Playoff Match Scores Modal ────────────────────────────────────────────
   window.ftcOpenPlayoffScoresModal = (scheduleId) => {
     _ftcPlayoffScoresModalScheduleId = scheduleId;
-    const sched = ftcPlayoffSchedule.find(s => s.id === scheduleId);
+    const sched = ftcPlayoffSchedule.find(s => parseInt(s.id,10) === parseInt(scheduleId,10));
     if (!sched) return;
     const tA = ftcTeams.find(t => t.id === sched.team_a_id);
     const tB = ftcTeams.find(t => t.id === sched.team_b_id);
@@ -6736,7 +6736,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   window.ftcRefreshPlayoffMatchModal = (scheduleId) => {
     if (!scheduleId) scheduleId = _ftcPlayoffScoresModalScheduleId;
     if (!scheduleId) return;
-    const sched = ftcPlayoffSchedule.find(s => s.id === scheduleId);
+    const sidNum = parseInt(scheduleId, 10);
+    const sched = ftcPlayoffSchedule.find(s => parseInt(s.id,10) === sidNum);
     if (!sched) return;
     const tA = ftcTeams.find(t => t.id === sched.team_a_id);
     const tB = ftcTeams.find(t => t.id === sched.team_b_id);
@@ -6880,10 +6881,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       const newMatches = typeOrder.map(mt => ({
         schedule_id: updated.id, ladder_id: currentLadder.id, match_type: mt,
         team_a_id: updated.team_a_id, team_b_id: updated.team_b_id,
-        team_a_p1_id: mt==='mens'?tA?.male_starter_1:mt==='womens'?tA?.female_starter_1:mt==='mixed1'?tA?.mixed_p1_m:tA?.mixed_p2_m,
-        team_a_p2_id: mt==='mens'?tA?.male_starter_2:mt==='womens'?tA?.female_starter_2:mt==='mixed1'?tA?.mixed_p1_f:tA?.mixed_p2_f,
-        team_b_p1_id: mt==='mens'?tB?.male_starter_1:mt==='womens'?tB?.female_starter_1:mt==='mixed1'?tB?.mixed_p1_m:tB?.mixed_p2_m,
-        team_b_p2_id: mt==='mens'?tB?.male_starter_2:mt==='womens'?tB?.female_starter_2:mt==='mixed1'?tB?.mixed_p1_f:tB?.mixed_p2_f,
+        team_a_p1_id: mt==='mens'?tA?.m1_id:mt==='womens'?tA?.f1_id:mt==='mixed1'?tA?.mixed1_ma_id:tA?.mixed2_ma_id,
+        team_a_p2_id: mt==='mens'?tA?.m2_id:mt==='womens'?tA?.f2_id:mt==='mixed1'?tA?.mixed1_fa_id:tA?.mixed2_fa_id,
+        team_b_p1_id: mt==='mens'?tB?.m1_id:mt==='womens'?tB?.f1_id:mt==='mixed1'?tB?.mixed1_ma_id:tB?.mixed2_ma_id,
+        team_b_p2_id: mt==='mens'?tB?.m2_id:mt==='womens'?tB?.f2_id:mt==='mixed1'?tB?.mixed1_fa_id:tB?.mixed2_fa_id,
         status: 'scheduled',
       }));
       const created = await api('ftc_ladder_matches', 'POST', newMatches);
