@@ -6449,13 +6449,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
           </div>
           <div>
             <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:6px;">Bracket format</div>
-            <select style="font-size:12px;font-weight:700;color:#0d1f4a;padding:8px 12px;border:0.5px solid #174CCC;border-radius:8px;background:white;width:100%;">
-              <option>Single elimination</option>
+            <select id="ftc-po-bracket-type" style="font-size:12px;font-weight:700;color:#0d1f4a;padding:8px 12px;border:0.5px solid #174CCC;border-radius:8px;background:white;width:100%;">
+              <option value="single">Single elimination</option>
+              <option value="double">Double elimination</option>
             </select>
           </div>
         </div>
         <div style="background:#f0f4ff;border-radius:8px;padding:10px 14px;border-left:3px solid #174CCC;font-size:11px;font-weight:600;color:#174CCC;margin-bottom:14px;">
-          Seeding auto-calculated from standings (pts → wins → diff).
+          Seeding auto-calculated from standings (pts → wins → diff). Toggle teams in/out below.
         </div>
         <table style="width:100%;border-collapse:collapse;">
           <thead><tr style="background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;">
@@ -6568,6 +6569,14 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         ftcPlayoffMatches = Array.isArray(createdMatches) ? createdMatches : [createdMatches];
       }
       toast('Playoff bracket generated!');
+      // Reload from DB to get server-assigned IDs then re-render
+      try {
+        ftcPlayoffSchedule = await api(`ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}&is_playoff=eq.true&order=playoff_round,id`);
+        const psIds = ftcPlayoffSchedule.map(s => s.id);
+        ftcPlayoffMatches = psIds.length
+          ? await api(`ftc_ladder_matches?schedule_id=in.(${psIds.join(',')})&select=*&order=schedule_id,match_type`)
+          : [];
+      } catch(e) {}
       renderFtcPlayoffPage();
     } catch(err) {
       toast(`Error generating bracket: ${err.message}`, true);
@@ -6623,7 +6632,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const champTeamId = champion ? (ftcPlayoffMatches.filter(m=>m.schedule_id===champion.id&&m.status==='completed').reduce((acc,m)=>{ if(m.winner_team_id===champion.team_a_id)acc.a++; else acc.b++; return acc; },{a:0,b:0})) : null;
 
     let bracketHtml = `<div class="card" style="margin-bottom:14px;">
-      <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Playoff Bracket</div>
+      <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Playoff Bracket — ${rounds.includes('quarterfinal')?'Top 6':'Top 4'}</div>
       <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Click any matchup to enter or edit scores. Same 4-game format (MD, WD, MX1, MX2).</div>
       <div style="display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:8px;">`;
 
@@ -6731,7 +6740,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     if (!sched) return;
     const tA = ftcTeams.find(t => t.id === sched.team_a_id);
     const tB = ftcTeams.find(t => t.id === sched.team_b_id);
-    const matches = ftcPlayoffMatches.filter(m => m.schedule_id === scheduleId && !m.is_tiebreaker);
+    const sid = parseInt(scheduleId, 10);
+    const matches = ftcPlayoffMatches.filter(m => parseInt(m.schedule_id,10) === sid && !m.is_tiebreaker);
     const winsA = matches.filter(m=>m.status==='completed'&&m.winner_team_id===sched.team_a_id).length;
     const winsB = matches.filter(m=>m.status==='completed'&&m.winner_team_id===sched.team_b_id).length;
     const total  = matches.filter(m=>m.status==='completed').length;
@@ -7732,7 +7742,28 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     });
 
     html += '</div>'; // close white card
+
+    // Capture currently open state before replacing DOM
+    const openWeeks    = [...document.querySelectorAll('[id^="ftc-week-body-"]')]
+      .filter(e => e.style.display !== 'none').map(e => e.id.replace('ftc-week-body-',''));
+    const openMatchups = [...document.querySelectorAll('[id^="ftc-match-expand-"]')]
+      .filter(e => e.style.display !== 'none').map(e => e.id.replace('ftc-match-expand-',''));
+
     el.innerHTML = html;
+
+    // Restore open state
+    openWeeks.forEach(wn => {
+      const wb = document.getElementById(`ftc-week-body-${wn}`);
+      const wc = document.getElementById(`ftc-wk-chev-${wn}`);
+      if (wb) wb.style.display = 'block';
+      if (wc) wc.style.transform = 'rotate(180deg)';
+    });
+    openMatchups.forEach(sid => {
+      const mb = document.getElementById(`ftc-match-expand-${sid}`);
+      const mc = document.getElementById(`ftc-match-chev-${sid}`);
+      if (mb) mb.style.display = 'block';
+      if (mc) mc.style.transform = 'rotate(180deg)';
+    });
   };
 
   window.ftcToggleMatchExpand = (schedId) => {
