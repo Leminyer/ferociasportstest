@@ -6534,54 +6534,54 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     }
 
     try {
-      // Insert schedule rows
-      const created = await api('ftc_ladder_schedule', 'POST', scheduleRows.map(r => ({
-        ladder_id: currentLadder.id,
-        week_number: 99, // sentinel for playoffs
-        is_playoff: true,
-        status: 'scheduled',
-        ...r,
-      })));
-      ftcPlayoffSchedule = Array.isArray(created) ? created : [created];
-
-      // For rounds where teams are known, create the 4 match rows
+      // Step 1: Insert schedule rows one by one to get reliable IDs back
       const matchTypes = ['mens','womens','mixed1','mixed2'];
-      const matchRows = [];
-      ftcPlayoffSchedule.filter(s => s.team_a_id && s.team_b_id).forEach(s => {
-        // Get player assignments from team registration
+      ftcPlayoffSchedule = [];
+      for (const r of scheduleRows) {
+        const row = await api('ftc_ladder_schedule', 'POST', {
+          ladder_id: currentLadder.id,
+          week_number: 99,
+          is_playoff: true,
+          status: 'scheduled',
+          ...r,
+        });
+        ftcPlayoffSchedule.push(Array.isArray(row) ? row[0] : row);
+      }
+
+      // Step 2: Create 4 match rows for matchups where both teams are known
+      ftcPlayoffMatches = [];
+      for (const s of ftcPlayoffSchedule.filter(s => s.team_a_id && s.team_b_id)) {
         const tA = ftcTeams.find(t => t.id === s.team_a_id);
         const tB = ftcTeams.find(t => t.id === s.team_b_id);
-        matchTypes.forEach(mt => {
-          matchRows.push({
-            schedule_id:    s.id,
-            ladder_id:      currentLadder.id,
-            match_type:     mt,
-            team_a_id:      s.team_a_id,
-            team_b_id:      s.team_b_id,
-            team_a_p1_id:   mt==='mens'?tA?.m1_id:mt==='womens'?tA?.f1_id:mt==='mixed1'?tA?.mixed1_ma_id:tA?.mixed2_ma_id,
-            team_a_p2_id:   mt==='mens'?tA?.m2_id:mt==='womens'?tA?.f2_id:mt==='mixed1'?tA?.mixed1_fa_id:tA?.mixed2_fa_id,
-            team_b_p1_id:   mt==='mens'?tB?.m1_id:mt==='womens'?tB?.f1_id:mt==='mixed1'?tB?.mixed1_ma_id:tB?.mixed2_ma_id,
-            team_b_p2_id:   mt==='mens'?tB?.m2_id:mt==='womens'?tB?.f2_id:mt==='mixed1'?tB?.mixed1_fa_id:tB?.mixed2_fa_id,
-            status:         'scheduled',
+        for (const mt of matchTypes) {
+          const row = await api('ftc_ladder_matches', 'POST', {
+            schedule_id:  s.id,
+            ladder_id:    currentLadder.id,
+            match_type:   mt,
+            team_a_id:    s.team_a_id,
+            team_b_id:    s.team_b_id,
+            team_a_p1_id: mt==='mens'?tA?.m1_id:mt==='womens'?tA?.f1_id:mt==='mixed1'?tA?.mixed1_ma_id:tA?.mixed2_ma_id,
+            team_a_p2_id: mt==='mens'?tA?.m2_id:mt==='womens'?tA?.f2_id:mt==='mixed1'?tA?.mixed1_fa_id:tA?.mixed2_fa_id,
+            team_b_p1_id: mt==='mens'?tB?.m1_id:mt==='womens'?tB?.f1_id:mt==='mixed1'?tB?.mixed1_ma_id:tB?.mixed2_ma_id,
+            team_b_p2_id: mt==='mens'?tB?.m2_id:mt==='womens'?tB?.f2_id:mt==='mixed1'?tB?.mixed1_fa_id:tB?.mixed2_fa_id,
+            status:       'scheduled',
           });
-        });
-      });
-      if (matchRows.length) {
-        const createdMatches = await api('ftc_ladder_matches', 'POST', matchRows);
-        ftcPlayoffMatches = Array.isArray(createdMatches) ? createdMatches : [createdMatches];
+          ftcPlayoffMatches.push(Array.isArray(row) ? row[0] : row);
+        }
       }
+
       toast('Playoff bracket generated!');
-      // Reload from DB to get server-assigned IDs then re-render
-      try {
-        ftcPlayoffSchedule = await api(`ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}&is_playoff=eq.true&order=playoff_round,id`);
-        const psIds = ftcPlayoffSchedule.map(s => s.id);
-        ftcPlayoffMatches = psIds.length
-          ? await api(`ftc_ladder_matches?schedule_id=in.(${psIds.join(',')})&select=*&order=schedule_id,match_type`)
-          : [];
-      } catch(e) {}
+
+      // Step 3: Reload everything fresh from DB and render
+      ftcPlayoffSchedule = await api(`ftc_ladder_schedule?ladder_id=eq.${currentLadder.id}&is_playoff=eq.true&order=playoff_round,id`);
+      const psIds = ftcPlayoffSchedule.map(s => s.id);
+      ftcPlayoffMatches = psIds.length
+        ? await api(`ftc_ladder_matches?schedule_id=in.(${psIds.join(',')})&select=*&order=schedule_id,match_type`)
+        : [];
       renderFtcPlayoffPage();
     } catch(err) {
       toast(`Error generating bracket: ${err.message}`, true);
+      console.error('Playoff generate error:', err);
     }
   };
 
