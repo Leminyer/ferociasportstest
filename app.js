@@ -6794,7 +6794,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       const idA = `psm-score-${m?.id||mt}-a`;
       const idB = `psm-score-${m?.id||mt}-b`;
 
-      return `<div style="display:grid;grid-template-columns:140px 1fr 200px 1fr 140px;align-items:center;padding:16px 24px;border-bottom:0.5px solid #f0f2f8;" data-match-id="${m?.id||''}" data-mt="${mt}">
+      return `<div style="display:grid;grid-template-columns:160px 1fr 220px 1fr 150px;align-items:center;padding:16px 16px;border-bottom:1px solid #e0e7f5;" data-match-id="${m?.id||''}" data-mt="${mt}">
         <!-- Match number + type badge -->
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:16px;font-weight:800;color:#0d1f4a;">${num}</span>
@@ -6834,7 +6834,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
           </div>
         </div>
         <!-- Actions -->
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
           <button onclick="ftcPsmSaveScore('${m?.id||''}','${mt}',${sidNum})"
             style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:none;border-radius:8px;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -6857,7 +6857,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const tbScored = tbMatch && tbMatch.score_a !== null;
     const tbWinnerName = tbScored ? (tbMatch.score_a>tbMatch.score_b ? tA?.name : tB?.name) : null;
 
-    const tieRow = `<div style="display:grid;grid-template-columns:140px 1fr 200px 1fr 140px;align-items:center;padding:16px 24px;border-bottom:0.5px solid #f0f2f8;background:${need22?'white':'#fafbff'};" data-mt="tiebreaker">
+    const tieRow = `<div style="display:grid;grid-template-columns:160px 1fr 220px 1fr 150px;align-items:center;padding:16px 16px;background:${need22?'white':'#fafbff'};" data-mt="tiebreaker">
       <div style="display:flex;flex-direction:column;gap:2px;">
         <span style="font-size:16px;font-weight:800;color:#0d1f4a;">5</span>
         <div>
@@ -6895,7 +6895,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
           <span style="font-size:10px;font-weight:600;color:#6b7a99;">${esc(tB?.name||'Team B')}</span>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
         <button onclick="${need22?`ftcPsmSaveTiebreaker(${sidNum},${sched.team_a_id},${sched.team_b_id})`:'void(0)'}"
           style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:none;border-radius:8px;background:${need22?'#174CCC':'#e0e7f5'};color:${need22?'white':'#b0bbd6'};font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:${need22?'pointer':'not-allowed'};white-space:nowrap;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
