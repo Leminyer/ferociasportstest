@@ -6738,100 +6738,277 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     if (!scheduleId) scheduleId = _ftcPlayoffScoresModalScheduleId;
     if (!scheduleId) return;
     const sidNum = parseInt(scheduleId, 10);
-    const sched = ftcPlayoffSchedule.find(s => parseInt(s.id,10) === sidNum);
+    const sched  = ftcPlayoffSchedule.find(s => parseInt(s.id,10) === sidNum);
     if (!sched) return;
     const tA = ftcTeams.find(t => t.id === sched.team_a_id);
     const tB = ftcTeams.find(t => t.id === sched.team_b_id);
     const sid = parseInt(scheduleId, 10);
     const matches = ftcPlayoffMatches.filter(m => parseInt(m.schedule_id,10) === sid && !m.is_tiebreaker);
-    const winsA = matches.filter(m=>m.status==='completed'&&m.winner_team_id===sched.team_a_id).length;
-    const winsB = matches.filter(m=>m.status==='completed'&&m.winner_team_id===sched.team_b_id).length;
-    const total  = matches.filter(m=>m.status==='completed').length;
+    const winsA   = matches.filter(m => m.status==='completed' && m.winner_team_id===sched.team_a_id).length;
+    const winsB   = matches.filter(m => m.status==='completed' && m.winner_team_id===sched.team_b_id).length;
 
-    // Lead indicator
-    const leadEl = document.getElementById('ftc-psm-lead');
-    if (leadEl) {
-      if (total === 0) leadEl.textContent = '';
-      else if (winsA === winsB) leadEl.textContent = `Tied ${winsA}–${winsB}`;
-      else {
-        const leader = winsA>winsB ? tA?.name : tB?.name;
-        const lW = Math.max(winsA,winsB), lL = Math.min(winsA,winsB);
-        leadEl.textContent = `${esc(leader||'—')} leads ${lW}–${lL}`;
-      }
-    }
+    // Update column headers with team names
+    const hdrA = document.getElementById('ftc-psm-hdr-a');
+    const hdrB = document.getElementById('ftc-psm-hdr-b');
+    if (hdrA) hdrA.textContent = `Team ${tA?.name||'A'}`;
+    if (hdrB) hdrB.textContent = `Team ${tB?.name||'B'}`;
 
-    // Match type labels
+    // Match type config
     const typeOrder = ['mens','womens','mixed1','mixed2'];
-    const typeLabels = { mens:"Men's Doubles", womens:"Women's Doubles", mixed1:'Mixed #1', mixed2:'Mixed #2' };
-    const typeBg  = { mens:'#e8f0ff', womens:'rgba(242,96,36,0.1)', mixed1:'rgba(36,188,150,0.1)', mixed2:'rgba(154,110,0,0.1)' };
-    const typeClr = { mens:'#174CCC', womens:'#F26024', mixed1:'#24BC96', mixed2:'#9a6e00' };
+    const typeLabels  = { mens:"Men's Doubles", womens:"Women's Doubles", mixed1:'Mixed #1', mixed2:'Mixed #2' };
+    const typeBadgeBg = { mens:'#EEF2FF', womens:'#FFF0EC', mixed1:'#EDFAF6', mixed2:'#F3EEFF' };
+    const typeBadgeClr= { mens:'#174CCC', womens:'#E8501A', mixed1:'#0D9E73', mixed2:'#7B35D9' };
 
     const pName = (id) => {
-      if (!id) return 'TBD';
+      if (!id) return null;
       const p = ladderPlayers.find(x => x.id === id);
-      return p ? `${p.first_name} ${p.last_name}` : `#${id}`;
+      return p ? `${p.first_name} ${p.last_name}` : null;
     };
 
-    const rowsHtml = typeOrder.map(mt => {
+    // Build score input box HTML
+    const scoreBox = (val, inputId) => {
+      const display = val !== null && val !== undefined ? String(val) : '--';
+      return `<div style="display:flex;flex-direction:column;align-items:center;">
+        <div style="display:flex;align-items:center;border:1.5px solid #e0e7f5;border-radius:8px;overflow:hidden;background:white;">
+          <input id="${inputId}" type="number" min="0" max="99" value="${val!==null&&val!==undefined?val:''}" placeholder="--"
+            style="width:48px;height:36px;border:none;outline:none;text-align:center;font-family:'Montserrat',sans-serif;font-size:18px;font-weight:700;color:#0d1f4a;background:transparent;padding:0;"
+            oninput="ftcPsmScoreChange('${inputId}')">
+          <div style="display:flex;flex-direction:column;border-left:1px solid #e0e7f5;">
+            <button onclick="ftcPsmIncrement('${inputId}',1)" style="width:20px;height:18px;border:none;background:white;cursor:pointer;font-size:9px;color:#6b7a99;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #e0e7f5;">▲</button>
+            <button onclick="ftcPsmIncrement('${inputId}',-1)" style="width:20px;height:18px;border:none;background:white;cursor:pointer;font-size:9px;color:#6b7a99;display:flex;align-items:center;justify-content:center;">▼</button>
+          </div>
+        </div>
+      </div>`;
+    };
+
+    // Render each row
+    const rowsHtml = typeOrder.map((mt, idx) => {
       const m = matches.find(x => x.match_type === mt);
-      if (!m) return '';
-      const scored = m.score_a !== null && m.score_b !== null;
+      const num = idx + 1;
+      const scored = m && m.score_a !== null && m.score_b !== null;
       const aWins  = scored && m.score_a > m.score_b;
       const bWins  = scored && m.score_b > m.score_a;
-      return `<div style="display:grid;grid-template-columns:100px 1fr 130px 1fr 80px;gap:8px;padding:10px 16px;border-bottom:0.5px solid #f0f2f8;align-items:center;background:${scored?'#fafffe':'white'};">
-        <span style="font-size:8px;font-weight:800;padding:2px 6px;border-radius:4px;text-transform:uppercase;background:${typeBg[mt]};color:${typeClr[mt]};display:inline-block;">${typeLabels[mt]}</span>
-        <div>
-          <div style="font-size:12px;font-weight:700;color:${bWins?'#b0bbd6':'#0d1f4a'};line-height:1.4;">${pName(m.team_a_p1_id)}<br>${pName(m.team_a_p2_id)}</div>
+      const winnerName = aWins ? (tA?.name||'Team A') : bWins ? (tB?.name||'Team B') : null;
+      const p1A = pName(m?.team_a_p1_id); const p2A = pName(m?.team_a_p2_id);
+      const p1B = pName(m?.team_b_p1_id); const p2B = pName(m?.team_b_p2_id);
+      const idA = `psm-score-${m?.id||mt}-a`;
+      const idB = `psm-score-${m?.id||mt}-b`;
+
+      return `<div style="display:grid;grid-template-columns:140px 1fr 200px 1fr 140px;align-items:center;padding:16px 24px;border-bottom:0.5px solid #f0f2f8;" data-match-id="${m?.id||''}" data-mt="${mt}">
+        <!-- Match number + type badge -->
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:16px;font-weight:800;color:#0d1f4a;">${num}</span>
+          <span style="font-size:10px;font-weight:700;padding:4px 10px;border-radius:99px;background:${typeBadgeBg[mt]};color:${typeBadgeClr[mt]};text-transform:uppercase;letter-spacing:.3px;">${typeLabels[mt]}</span>
         </div>
-        <div style="text-align:center;">
-          ${scored
-            ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                <span style="font-size:20px;font-weight:800;color:${aWins?'#24BC96':'#b0bbd6'};">${m.score_a}</span>
-                <span style="font-size:10px;color:#b0bbd6;font-weight:700;">–</span>
-                <span style="font-size:20px;font-weight:800;color:${bWins?'#24BC96':'#b0bbd6'};">${m.score_b}</span>
-               </div>
-               <div style="font-size:9px;color:#6b7a99;margin-top:2px;">+${m.league_pts_a} / +${m.league_pts_b} pts</div>`
-            : `<div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                <span style="font-size:18px;font-weight:800;color:#b0bbd6;">—</span>
-                <span style="font-size:10px;color:#b0bbd6;font-weight:700;">vs</span>
-                <span style="font-size:18px;font-weight:800;color:#b0bbd6;">—</span>
+        <!-- Team A players -->
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#0d1f4a;line-height:1.5;">${p1A||'TBD'}<br>${p2A||'TBD'}</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:4px;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span style="font-size:10px;font-weight:600;color:#6b7a99;">${esc(tA?.name||'Team A')}</span>
+          </div>
+        </div>
+        <!-- Score inputs + winner -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${scoreBox(m?.score_a??null, idA)}
+            <span style="font-size:11px;font-weight:600;color:#9aa5b8;">vs</span>
+            ${scoreBox(m?.score_b??null, idB)}
+          </div>
+          ${winnerName
+            ? `<div style="display:flex;align-items:center;gap:4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span style="font-size:11px;font-weight:600;color:#24BC96;">${esc(winnerName)} wins</span>
+               </div>`
+            : `<div style="display:flex;align-items:center;gap:4px;opacity:.5;">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span style="font-size:10px;color:#6b7a99;">Not played yet</span>
                </div>`}
         </div>
+        <!-- Team B players -->
         <div>
-          <div style="font-size:12px;font-weight:700;color:${aWins?'#b0bbd6':'#0d1f4a'};line-height:1.4;">${pName(m.team_b_p1_id)}<br>${pName(m.team_b_p2_id)}</div>
+          <div style="font-size:13px;font-weight:700;color:#0d1f4a;line-height:1.5;">${p1B||'TBD'}<br>${p2B||'TBD'}</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:4px;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span style="font-size:10px;font-weight:600;color:#6b7a99;">${esc(tB?.name||'Team B')}</span>
+          </div>
         </div>
-        <div style="text-align:center;display:flex;flex-direction:column;gap:4px;align-items:center;">
-          ${scored
-            ? `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(36,188,150,0.12);color:#085041;">+${Math.max(m.league_pts_a,m.league_pts_b)} pts</span>
-               <button class="ftc-edit-mini" onclick="ftcOpenScoreModal(${m.id},'playoff')" style="font-size:9px;padding:2px 8px;">Edit</button>`
-            : `<button class="ftc-edit-mini" onclick="ftcOpenScoreModal(${m.id},'playoff')" style="background:#174CCC;color:white;border-color:#174CCC;font-size:9px;padding:3px 10px;">+ Score</button>`}
+        <!-- Actions -->
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <button onclick="ftcPsmSaveScore('${m?.id||''}','${mt}',${sidNum})"
+            style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:none;border-radius:8px;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Save Score
+          </button>
+          <button onclick="ftcPsmClearScore('${m?.id||''}','${mt}',${sidNum})"
+            style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:none;background:transparent;color:#6b7a99;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;cursor:pointer;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            Clear
+          </button>
         </div>
       </div>`;
     }).join('');
 
-    const rowsEl = document.getElementById('ftc-psm-rows');
-    if (rowsEl) rowsEl.innerHTML = rowsHtml;
+    // Tiebreaker row (row 5)
+    const tbMatch = ftcPlayoffMatches.find(m => parseInt(m.schedule_id,10) === sid && m.is_tiebreaker);
+    const need22  = winsA === 2 && winsB === 2;
+    const tbIdA   = `psm-score-tb-a`;
+    const tbIdB   = `psm-score-tb-b`;
+    const tbScored = tbMatch && tbMatch.score_a !== null;
+    const tbWinnerName = tbScored ? (tbMatch.score_a>tbMatch.score_b ? tA?.name : tB?.name) : null;
 
-    // Tiebreaker banner
-    const tieBanner = document.getElementById('ftc-psm-tie-banner');
-    if (tieBanner) {
-      const is22 = winsA===2 && winsB===2 && !ftcPlayoffMatches.find(m=>m.schedule_id===scheduleId&&m.is_tiebreaker);
-      const hasTb = ftcPlayoffMatches.find(m=>m.schedule_id===scheduleId&&m.is_tiebreaker&&m.status==='completed');
-      if (is22) {
-        tieBanner.style.display='block';
-        tieBanner.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(242,96,36,0.06);border-top:0.5px solid rgba(242,96,36,0.2);">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <span style="font-size:11px;font-weight:700;color:#F26024;">2–2 tie — tiebreaker required</span>
-          <button onclick="ftcOpenTiebreakerModal(${scheduleId},${sched.team_a_id},${sched.team_b_id})" style="margin-left:auto;padding:5px 14px;border:none;border-radius:99px;background:#F26024;color:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;">Record Tiebreaker</button>
-        </div>`;
-      } else if (hasTb) {
-        tieBanner.style.display='block';
-        tieBanner.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(36,188,150,0.06);border-top:0.5px solid rgba(36,188,150,0.2);">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <span style="font-size:11px;font-weight:700;color:#085041;">Tiebreaker recorded · ${hasTb.score_a}–${hasTb.score_b}</span>
-        </div>`;
-      } else { tieBanner.style.display='none'; }
-    }
+    const tieRow = `<div style="display:grid;grid-template-columns:140px 1fr 200px 1fr 140px;align-items:center;padding:16px 24px;border-bottom:0.5px solid #f0f2f8;background:${need22?'white':'#fafbff'};" data-mt="tiebreaker">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <span style="font-size:16px;font-weight:800;color:#0d1f4a;">5</span>
+        <div>
+          <span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;border:1px solid #7B35D9;color:#7B35D9;text-transform:uppercase;letter-spacing:.3px;display:inline-block;">Tie-Breaker</span>
+          <div style="font-size:9px;font-weight:600;color:#9aa5b8;margin-top:2px;">(If Needed)</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:${need22?'#0d1f4a':'#b0bbd6'};line-height:1.5;">TBD<br>&nbsp;</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:4px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span style="font-size:10px;font-weight:600;color:#6b7a99;">${esc(tA?.name||'Team A')}</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${scoreBox(tbScored?tbMatch.score_a:null, tbIdA)}
+          <span style="font-size:11px;font-weight:600;color:#9aa5b8;">vs</span>
+          ${scoreBox(tbScored?tbMatch.score_b:null, tbIdB)}
+        </div>
+        ${tbWinnerName
+          ? `<div style="display:flex;align-items:center;gap:4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size:11px;font-weight:600;color:#24BC96;">${esc(tbWinnerName)} wins</span>
+             </div>`
+          : `<div style="display:flex;align-items:center;gap:4px;opacity:.5;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span style="font-size:10px;color:#6b7a99;">Not played yet</span>
+             </div>`}
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:${need22?'#0d1f4a':'#b0bbd6'};line-height:1.5;">TBD<br>&nbsp;</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:4px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span style="font-size:10px;font-weight:600;color:#6b7a99;">${esc(tB?.name||'Team B')}</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <button onclick="${need22?`ftcPsmSaveTiebreaker(${sidNum},${sched.team_a_id},${sched.team_b_id})`:'void(0)'}"
+          style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:none;border-radius:8px;background:${need22?'#174CCC':'#e0e7f5'};color:${need22?'white':'#b0bbd6'};font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:${need22?'pointer':'not-allowed'};white-space:nowrap;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save Score
+        </button>
+        ${tbScored?`<button onclick="ftcPsmClearScore('${tbMatch.id}','tiebreaker',${sidNum})" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:none;background:transparent;color:#6b7a99;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;cursor:pointer;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Clear</button>`:''}
+      </div>
+    </div>`;
+
+    const rowsEl = document.getElementById('ftc-psm-rows');
+    if (rowsEl) rowsEl.innerHTML = rowsHtml + tieRow;
+  };
+
+
+  // ── Playoff score modal helper functions ─────────────────────────────────
+  window.ftcPsmIncrement = (inputId, delta) => {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    const cur = parseInt(el.value, 10) || 0;
+    el.value = Math.max(0, cur + delta);
+    ftcPsmScoreChange(inputId);
+  };
+
+  window.ftcPsmScoreChange = (inputId) => {
+    // Auto-show winner text — handled by ftcRefreshPlayoffMatchModal after save
+    // Nothing needed here; just keeps input live
+  };
+
+  window.ftcPsmSaveScore = async (matchId, mt, scheduleId) => {
+    const idA = `psm-score-${matchId||mt}-a`;
+    const idB = `psm-score-${matchId||mt}-b`;
+    const scoreA = parseInt(document.getElementById(idA)?.value, 10);
+    const scoreB = parseInt(document.getElementById(idB)?.value, 10);
+    if (isNaN(scoreA) || isNaN(scoreB)) { toast('Enter scores for both teams.', true); return; }
+    if (scoreA === scoreB) { toast('Scores cannot be equal — use tiebreaker.', true); return; }
+    const m = ftcPlayoffMatches.find(x => String(x.id) === String(matchId));
+    if (!m) { toast('Match not found.', true); return; }
+    const aWins = scoreA > scoreB;
+    const pts   = { a: aWins?2:1, b: aWins?1:2 };
+    try {
+      await api(`ftc_ladder_matches?id=eq.${m.id}`, 'PATCH', {
+        score_a: scoreA, score_b: scoreB,
+        league_pts_a: pts.a, league_pts_b: pts.b,
+        winner_team_id: aWins ? m.team_a_id : m.team_b_id,
+        status: 'completed',
+      });
+      // Update local state
+      const idx = ftcPlayoffMatches.findIndex(x => x.id === m.id);
+      if (idx >= 0) Object.assign(ftcPlayoffMatches[idx], {
+        score_a: scoreA, score_b: scoreB,
+        league_pts_a: pts.a, league_pts_b: pts.b,
+        winner_team_id: aWins ? m.team_a_id : m.team_b_id,
+        status: 'completed',
+      });
+      toast('Score saved!');
+      ftcRefreshPlayoffMatchModal(scheduleId);
+      await ftcCheckAndUpdatePlayoffMatchupStatus(scheduleId);
+      renderFtcBracket();
+    } catch(err) { toast(`Error: ${err.message}`, true); }
+  };
+
+  window.ftcPsmClearScore = async (matchId, mt, scheduleId) => {
+    const m = ftcPlayoffMatches.find(x => String(x.id) === String(matchId));
+    if (!m) return;
+    try {
+      await api(`ftc_ladder_matches?id=eq.${m.id}`, 'PATCH', {
+        score_a: null, score_b: null,
+        league_pts_a: 0, league_pts_b: 0,
+        winner_team_id: null, status: 'scheduled',
+      });
+      const idx = ftcPlayoffMatches.findIndex(x => x.id === m.id);
+      if (idx >= 0) Object.assign(ftcPlayoffMatches[idx], {
+        score_a: null, score_b: null, league_pts_a: 0, league_pts_b: 0,
+        winner_team_id: null, status: 'scheduled',
+      });
+      toast('Score cleared.');
+      ftcRefreshPlayoffMatchModal(scheduleId);
+      renderFtcBracket();
+    } catch(err) { toast(`Error: ${err.message}`, true); }
+  };
+
+  window.ftcPsmSaveTiebreaker = async (scheduleId, teamAId, teamBId) => {
+    const scoreA = parseInt(document.getElementById('psm-score-tb-a')?.value, 10);
+    const scoreB = parseInt(document.getElementById('psm-score-tb-b')?.value, 10);
+    if (isNaN(scoreA) || isNaN(scoreB)) { toast('Enter tiebreaker scores.', true); return; }
+    if (scoreA === scoreB) { toast('Tiebreaker cannot end in a tie.', true); return; }
+    const sched = ftcPlayoffSchedule.find(s => parseInt(s.id,10) === parseInt(scheduleId,10));
+    if (!sched) return;
+    const winnerId = scoreA > scoreB ? teamAId : teamBId;
+    const tieType  = document.getElementById('ftc-tie-type')?.value || 'dreambreaker';
+    try {
+      await api('ftc_ladder_matches', 'POST', {
+        schedule_id: scheduleId, ladder_id: currentLadder.id,
+        match_type: 'tiebreaker', team_a_id: teamAId, team_b_id: teamBId,
+        score_a: scoreA, score_b: scoreB,
+        league_pts_a: scoreA>scoreB?2:1, league_pts_b: scoreB>scoreA?2:1,
+        winner_team_id: winnerId, tiebreaker_type: tieType,
+        is_tiebreaker: true, status: 'completed',
+      });
+      // Reload matches
+      const psIds = ftcPlayoffSchedule.map(s => s.id);
+      ftcPlayoffMatches = psIds.length
+        ? await api(`ftc_ladder_matches?schedule_id=in.(${psIds.join(',')})&select=*&order=schedule_id,match_type`)
+        : [];
+      // Mark schedule complete
+      await api(`ftc_ladder_schedule?id=eq.${scheduleId}`, 'PATCH', { status:'completed' });
+      const si = ftcPlayoffSchedule.findIndex(s => parseInt(s.id,10)===parseInt(scheduleId,10));
+      if (si >= 0) ftcPlayoffSchedule[si].status = 'completed';
+      await ftcAdvancePlayoffWinner(sched, winnerId, scoreA>scoreB?sched.seed_a:sched.seed_b);
+      toast('Tiebreaker saved!');
+      ftcRefreshPlayoffMatchModal(scheduleId);
+      renderFtcBracket();
+    } catch(err) { toast(`Error: ${err.message}`, true); }
   };
 
   // ── Check playoff matchup status and advance bracket ─────────────────────
