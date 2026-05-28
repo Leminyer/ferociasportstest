@@ -6797,7 +6797,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       return `<div style="display:grid;grid-template-columns:160px 1fr 220px 1fr 150px;align-items:center;padding:16px 16px;border-bottom:1px solid #e0e7f5;" data-match-id="${m?.id||''}" data-mt="${mt}">
         <!-- Match number + type badge -->
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:16px;font-weight:800;color:#0d1f4a;">${num}</span>
+          <span style="font-size:12px;font-weight:800;color:#6b7a99;min-width:16px;">${num}</span>
           <span style="font-size:10px;font-weight:700;padding:4px 10px;border-radius:99px;background:${typeBadgeBg[mt]};color:${typeBadgeClr[mt]};text-transform:uppercase;letter-spacing:.3px;">${typeLabels[mt]}</span>
         </div>
         <!-- Team A players -->
@@ -6858,10 +6858,10 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const tbWinnerName = tbScored ? (tbMatch.score_a>tbMatch.score_b ? tA?.name : tB?.name) : null;
 
     const tieRow = `<div style="display:grid;grid-template-columns:160px 1fr 220px 1fr 150px;align-items:center;padding:16px 16px;background:${need22?'white':'#fafbff'};" data-mt="tiebreaker">
-      <div style="display:flex;flex-direction:column;gap:2px;">
-        <span style="font-size:16px;font-weight:800;color:#0d1f4a;">5</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;font-weight:800;color:#6b7a99;min-width:16px;">5</span>
         <div>
-          <span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;border:1px solid #7B35D9;color:#7B35D9;text-transform:uppercase;letter-spacing:.3px;display:inline-block;">Tie-Breaker</span>
+          <span style="font-size:9px;font-weight:800;padding:4px 10px;border-radius:99px;border:1px solid #7B35D9;color:#7B35D9;text-transform:uppercase;letter-spacing:.3px;display:inline-block;">Tie-Breaker</span>
           <div style="font-size:9px;font-weight:600;color:#9aa5b8;margin-top:2px;">(If Needed)</div>
         </div>
       </div>
