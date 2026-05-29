@@ -1962,7 +1962,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
     // ── SECTION 4: Live Results ─────────────────────────────────────────
     const hasResults = bracketMatches.some(m => m.status === 'completed');
     if (hasResults || tournament.status === 'completed') {
-      const resultBody = `<div style="padding:12px 20px 16px;">${tRenderStandings(standings, cat.name)}</div>`;
+      const resultBody = `<div style="padding:12px 20px 16px;">${standings ? tRenderStandings(standings, cat.name) : ''}</div>`;
       html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;">
         ${sectionHdr(4, 'Live Results', null, '', false)}
         ${resultBody}
@@ -2052,6 +2052,7 @@ function renderGroupedRR(groupViews, tMap, tournament, cat) {
 }
 
 function tRenderStandings(standings, catName) {
+  if (!standings) return '';
   const singlesMode = isSingles(catName);
 
   // ── Mini summary data ─────────────────────────────────────────────────
