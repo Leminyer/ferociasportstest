@@ -1067,7 +1067,7 @@ async function completeTournamentFromList(id) {
     <!-- Confirmation checkbox -->
     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:18px;">
       <input type="checkbox" id="t-complete-confirm-chk" style="margin-top:2px;width:15px;height:15px;cursor:pointer;accent-color:#174CCC;flex-shrink:0;">
-      <label for="t-complete-confirm-chk" style="font-size:12px;font-weight:600;color:#0d1f4a;cursor:pointer;line-height:1.5;display:flex;align-items:flex-start;gap:6px;"><span>☐</span><span>I understand that tournament results will be locked.</span></label>
+      <label for="t-complete-confirm-chk" style="font-size:12px;font-weight:600;color:#0d1f4a;cursor:pointer;line-height:1.5;">I understand that tournament results will be locked.</label>
     </div>
 
     <!-- Button -->
