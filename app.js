@@ -4186,38 +4186,58 @@ window.selectLadderType = (type) => {
     // ── Fetch all data fresh ──────────────────────────────────────────────
     const [
       allMatches, ladderPlayerRows, allLadders,
-      tournamentTeams, allTournaments, bracketMatches
+      myTournTeams, allTournaments, allBracketMatches
     ] = await Promise.all([
-      api(`matches?player_id=eq.${id}&select=*&order=session_date.desc`).catch(() => []),
+      api(`matches?player_id=eq.${id}&select=*,players(first_name,last_name)&order=session_date.desc`).catch(() => []),
       api(`ladder_players?player_id=eq.${id}&select=*`).catch(() => []),
-      api(`ladders?select=*`).catch(() => []),
-      api(`tournament_teams?select=*`).catch(() => []),
-      api(`tournaments?select=*`).catch(() => []),
-      api(`tournament_bracket_matches?select=*,tournament_categories(name,tournament_id)`).catch(() => []),
+      api(`ladders?select=id,name,season`).catch(() => []),
+      api(`tournament_teams?player1_id=eq.${id}&select=id,category_id,tournament_id,name`).catch(() => [])
+        .then(async r1 => {
+          const r2 = await api(`tournament_teams?player2_id=eq.${id}&select=id,category_id,tournament_id,name`).catch(() => []);
+          const r3 = await api(`tournament_teams?player3_id=eq.${id}&select=id,category_id,tournament_id,name`).catch(() => []);
+          const r4 = await api(`tournament_teams?player4_id=eq.${id}&select=id,category_id,tournament_id,name`).catch(() => []);
+          const all = [...r1,...r2,...r3,...r4];
+          return [...new Map(all.map(x=>[x.id,x])).values()];
+        }),
+      api(`tournaments?select=id,name,date`).catch(() => []),
+      api(`tournament_bracket_matches?select=id,category_id,round_name,status,winner_id,team_a_id,team_b_id,tournament_categories(id,name,tournament_id)`).catch(() => []),
     ]);
 
-    const playedMatches = allMatches.filter(m => !m.default_no_show && m.score_for !== null && m.score_against !== null);
-    const totalPlayed   = playedMatches.length;
-    const totalWins     = playedMatches.filter(m => m.score_for > m.score_against).length;
-    const totalLosses   = totalPlayed - totalWins;
-    const winPct        = totalPlayed > 0 ? Math.round(totalWins / totalPlayed * 100) : 0;
+    // ── Ladder stats (from matches table) ─────────────────────────────────
+    const ladderMatches  = allMatches.filter(m => !m.default_no_show && m.score_for !== null && m.score_against !== null);
+    const ladderWins     = ladderMatches.filter(m => m.score_for > m.score_against).length;
+    const ladderLosses   = ladderMatches.length - ladderWins;
+    const ladderPlayed   = ladderMatches.length;
 
-    // Ladder seasons
-    const ladderIds     = [...new Set(ladderPlayerRows.map(lp => lp.ladder_id))];
-    const myLadders     = allLadders.filter(l => ladderIds.includes(l.id));
+    // ── Ladder seasons ────────────────────────────────────────────────────
+    const ladderIds  = [...new Set(ladderPlayerRows.map(lp => lp.ladder_id))];
+    const myLadders  = allLadders.filter(l => ladderIds.includes(l.id));
 
-    // Tournament participation
-    const myTournTeams  = tournamentTeams.filter(tt =>
-      [tt.player1_id, tt.player2_id, tt.player3_id, tt.player4_id].includes(id)
+    // ── Tournament participation ──────────────────────────────────────────
+    const myTeamIds  = myTournTeams.map(tt => tt.id);
+    const myCatIds   = [...new Set(myTournTeams.map(tt => tt.category_id).filter(Boolean))];
+    const myTournamentIds = [...new Set([
+      ...myTournTeams.map(tt => tt.tournament_id).filter(Boolean),
+      ...allBracketMatches
+        .filter(bm => myCatIds.includes(bm.category_id))
+        .map(bm => bm.tournament_categories?.tournament_id).filter(Boolean)
+    ])];
+    const myTournaments = allTournaments.filter(t => myTournamentIds.includes(t.id));
+
+    // ── Tournament bracket stats ──────────────────────────────────────────
+    // Bracket matches where player's team played
+    const myBracketMatches = allBracketMatches.filter(bm =>
+      bm.status === 'completed' &&
+      (myTeamIds.includes(bm.team_a_id) || myTeamIds.includes(bm.team_b_id))
     );
-    const myTournIds    = [...new Set(myTournTeams.map(tt => tt.category_id
-      ? null : tt.tournament_id).filter(Boolean))];
-    // Get unique tournaments via category lookup
-    const myCatIds      = [...new Set(myTournTeams.map(tt => tt.category_id).filter(Boolean))];
-    const myTournaments = allTournaments.filter(t =>
-      myTournIds.includes(t.id) ||
-      bracketMatches.some(bm => bm.tournament_categories?.tournament_id === t.id && myCatIds.includes(bm.category_id))
-    );
+    const tournWins   = myBracketMatches.filter(bm => myTeamIds.includes(bm.winner_id)).length;
+    const tournLosses = myBracketMatches.length - tournWins;
+
+    // ── Overall combined stats ────────────────────────────────────────────
+    const totalWins   = ladderWins + tournWins;
+    const totalLosses = ladderLosses + tournLosses;
+    const totalPlayed = ladderPlayed + myBracketMatches.length;
+    const winPct      = totalPlayed > 0 ? Math.round(totalWins / totalPlayed * 100) : 0;
 
     // Quick stats for header
     document.getElementById('ppm-qs').innerHTML = [
@@ -4228,7 +4248,7 @@ window.selectLadderType = (type) => {
     ].join('');
 
     // ── Streak & last 10 ─────────────────────────────────────────────────
-    const orderedResults = playedMatches.map(m => m.score_for > m.score_against ? 'W' : 'L');
+    const orderedResults = ladderMatches.map(m => m.score_for > m.score_against ? 'W' : 'L');
     let streak = 0, streakType = '';
     if (orderedResults.length) {
       streakType = orderedResults[0];
@@ -4237,7 +4257,7 @@ window.selectLadderType = (type) => {
         else break;
       }
     }
-    const last10 = orderedResults.slice(0, 10);
+    const last10 = orderedResults.slice(0, 10); // from ladderMatches ordered newest first
     const last10W = last10.filter(r => r==='W').length;
     const last10L = last10.length - last10W;
 
@@ -4245,7 +4265,7 @@ window.selectLadderType = (type) => {
     const finishLabel = (bm) => {
       if (!bm) return '';
       if (bm.round_name === 'Final') {
-        const won = bm.winner_id && myTournTeams.some(tt => tt.id === bm.winner_id);
+        const won = bm.winner_id && myTeamIds.includes(bm.winner_id);
         return won ? '<span class="ppm-hbadge ppm-hb-gold">🥇 Champion</span>' : '<span class="ppm-hbadge ppm-hb-blue">🥈 Runner Up</span>';
       }
       if (bm.round_name?.toLowerCase().includes('semi')) return '<span class="ppm-hbadge ppm-hb-gray">Semifinalist</span>';
@@ -4254,9 +4274,9 @@ window.selectLadderType = (type) => {
 
     const tournHistHTML = myTournaments.length
       ? myTournaments.map(t => {
-          const lastBm = bracketMatches.filter(bm =>
+          const lastBm = allBracketMatches.filter(bm =>
             bm.tournament_categories?.tournament_id === t.id &&
-            myTournTeams.some(tt => tt.id === bm.team_a_id || tt.id === bm.team_b_id) &&
+            (myTeamIds.includes(bm.team_a_id) || myTeamIds.includes(bm.team_b_id)) &&
             bm.status === 'completed'
           ).slice(-1)[0];
           return `<div class="ppm-hist-row">
@@ -4286,22 +4306,21 @@ window.selectLadderType = (type) => {
 
     // ── Achievements ──────────────────────────────────────────────────────
     const badges = [];
-    if (myTournaments.some(t => bracketMatches.some(bm =>
-      bm.tournament_categories?.tournament_id === t.id &&
+    if (allBracketMatches.some(bm =>
       bm.round_name === 'Final' && bm.status === 'completed' &&
-      myTournTeams.some(tt => tt.id === bm.winner_id)
-    ))) badges.push({ icon:'🏆', label:'Champion', bg:'rgba(246,166,35,0.08)', border:'rgba(246,166,35,0.3)', color:'#9a6200' });
+      myTeamIds.includes(bm.winner_id)
+    )) badges.push({ icon:'🏆', label:'Champion', bg:'rgba(246,166,35,0.08)', border:'rgba(246,166,35,0.3)', color:'#9a6200' });
 
     if (streak >= 5 && streakType === 'W') badges.push({ icon:'🔥', label:`${streak} Win Streak`, bg:'rgba(242,96,36,0.06)', border:'rgba(242,96,36,0.2)', color:'#F26024' });
     else if (streak >= 3 && streakType === 'W') badges.push({ icon:'🔥', label:`${streak} Win Streak`, bg:'rgba(242,96,36,0.06)', border:'rgba(242,96,36,0.2)', color:'#F26024' });
 
-    if (myTournaments.some(t => bracketMatches.some(bm =>
-      bm.tournament_categories?.tournament_id === t.id &&
+    if (allBracketMatches.some(bm =>
       bm.round_name === 'Final' && bm.status === 'completed' &&
-      myTournTeams.some(tt => (tt.id === bm.team_a_id || tt.id === bm.team_b_id) && tt.id !== bm.winner_id)
-    ))) badges.push({ icon:'🥈', label:'Runner Up', bg:'#e8f0ff', border:'#c5d6f5', color:'#174CCC' });
+      (myTeamIds.includes(bm.team_a_id) || myTeamIds.includes(bm.team_b_id)) &&
+      !myTeamIds.includes(bm.winner_id)
+    )) badges.push({ icon:'🥈', label:'Runner Up', bg:'#e8f0ff', border:'#c5d6f5', color:'#174CCC' });
 
-    if (winPct >= 70 && totalPlayed >= 10) badges.push({ icon:'⚡', label:'Top Performer', bg:'rgba(36,188,150,0.08)', border:'rgba(36,188,150,0.25)', color:'#085041' });
+    if (winPct >= 70 && (ladderPlayed + myBracketMatches.length) >= 10) badges.push({ icon:'⚡', label:'Top Performer', bg:'rgba(36,188,150,0.08)', border:'rgba(36,188,150,0.25)', color:'#085041' });
     if (myLadders.length >= 3) badges.push({ icon:'🎯', label:'Ladder Veteran', bg:'#f8f9ff', border:'#e0e7f5', color:'#6b7a99' });
     if (myTournaments.length >= 5) badges.push({ icon:'👑', label:'Season Regular', bg:'rgba(123,47,190,0.07)', border:'rgba(123,47,190,0.2)', color:'#7B2FBE' });
 
@@ -4311,9 +4330,10 @@ window.selectLadderType = (type) => {
 
     // ── Activity timeline ─────────────────────────────────────────────────
     const fmtShort = (d) => { if (!d) return ''; const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('en-US', {month:'short', day:'numeric'}); };
-    const timelineHTML = playedMatches.slice(0, 8).map(m => {
+    const timelineHTML = ladderMatches.slice(0, 8).map(m => {
       const won = m.score_for > m.score_against;
       const dotColor = won ? '#24BC96' : '#F26024';
+      const oppName = m.players ? `${m.players.first_name} ${m.players.last_name}` : 'Opponent';
       const scoreStr = won
         ? `<span style="color:#24BC96;font-weight:800;">${m.score_for}–${m.score_against}</span>`
         : `<span style="color:#F26024;font-weight:800;">${m.score_for}–${m.score_against}</span>`;
@@ -4321,8 +4341,8 @@ window.selectLadderType = (type) => {
         <div class="ppm-tl-date">${fmtShort(m.session_date)}</div>
         <div class="ppm-tl-dot" style="background:${dotColor};"></div>
         <div>
-          <div class="ppm-tl-text">${won?'Won':'Lost'} ${scoreStr}</div>
-          <div class="ppm-tl-ctx">${esc(m.opponent_name||'Ladder match')}</div>
+          <div class="ppm-tl-text">${won?'Won':'Lost'} vs ${esc(oppName)} ${scoreStr}</div>
+          <div class="ppm-tl-ctx">Ladder match</div>
         </div>
       </div>`;
     }).join('') || '<div style="padding:8px 0;font-size:12px;font-weight:600;color:#6b7a99;">No activity yet.</div>';
@@ -4350,7 +4370,7 @@ window.selectLadderType = (type) => {
           <div class="ppm-snap-grid">
             <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#174CCC;">${myTournaments.length}</div><div class="ppm-snap-lbl">Tournaments</div></div>
             <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#174CCC;">${myLadders.length}</div><div class="ppm-snap-lbl">Ladder Seasons</div></div>
-            <div class="ppm-snap-card"><div class="ppm-snap-val">${totalPlayed}</div><div class="ppm-snap-lbl">Matches Played</div></div>
+            <div class="ppm-snap-card"><div class="ppm-snap-val">${ladderPlayed + myBracketMatches.length}</div><div class="ppm-snap-lbl">Matches Played</div></div>
             <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#24BC96;">${winPct}%</div><div class="ppm-snap-lbl">Win %</div></div>
             <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#24BC96;">${totalWins}</div><div class="ppm-snap-lbl">Total Wins</div></div>
             <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#F26024;">${totalLosses}</div><div class="ppm-snap-lbl">Total Losses</div></div>
@@ -4395,12 +4415,13 @@ window.selectLadderType = (type) => {
           <div class="ppm-career-grid">
             <div class="ppm-career-card">
               <div class="ppm-career-lbl">Tournament Record</div>
-              <div class="ppm-career-val">${myTournaments.length ? totalWins + 'W – ' + totalLosses + 'L' : '—'}</div>
+              <div class="ppm-career-val">${myBracketMatches.length ? tournWins + 'W – ' + tournLosses + 'L' : '—'}</div>
+              ${myBracketMatches.length ? `<div class="ppm-career-sub" style="color:${tournWins/myBracketMatches.length>=0.5?'#24BC96':'#F26024'};">${Math.round(tournWins/myBracketMatches.length*100)}% win rate</div>` : ''}
             </div>
             <div class="ppm-career-card">
               <div class="ppm-career-lbl">Ladder Record</div>
-              <div class="ppm-career-val">${totalWins}W – ${totalLosses}L</div>
-              <div class="ppm-career-sub" style="color:${winPct>=50?'#174CCC':'#F26024'};">${winPct}% win rate</div>
+              <div class="ppm-career-val">${ladderPlayed ? ladderWins + 'W – ' + ladderLosses + 'L' : '—'}</div>
+              ${ladderPlayed ? `<div class="ppm-career-sub" style="color:${ladderWins/ladderPlayed>=0.5?'#174CCC':'#F26024'};">${Math.round(ladderWins/ladderPlayed*100)}% win rate</div>` : ''}
             </div>
             <div class="ppm-career-card">
               <div class="ppm-career-lbl">Overall Record</div>
@@ -4409,7 +4430,7 @@ window.selectLadderType = (type) => {
             </div>
             <div class="ppm-career-card">
               <div class="ppm-career-lbl">Points Earned</div>
-              <div class="ppm-career-val" style="color:#174CCC;">${playedMatches.reduce((s,m)=>s+(m.points_earned||0),0)}</div>
+              <div class="ppm-career-val" style="color:#174CCC;">${ladderMatches.reduce((s,m)=>s+(m.points_earned||0),0)}</div>
             </div>
             <div class="ppm-career-card">
               <div class="ppm-career-lbl">Best Finish</div>
