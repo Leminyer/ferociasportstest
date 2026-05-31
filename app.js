@@ -4187,7 +4187,7 @@ window.selectLadderType = (type) => {
     const [allMatches, ladderPlayerRows, allLadders, allTournaments, allCategories] = await Promise.all([
       api(`matches?player_id=eq.${id}&select=*,players(first_name,last_name)&order=session_date.desc`).catch(() => []),
       api(`ladder_players?player_id=eq.${id}&select=*`).catch(() => []),
-      api(`ladders?select=id,name,season`).catch(() => []),
+      api(`ladders?select=id,name`).catch(() => []),
       api(`tournaments?select=id,name,date`).catch(() => []),
       api(`tournament_categories?select=id,name,tournament_id`).catch(() => []),
     ]);
@@ -4294,14 +4294,15 @@ window.selectLadderType = (type) => {
     // ── Ladder history ────────────────────────────────────────────────────
     const ladderHistHTML = myLadders.length
       ? myLadders.map(l => {
-          const lp = ladderPlayerRows.find(r => r.ladder_id === l.id);
-          const rank = lp?.final_rank ? `<span style="font-size:16px;font-weight:800;color:#174CCC;">#${lp.final_rank}</span>` : '<span style="font-size:11px;font-weight:600;color:#6b7a99;">In progress</span>';
+          const lp   = ladderPlayerRows.find(r => r.ladder_id === l.id);
+          const stat = lp?.status === 'sub' ? '<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:#f0f2f8;color:#6b7a99;">Sub</span>'
+                     : lp?.status === 'active' ? '<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(36,188,150,0.12);color:#085041;">Active</span>'
+                     : '<span style="font-size:11px;font-weight:600;color:#6b7a99;">Enrolled</span>';
           return `<div class="ppm-hist-row">
             <div>
               <div class="ppm-hist-name">${esc(l.name)}</div>
-              <div class="ppm-hist-sub">${l.season || ''}</div>
             </div>
-            ${rank}
+            ${stat}
           </div>`;
         }).join('')
       : '<div style="padding:16px;font-size:12px;font-weight:600;color:#6b7a99;">No ladder history yet.</div>';
