@@ -4328,37 +4328,54 @@ window.selectLadderType = (type) => {
       ? badges.map(b => `<span class="ppm-bdg" style="background:${b.bg};border-color:${b.border};color:${b.color};">${b.icon} ${b.label}</span>`).join('')
       : '<span style="font-size:12px;font-weight:600;color:#6b7a99;">No achievements yet — keep playing!</span>';
 
-    // ── Activity timeline — find opponent via same court_group+game+date ────
+    // ── Activity timeline ─────────────────────────────────────────────────
     const fmtShort = (d) => { if (!d) return ''; const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('en-US', {month:'short', day:'numeric'}); };
     const recent8 = ladderMatches.slice(0, 8);
-    // Fetch sibling match rows (same game slot, different player) to get opponent names
-    let opponentMap = {}; // matchId -> opponentName
+    let opponentMap = {}; // matchId -> "Name & Name"
+
     if (recent8.length) {
-      const filters = recent8.map(m =>
-        `(session_date.eq.${m.session_date},court_group.eq.${m.court_group},game_number.eq.${m.game_number},ladder_id.eq.${m.ladder_id})`
-      );
-      // Fetch all players in same slots, excluding the current player
       try {
-        const siblingMatches = await api(
-          `matches?player_id=neq.${id}&select=player_id,session_date,court_group,game_number,ladder_id,players(first_name,last_name)&session_date=in.(${[...new Set(recent8.map(m=>m.session_date))].join(',')})&ladder_id=in.(${[...new Set(recent8.map(m=>m.ladder_id))].join(',')})`
+        // Fetch all sibling rows in same game slots (different player)
+        const uniqDates   = [...new Set(recent8.map(m => m.session_date))];
+        const uniqLadders = [...new Set(recent8.map(m => m.ladder_id))];
+        const siblings = await api(
+          `matches?player_id=neq.${id}&session_date=in.(${uniqDates.join(',')})&ladder_id=in.(${uniqLadders.join(',')})&select=id,player_id,session_date,court_group,game_number,ladder_id,score_for,score_against`
         );
+
+        // Fetch player names for all unique player_ids in siblings
+        const sibPlayerIds = [...new Set(siblings.map(s => s.player_id).filter(Boolean))];
+        let playerNameMap = {};
+        if (sibPlayerIds.length) {
+          const playerRows = await api(`players?id=in.(${sibPlayerIds.join(',')})&select=id,first_name,last_name`);
+          playerRows.forEach(p => { playerNameMap[p.id] = `${p.first_name} ${p.last_name}`; });
+        }
+
+        // For each of our matches, find opponents:
+        // Opponents have same slot but OPPOSITE score (their score_for = our score_against)
         recent8.forEach(m => {
-          const sib = siblingMatches.find(s =>
+          const slotSibs = siblings.filter(s =>
             s.session_date === m.session_date &&
             s.court_group  === m.court_group  &&
             s.game_number  === m.game_number  &&
             s.ladder_id    === m.ladder_id
           );
-          if (sib?.players) {
-            opponentMap[m.id] = `${sib.players.first_name} ${sib.players.last_name}`;
+          // Opponents: their score_for equals our score_against
+          const opponents = slotSibs.filter(s => s.score_for === m.score_against);
+          if (opponents.length) {
+            opponentMap[m.id] = opponents.map(s => playerNameMap[s.player_id] || `#${s.player_id}`).join(' & ');
+          } else {
+            // Fallback: just use all siblings if score matching fails
+            const names = slotSibs.slice(0,2).map(s => playerNameMap[s.player_id] || `#${s.player_id}`);
+            if (names.length) opponentMap[m.id] = names.join(' & ');
           }
         });
       } catch(e) {}
     }
+
     const timelineHTML = recent8.map(m => {
       const won = m.score_for > m.score_against;
       const dotColor = won ? '#24BC96' : '#F26024';
-      const oppName = opponentMap[m.id] || 'Opponent';
+      const oppName  = opponentMap[m.id] || 'Opponent';
       const scoreStr = won
         ? `<span style="color:#24BC96;font-weight:800;">${m.score_for}–${m.score_against}</span>`
         : `<span style="color:#F26024;font-weight:800;">${m.score_for}–${m.score_against}</span>`;
