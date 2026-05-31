@@ -4184,48 +4184,49 @@ window.selectLadderType = (type) => {
     document.getElementById('ppm-footer-info').textContent = `Player ID #${p.id}${p.date_joined ? ' · Joined ' + fmtDate(p.date_joined) : ''}`;
 
     // ── Fetch all data fresh ──────────────────────────────────────────────
-    const [
-      allMatches, ladderPlayerRows, allLadders,
-      myTournTeams, allTournaments, allBracketMatches
-    ] = await Promise.all([
+    const [allMatches, ladderPlayerRows, allLadders, allTournaments, allCategories] = await Promise.all([
       api(`matches?player_id=eq.${id}&select=*,players(first_name,last_name)&order=session_date.desc`).catch(() => []),
       api(`ladder_players?player_id=eq.${id}&select=*`).catch(() => []),
       api(`ladders?select=id,name,season`).catch(() => []),
-      api(`tournament_teams?player1_id=eq.${id}&select=id,category_id,tournament_id,name`).catch(() => [])
-        .then(async r1 => {
-          const r2 = await api(`tournament_teams?player2_id=eq.${id}&select=id,category_id,tournament_id,name`).catch(() => []);
-          const r3 = await api(`tournament_teams?player3_id=eq.${id}&select=id,category_id,tournament_id,name`).catch(() => []);
-          const r4 = await api(`tournament_teams?player4_id=eq.${id}&select=id,category_id,tournament_id,name`).catch(() => []);
-          const all = [...r1,...r2,...r3,...r4];
-          return [...new Map(all.map(x=>[x.id,x])).values()];
-        }),
       api(`tournaments?select=id,name,date`).catch(() => []),
-      api(`tournament_bracket_matches?select=id,category_id,round_name,status,winner_id,team_a_id,team_b_id,tournament_categories(id,name,tournament_id)`).catch(() => []),
+      api(`tournament_categories?select=id,name,tournament_id`).catch(() => []),
     ]);
 
-    // ── Ladder stats (from matches table) ─────────────────────────────────
-    const ladderMatches  = allMatches.filter(m => !m.default_no_show && m.score_for !== null && m.score_against !== null);
-    const ladderWins     = ladderMatches.filter(m => m.score_for > m.score_against).length;
-    const ladderLosses   = ladderMatches.length - ladderWins;
-    const ladderPlayed   = ladderMatches.length;
+    // ── Ladder stats ──────────────────────────────────────────────────────
+    const ladderMatches = allMatches.filter(m => !m.default_no_show && m.score_for !== null && m.score_against !== null);
+    const ladderWins    = ladderMatches.filter(m => m.score_for > m.score_against).length;
+    const ladderLosses  = ladderMatches.length - ladderWins;
+    const ladderPlayed  = ladderMatches.length;
 
     // ── Ladder seasons ────────────────────────────────────────────────────
-    const ladderIds  = [...new Set(ladderPlayerRows.map(lp => lp.ladder_id))];
-    const myLadders  = allLadders.filter(l => ladderIds.includes(l.id));
+    const ladderIds = [...new Set(ladderPlayerRows.map(lp => lp.ladder_id))];
+    const myLadders = allLadders.filter(l => ladderIds.includes(l.id));
 
     // ── Tournament participation ──────────────────────────────────────────
-    const myTeamIds  = myTournTeams.map(tt => tt.id);
-    const myCatIds   = [...new Set(myTournTeams.map(tt => tt.category_id).filter(Boolean))];
-    const myTournamentIds = [...new Set([
-      ...myTournTeams.map(tt => tt.tournament_id).filter(Boolean),
-      ...allBracketMatches
-        .filter(bm => myCatIds.includes(bm.category_id))
-        .map(bm => bm.tournament_categories?.tournament_id).filter(Boolean)
-    ])];
+    // Fetch all teams for all categories, filter client-side (RLS blocks player_id filters)
+    const allCatIds = allCategories.map(c => c.id);
+    let allTeams = [], allBracketMatches = [];
+    if (allCatIds.length) {
+      [allTeams, allBracketMatches] = await Promise.all([
+        api(`tournament_teams?category_id=in.(${allCatIds.join(',')})&select=id,category_id,name,player1_id,player2_id,player3_id,player4_id`).catch(() => []),
+        api(`tournament_bracket_matches?category_id=in.(${allCatIds.join(',')})&select=id,category_id,round_name,status,winner_id,team_a_id,team_b_id`).catch(() => []),
+      ]);
+    }
+
+    // Find teams this player belongs to
+    const myTournTeams = allTeams.filter(tt =>
+      [tt.player1_id, tt.player2_id, tt.player3_id, tt.player4_id].includes(id)
+    );
+    const myTeamIds = myTournTeams.map(tt => tt.id);
+    const myCatIds  = [...new Set(myTournTeams.map(tt => tt.category_id).filter(Boolean))];
+
+    // Find tournaments player participated in
+    const myTournamentIds = [...new Set(
+      allCategories.filter(c => myCatIds.includes(c.id)).map(c => c.tournament_id)
+    )];
     const myTournaments = allTournaments.filter(t => myTournamentIds.includes(t.id));
 
     // ── Tournament bracket stats ──────────────────────────────────────────
-    // Bracket matches where player's team played
     const myBracketMatches = allBracketMatches.filter(bm =>
       bm.status === 'completed' &&
       (myTeamIds.includes(bm.team_a_id) || myTeamIds.includes(bm.team_b_id))
@@ -4274,8 +4275,9 @@ window.selectLadderType = (type) => {
 
     const tournHistHTML = myTournaments.length
       ? myTournaments.map(t => {
-          const lastBm = allBracketMatches.filter(bm =>
-            bm.tournament_categories?.tournament_id === t.id &&
+          const tCatIds = allCategories.filter(c => c.tournament_id === t.id).map(c => c.id);
+          const lastBm  = allBracketMatches.filter(bm =>
+            tCatIds.includes(bm.category_id) &&
             (myTeamIds.includes(bm.team_a_id) || myTeamIds.includes(bm.team_b_id)) &&
             bm.status === 'completed'
           ).slice(-1)[0];
@@ -4306,18 +4308,15 @@ window.selectLadderType = (type) => {
 
     // ── Achievements ──────────────────────────────────────────────────────
     const badges = [];
-    if (allBracketMatches.some(bm =>
-      bm.round_name === 'Final' && bm.status === 'completed' &&
-      myTeamIds.includes(bm.winner_id)
+    if (myBracketMatches.some(bm =>
+      bm.round_name === 'Final' && myTeamIds.includes(bm.winner_id)
     )) badges.push({ icon:'🏆', label:'Champion', bg:'rgba(246,166,35,0.08)', border:'rgba(246,166,35,0.3)', color:'#9a6200' });
 
     if (streak >= 5 && streakType === 'W') badges.push({ icon:'🔥', label:`${streak} Win Streak`, bg:'rgba(242,96,36,0.06)', border:'rgba(242,96,36,0.2)', color:'#F26024' });
     else if (streak >= 3 && streakType === 'W') badges.push({ icon:'🔥', label:`${streak} Win Streak`, bg:'rgba(242,96,36,0.06)', border:'rgba(242,96,36,0.2)', color:'#F26024' });
 
-    if (allBracketMatches.some(bm =>
-      bm.round_name === 'Final' && bm.status === 'completed' &&
-      (myTeamIds.includes(bm.team_a_id) || myTeamIds.includes(bm.team_b_id)) &&
-      !myTeamIds.includes(bm.winner_id)
+    if (myBracketMatches.some(bm =>
+      bm.round_name === 'Final' && !myTeamIds.includes(bm.winner_id)
     )) badges.push({ icon:'🥈', label:'Runner Up', bg:'#e8f0ff', border:'#c5d6f5', color:'#174CCC' });
 
     if (winPct >= 70 && (ladderPlayed + myBracketMatches.length) >= 10) badges.push({ icon:'⚡', label:'Top Performer', bg:'rgba(36,188,150,0.08)', border:'rgba(36,188,150,0.25)', color:'#085041' });
