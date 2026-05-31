@@ -622,6 +622,7 @@ async function renderTournamentList() {
     const tRR       = rrByT[t.id]       || [];
     const tBracket  = bracketByT[t.id]  || [];
     const dis = isClosed ? 'disabled style="opacity:0.35;cursor:not-allowed;"' : '';
+    const statusBorder = t.status === 'active' ? '#24BC96' : t.status === 'draft' ? '#b0bbd6' : '#174CCC';
 
     // Build team id→name map for this tournament
     const tTeamMap = {};
@@ -706,7 +707,7 @@ async function renderTournamentList() {
       ? tCats.map(c => `<span class="t-op-cat-pill">${tEsc(c.name)}</span>`).join('')
       : '<span style="font-size:11px;font-weight:600;color:#b0bbd6;">No categories yet</span>';
     return `
-    <div class="t-op-card" id="t-op-card-${t.id}">
+    <div class="t-op-card" id="t-op-card-${t.id}" style="border-left:4px solid ${statusBorder};">
       <!-- Tabs -->
       <div class="t-op-tabs">
         <button class="t-op-tab active" onclick="tOpTab(event,${t.id},'overview')">${ovSVG} Overview</button>
@@ -761,7 +762,7 @@ async function renderTournamentList() {
           <div class="t-op-action-title">Actions</div>
           <button class="t-op-btn" onclick="openTournament(${t.id})">${openSVG} Open Tournament</button>
           <button class="t-op-btn" onclick="tEditTournament(${t.id})" ${dis}>${editSVG} Edit</button>
-          <button class="t-op-btn ${t.status === 'active' ? 't-op-btn-warn' : ''}" onclick="tToggleStatus(${t.id},'${t.status}')" ${dis}>
+          <button class="t-op-btn ${t.status === 'active' ? 't-op-btn-warn' : ''}" onclick="tToggleStatus(${t.id},'${t.status}')" ${t.status === 'completed' ? '' : dis}>
             ${t.status === 'active'
               ? closeSVG + ' Close'
               : t.status === 'draft'
@@ -1456,7 +1457,7 @@ function renderTournamentDetail(t, categories) {
 
   // Start Tournament button — disabled until active
   const canStart = t.status === 'draft';
-  const startBtnHTML = `
+  const startBtnHTML = t.status === 'completed' ? '' : `
     <button id="td-start-btn"
       onclick="${t.status === 'draft' ? `startTournament(${t.id})` : `completeTournament(${t.id})`}"
       style="display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border:none;border-radius:99px;

@@ -423,14 +423,11 @@ window.selectLadderType = (type) => {
     const sel = document.getElementById('tournament-selector');
     if (!sel) return;
     try {
-      const tournaments = await api('tournaments?select=*&order=id.desc');
+      const tournaments = await api('tournaments?status=eq.active&select=*&order=id.desc');
       sel.innerHTML =
         '<option value="">-- Select a tournament --</option>' +
         tournaments
-          .map(
-            (t) =>
-              `<option value="${t.id}">${esc(t.name)}${t.status === 'completed' ? ' (completed)' : ''}</option>`,
-          )
+          .map((t) => `<option value="${t.id}">${esc(t.name)}</option>`)
           .join('');
     } catch (e) {
       toast(`Error loading tournaments: ${e.message}`, true);
