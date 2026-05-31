@@ -764,7 +764,7 @@ async function renderTournamentList() {
           <button class="t-op-btn" onclick="tEditTournament(${t.id})" ${dis}>${editSVG} Edit</button>
           <button class="t-op-btn ${t.status === 'active' ? 't-op-btn-warn' : ''}" onclick="tToggleStatus(${t.id},'${t.status}')" ${t.status === 'completed' ? '' : dis}>
             ${t.status === 'active'
-              ? closeSVG + ' Close'
+              ? closeSVG + ' Complete'
               : t.status === 'draft'
                 ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Activate`
                 : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg> Reopen`}
@@ -982,27 +982,128 @@ async function completeTournamentFromList(id) {
     openTModal();
     return;
   }
-  document.getElementById('t-modal-title').textContent = 'Complete Tournament';
+  // Fetch tournament details for context
+  const [tournament] = await tApi(`tournaments?id=eq.${id}&select=*`);
+  const tName = tEsc(tournament?.name || 'Tournament');
+  const tDate = tournament?.date ? new Date(tournament.date + 'T00:00:00').toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }) : '';
+  // Compute summary from already-fetched validation data
+  const totalTeams   = validations.reduce((s, v) => s + v.teams.length, 0);
+  const totalMatches = validations.reduce((s, v) => s + v.teams.length, 0); // placeholder; fetch real count
+  const [allRR, allBracket] = await Promise.all([
+    tApi(`tournament_rr_matches?tournament_id=eq.${id}&select=id`).catch(() => []),
+    tApi(`tournament_bracket_matches?tournament_id=eq.${id}&select=id`).catch(() => []),
+  ]);
+  const totalMatchCount = (allRR.length || 0) + (allBracket.length || 0);
+  // Champion: find completed finals
+  const finals = await tApi(`tournament_bracket_matches?tournament_id=eq.${id}&round_name=eq.Final&status=eq.completed&select=winner_id,tournament_teams(name)`).catch(() => []);
+  const champReady = finals.length > 0 && finals.every(f => f.winner_id);
+  const champLabel = champReady ? 'Ready' : 'Pending';
+
+  document.getElementById('t-modal-title').textContent = 'Complete & Lock Tournament';
+  // Add X close button to header
+  const hdr = document.getElementById('t-modal-header');
+  if (hdr && !document.getElementById('t-modal-close-x')) {
+    const xBtn = document.createElement('button');
+    xBtn.id = 't-modal-close-x';
+    xBtn.innerHTML = '✕';
+    xBtn.onclick = closeTModal;
+    xBtn.style.cssText = 'position:absolute;top:20px;right:20px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;color:#6b7a99;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;';
+    hdr.style.position = 'relative';
+    hdr.appendChild(xBtn);
+  }
+
   document.getElementById('t-modal-body').innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0 20px;">
-      <div style="width:52px;height:52px;border-radius:14px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+    <!-- Tournament context -->
+    <div style="padding:10px 14px;background:#f8f9ff;border-radius:10px;border:0.5px solid #e0e7f5;margin-bottom:18px;">
+      <div style="font-size:15px;font-weight:800;color:#0d1f4a;margin-bottom:2px;">${tName}</div>
+      ${tDate ? `<div style="font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:4px;">${tDate}</div>` : ''}
+      <div style="font-size:11px;font-weight:600;color:#6b7a99;">${validations.length} Categor${validations.length!==1?'ies':'y'} · ${totalTeams} Players</div>
+    </div>
+
+    <!-- Divider -->
+    <div style="border-top:0.5px solid #e0e7f5;margin-bottom:18px;"></div>
+
+    <!-- Trophy + description -->
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;">
+      <div style="width:36px;height:36px;border-radius:10px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
       </div>
-      <div style="font-size:15px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">Mark as Completed?</div>
-      <div style="font-size:13px;font-weight:600;color:#6b7a99;line-height:1.6;max-width:320px;">This will close the tournament and lock all results. No further edits will be possible.</div>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Tournament Completion</div>
+        <div style="font-size:12px;font-weight:600;color:#6b7a99;line-height:1.6;">This tournament will be marked as completed and moved to tournament history.<br>Results, standings, and brackets will become final.</div>
+      </div>
     </div>
-    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:rgba(242,96,36,0.06);border:0.5px solid rgba(242,96,36,0.25);border-radius:10px;margin-bottom:20px;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <span style="font-size:12px;font-weight:600;color:#F26024;line-height:1.5;">This action cannot be undone. Make sure all matches and scores are final before proceeding.</span>
+
+    <!-- Completion consequences — green milestone style -->
+    <div style="background:rgba(36,188,150,0.08);border-left:4px solid #24BC96;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:18px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#085041;margin-bottom:8px;">After completion:</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;display:flex;align-items:flex-start;gap:6px;"><span>✅</span><span>Final standings become official</span></div>
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;display:flex;align-items:flex-start;gap:6px;"><span>✅</span><span>Results remain visible to players</span></div>
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;display:flex;align-items:flex-start;gap:6px;"><span>✅</span><span>Tournament moves to completed tournaments</span></div>
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;display:flex;align-items:flex-start;gap:6px;"><span>🔒</span><span>Teams, brackets, and scores can no longer be edited — unless you reopen the tournament</span></div>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;">
-      <button type="button" onclick="closeTModal()" style="padding:9px 20px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;color:#0d1f4a;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Cancel</button>
-      <button type="button" onclick="confirmCompleteTournamentFromList(${id})" style="display:inline-flex;align-items:center;gap:6px;padding:9px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#24BC96,#1a9e7a);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+
+    <!-- Divider -->
+    <div style="border-top:0.5px solid #e0e7f5;margin-bottom:18px;"></div>
+
+    <!-- Tournament summary -->
+    <div style="margin-bottom:18px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:10px;">Tournament Summary</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="background:#f8f9ff;border-radius:8px;padding:8px 12px;">
+          <div style="font-size:18px;font-weight:800;color:#0d1f4a;">${validations.length}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:1px;">Categories</div>
+        </div>
+        <div style="background:#f8f9ff;border-radius:8px;padding:8px 12px;">
+          <div style="font-size:18px;font-weight:800;color:#0d1f4a;">${totalTeams}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:1px;">Teams</div>
+        </div>
+        <div style="background:#f8f9ff;border-radius:8px;padding:8px 12px;">
+          <div style="font-size:18px;font-weight:800;color:#0d1f4a;">${totalMatchCount}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:1px;">Matches</div>
+        </div>
+        <div style="background:#f8f9ff;border-radius:8px;padding:8px 12px;">
+          <div style="font-size:18px;font-weight:800;color:${champReady?'#24BC96':'#F26024'};">${champLabel}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:1px;">Champion(s)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation checkbox -->
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:18px;">
+      <input type="checkbox" id="t-complete-confirm-chk" style="margin-top:2px;width:15px;height:15px;cursor:pointer;accent-color:#174CCC;flex-shrink:0;">
+      <label for="t-complete-confirm-chk" style="font-size:12px;font-weight:600;color:#0d1f4a;cursor:pointer;line-height:1.5;">I understand that tournament results will be locked.</label>
+    </div>
+
+    <!-- Button -->
+    <div style="display:flex;justify-content:flex-end;">
+      <button type="button" id="t-finalize-btn" onclick="tCheckFinalizeConfirm(${id})" disabled
+        style="display:inline-flex;align-items:center;gap:6px;padding:10px 24px;border:none;border-radius:99px;background:#e0e7f5;color:#b0bbd6;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:not-allowed;transition:all .15s;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Complete Tournament
+        Finalize Tournament
       </button>
     </div>`;
+
+  // Wire checkbox to enable/disable button
+  document.getElementById('t-complete-confirm-chk')?.addEventListener('change', (e) => {
+    const btn = document.getElementById('t-finalize-btn');
+    if (btn) {
+      btn.disabled = !e.target.checked;
+      btn.style.background = e.target.checked ? 'linear-gradient(180deg,#24BC96,#1a9e7a)' : '#e0e7f5';
+      btn.style.color = e.target.checked ? 'white' : '#b0bbd6';
+      btn.style.cursor = e.target.checked ? 'pointer' : 'not-allowed';
+    }
+  });
+
   openTModal();
+}
+
+async function tCheckFinalizeConfirm(id) {
+  const chk = document.getElementById('t-complete-confirm-chk');
+  if (!chk?.checked) return;
+  await confirmCompleteTournamentFromList(id);
 }
 
 async function confirmCompleteTournamentFromList(id) {
@@ -4295,7 +4396,15 @@ function restoreScoreModal(title, body) {
 
 // ─── MODAL HELPERS ──────────────────────────────────────────
 function openTModal() { document.getElementById('t-modal').classList.add('t-modal-open'); }
-function closeTModal() { document.getElementById('t-modal').classList.remove('t-modal-open'); }
+function closeTModal() {
+  document.getElementById('t-modal').classList.remove('t-modal-open');
+  // Remove dynamically injected X button if present
+  const xBtn = document.getElementById('t-modal-close-x');
+  if (xBtn) xBtn.remove();
+  // Reset header position
+  const hdr = document.getElementById('t-modal-header');
+  if (hdr) hdr.style.position = '';
+}
 function tSetModalSubtitle(text) {
   const el = document.getElementById('t-modal-subtitle');
   if (!el) return;
