@@ -4268,18 +4268,100 @@ async function completeTournament(id) {
     openTModal();
     return;
   }
-  document.getElementById('t-modal-title').textContent = 'Complete Tournament';
+  // Fetch tournament for context
+  const [tournament] = await tApi(`tournaments?id=eq.${id}&select=*`);
+  const tName = tEsc(tournament?.name || 'Tournament');
+  const tDate = tournament?.date ? new Date(tournament.date + 'T00:00:00').toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }) : '';
+  const totalTeams = validations.reduce((s, v) => s + v.teams.length, 0);
+  const [allRR, allBracket] = await Promise.all([
+    tApi(`tournament_rr_matches?tournament_id=eq.${id}&select=id`).catch(() => []),
+    tApi(`tournament_bracket_matches?tournament_id=eq.${id}&select=id`).catch(() => []),
+  ]);
+  const totalMatchCount = (allRR.length || 0) + (allBracket.length || 0);
+  const catIds = validations.map(v => v.cat.id).join(',') || '0';
+  const finals = await tApi(`tournament_bracket_matches?category_id=in.(${catIds})&round_name=eq.Final&status=eq.completed&select=winner_id`).catch(() => []);
+  const champReady = finals.length > 0 && finals.every(f => f.winner_id);
+  const champLabel = champReady ? 'Ready' : 'Pending';
+
+  document.getElementById('t-modal-title').textContent = 'Complete & Lock Tournament';
+  const xBtnEl = document.getElementById('t-modal-close-x');
+  if (xBtnEl) xBtnEl.style.display = 'flex';
+
   document.getElementById('t-modal-body').innerHTML = `
-    <div style="padding:8px 0 24px;">
-      <p style="font-size:14px;color:#0d1f4a;line-height:1.6;">
-        Mark this tournament as completed? No further edits will be possible.
-      </p>
+    <div style="padding:10px 14px;background:#f8f9ff;border-radius:10px;border:0.5px solid #e0e7f5;margin-bottom:18px;">
+      <div style="font-size:15px;font-weight:800;color:#0d1f4a;margin-bottom:2px;">${tName}</div>
+      ${tDate ? `<div style="font-size:12px;font-weight:600;color:#6b7a99;margin-bottom:4px;">${tDate}</div>` : ''}
+      <div style="font-size:11px;font-weight:600;color:#6b7a99;">${validations.length} Categor${validations.length!==1?'ies':'y'} · ${totalTeams} Players</div>
     </div>
-    <div class="t-form-actions">
-      <button type="button" class="t-btn t-btn-ghost" onclick="closeTModal()">Cancel</button>
-      <button type="button" class="t-btn t-btn-success" onclick="confirmCompleteTournament(${id})">Complete</button>
+    <div style="border-top:0.5px solid #e0e7f5;margin-bottom:18px;"></div>
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;">
+      <div style="width:36px;height:36px;border-radius:10px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Tournament Completion</div>
+        <div style="font-size:12px;font-weight:600;color:#6b7a99;line-height:1.6;">This tournament will be marked as completed and moved to tournament history.<br>Results, standings, and brackets will become final.</div>
+      </div>
+    </div>
+    <div style="background:rgba(36,188,150,0.08);border-left:4px solid #24BC96;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:18px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#085041;margin-bottom:8px;">After completion:</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;display:flex;align-items:flex-start;gap:6px;"><span>✅</span><span>Final standings become official</span></div>
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;display:flex;align-items:flex-start;gap:6px;"><span>✅</span><span>Results remain visible to players</span></div>
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;display:flex;align-items:flex-start;gap:6px;"><span>✅</span><span>Tournament moves to completed tournaments</span></div>
+        <div style="font-size:12px;font-weight:600;color:#0d1f4a;display:flex;align-items:flex-start;gap:6px;"><span>🔒</span><span>Teams, brackets, and scores can no longer be edited — unless you reopen the tournament</span></div>
+      </div>
+    </div>
+    <div style="border-top:0.5px solid #e0e7f5;margin-bottom:18px;"></div>
+    <div style="margin-bottom:18px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:10px;">Tournament Summary</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="background:#f8f9ff;border-radius:8px;padding:8px 12px;">
+          <div style="font-size:18px;font-weight:800;color:#0d1f4a;">${validations.length}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:1px;">Categories</div>
+        </div>
+        <div style="background:#f8f9ff;border-radius:8px;padding:8px 12px;">
+          <div style="font-size:18px;font-weight:800;color:#0d1f4a;">${totalTeams}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:1px;">Teams</div>
+        </div>
+        <div style="background:#f8f9ff;border-radius:8px;padding:8px 12px;">
+          <div style="font-size:18px;font-weight:800;color:#0d1f4a;">${totalMatchCount}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:1px;">Matches</div>
+        </div>
+        <div style="background:#f8f9ff;border-radius:8px;padding:8px 12px;">
+          <div style="font-size:18px;font-weight:800;color:${champReady?'#24BC96':'#F26024'};">${champLabel}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7a99;margin-top:1px;">Champion(s)</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:18px;">
+      <input type="checkbox" id="t-complete-confirm-chk" style="margin-top:2px;width:15px;height:15px;cursor:pointer;accent-color:#174CCC;flex-shrink:0;">
+      <label for="t-complete-confirm-chk" style="font-size:12px;font-weight:600;color:#0d1f4a;cursor:pointer;line-height:1.5;">I understand that tournament results will be locked.</label>
+    </div>
+    <div style="display:flex;justify-content:flex-end;">
+      <button type="button" id="t-finalize-btn" onclick="tCheckFinalizeConfirmHub(${id})" disabled
+        style="display:inline-flex;align-items:center;gap:6px;padding:10px 24px;border:none;border-radius:99px;background:#e0e7f5;color:#b0bbd6;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:not-allowed;transition:all .15s;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Finalize Tournament
+      </button>
     </div>`;
+
+  document.getElementById('t-complete-confirm-chk')?.addEventListener('change', (e) => {
+    const btn = document.getElementById('t-finalize-btn');
+    if (btn) {
+      btn.disabled = !e.target.checked;
+      btn.style.background = e.target.checked ? 'linear-gradient(180deg,#24BC96,#1a9e7a)' : '#e0e7f5';
+      btn.style.color = e.target.checked ? 'white' : '#b0bbd6';
+      btn.style.cursor = e.target.checked ? 'pointer' : 'not-allowed';
+    }
+  });
   openTModal();
+}
+
+async function tCheckFinalizeConfirmHub(id) {
+  const chk = document.getElementById('t-complete-confirm-chk');
+  if (!chk?.checked) return;
+  await confirmCompleteTournament(id);
 }
 
 async function confirmCompleteTournament(id) {
