@@ -3662,7 +3662,12 @@ window.selectLadderType = (type) => {
           <td class="players-td" style="text-align:center;">${indHTML}</td>
           <td class="players-td" style="text-align:center;">${d.statusHTML}</td>
           <td class="players-td" style="text-align:center;">
-            <button class="sess-edit-btn" data-action="openEdit" data-pid="${p.id}" title="Edit player">${editSVG}</button>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <button class="ppm-profile-btn" data-action="openPlayerProfile" data-pid="${p.id}" title="View profile">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </button>
+              <button class="sess-edit-btn" data-action="openEdit" data-pid="${p.id}" title="Edit player">${editSVG}</button>
+            </div>
           </td>
         </tr>
         <tr id="${expandId}" class="player-expand-row" style="display:none;">
@@ -4142,6 +4147,304 @@ window.selectLadderType = (type) => {
     const wrap = document.getElementById('edit-reason-group');
     if (!wrap) return;
     wrap.style.display = status === 'inactive' ? '' : 'none';
+  };
+
+  // ── PLAYER PROFILE MODAL ─────────────────────────────────────────────────
+
+  window.closePlayerProfile = () => {
+    document.getElementById('player-profile-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  window.openPlayerProfile = async (id) => {
+    const modal = document.getElementById('player-profile-modal');
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('ppm-body').innerHTML = '<div class="loading" style="padding:40px;">Loading player profile...</div>';
+
+    // Find player from already-loaded list
+    const p = (allPlayers || []).find(x => x.id === id);
+    if (!p) { document.getElementById('ppm-body').innerHTML = '<div class="loading">Player not found.</div>'; return; }
+
+    // ── Header ────────────────────────────────────────────────────────────
+    const initials = ((p.first_name||'')[0]||'').toUpperCase() + ((p.last_name||'')[0]||'').toUpperCase();
+    const avColors = ['#174CCC','#F26024','#24BC96','#9a6e00','#7B2FBE','#C04A0E'];
+    const avColor  = avColors[id % avColors.length];
+    const avEl = document.getElementById('ppm-av');
+    avEl.textContent = initials;
+    avEl.style.background = avColor;
+    document.getElementById('ppm-name').textContent = `${p.first_name} ${p.last_name}`;
+    const isActive = p.status === 'active';
+    document.getElementById('ppm-status-pill').className = isActive ? 'ppm-active' : 'ppm-inactive';
+    document.getElementById('ppm-status-pill').innerHTML = isActive ? '🟢 Active' : '⚪ Inactive';
+    document.getElementById('ppm-footer-info').textContent = `Player ID #${p.id}${p.date_joined ? ' · Joined ' + fmtDate(p.date_joined) : ''}`;
+
+    // ── Fetch data ────────────────────────────────────────────────────────
+    const [
+      allMatches, ladderPlayerRows, allLadders,
+      tournamentTeams, allTournaments, bracketMatches
+    ] = await Promise.all([
+      api(`matches?player_id=eq.${id}&select=*&order=session_date.desc`).catch(() => []),
+      api(`ladder_players?player_id=eq.${id}&select=*`).catch(() => []),
+      api(`ladders?select=*`).catch(() => []),
+      api(`tournament_teams?select=*`).catch(() => []),
+      api(`tournaments?select=*`).catch(() => []),
+      api(`tournament_bracket_matches?select=*,tournament_categories(name,tournament_id)`).catch(() => []),
+    ]);
+
+    const playedMatches = allMatches.filter(m => !m.default_no_show && m.score_for !== null && m.score_against !== null);
+    const totalPlayed   = playedMatches.length;
+    const totalWins     = playedMatches.filter(m => m.score_for > m.score_against).length;
+    const totalLosses   = totalPlayed - totalWins;
+    const winPct        = totalPlayed > 0 ? Math.round(totalWins / totalPlayed * 100) : 0;
+
+    // Ladder seasons
+    const ladderIds     = [...new Set(ladderPlayerRows.map(lp => lp.ladder_id))];
+    const myLadders     = allLadders.filter(l => ladderIds.includes(l.id));
+
+    // Tournament participation
+    const myTournTeams  = tournamentTeams.filter(tt =>
+      [tt.player1_id, tt.player2_id, tt.player3_id, tt.player4_id].includes(id)
+    );
+    const myTournIds    = [...new Set(myTournTeams.map(tt => tt.category_id
+      ? null : tt.tournament_id).filter(Boolean))];
+    // Get unique tournaments via category lookup
+    const myCatIds      = [...new Set(myTournTeams.map(tt => tt.category_id).filter(Boolean))];
+    const myTournaments = allTournaments.filter(t =>
+      myTournIds.includes(t.id) ||
+      bracketMatches.some(bm => bm.tournament_categories?.tournament_id === t.id && myCatIds.includes(bm.category_id))
+    );
+
+    // Quick stats for header
+    document.getElementById('ppm-qs').innerHTML = [
+      p.gender ? `<span class="ppm-q">⚥ <b>${esc(p.gender)}</b></span>` : '',
+      p.date_joined ? `<span class="ppm-q">📅 Joined <b>${fmtDate(p.date_joined)}</b></span>` : '',
+      myTournaments.length ? `<span class="ppm-q">🏆 <b>${myTournaments.length}</b> Tournament${myTournaments.length!==1?'s':''}</span>` : '',
+      myLadders.length ? `<span class="ppm-q">🎾 <b>${myLadders.length}</b> Ladder${myLadders.length!==1?'s':''}</span>` : '',
+    ].join('');
+
+    // ── Streak & last 10 ─────────────────────────────────────────────────
+    const orderedResults = playedMatches.map(m => m.score_for > m.score_against ? 'W' : 'L');
+    let streak = 0, streakType = '';
+    if (orderedResults.length) {
+      streakType = orderedResults[0];
+      for (let i = 0; i < orderedResults.length; i++) {
+        if (orderedResults[i] === streakType) streak++;
+        else break;
+      }
+    }
+    const last10 = orderedResults.slice(0, 10);
+    const last10W = last10.filter(r => r==='W').length;
+    const last10L = last10.length - last10W;
+
+    // ── Tournament history ────────────────────────────────────────────────
+    const finishLabel = (bm) => {
+      if (!bm) return '';
+      if (bm.round_name === 'Final') {
+        const won = bm.winner_id && myTournTeams.some(tt => tt.id === bm.winner_id);
+        return won ? '<span class="ppm-hbadge ppm-hb-gold">🥇 Champion</span>' : '<span class="ppm-hbadge ppm-hb-blue">🥈 Runner Up</span>';
+      }
+      if (bm.round_name?.toLowerCase().includes('semi')) return '<span class="ppm-hbadge ppm-hb-gray">Semifinalist</span>';
+      return '<span class="ppm-hbadge ppm-hb-gray">Participant</span>';
+    };
+
+    const tournHistHTML = myTournaments.length
+      ? myTournaments.map(t => {
+          const lastBm = bracketMatches.filter(bm =>
+            bm.tournament_categories?.tournament_id === t.id &&
+            myTournTeams.some(tt => tt.id === bm.team_a_id || tt.id === bm.team_b_id) &&
+            bm.status === 'completed'
+          ).slice(-1)[0];
+          return `<div class="ppm-hist-row">
+            <div>
+              <div class="ppm-hist-name">${esc(t.name)}</div>
+              <div class="ppm-hist-sub">${t.date ? fmtDate(t.date) : ''}</div>
+            </div>
+            ${finishLabel(lastBm) || '<span class="ppm-hbadge ppm-hb-gray">Participant</span>'}
+          </div>`;
+        }).join('')
+      : '<div style="padding:16px;font-size:12px;font-weight:600;color:#6b7a99;">No tournament history yet.</div>';
+
+    // ── Ladder history ────────────────────────────────────────────────────
+    const ladderHistHTML = myLadders.length
+      ? myLadders.map(l => {
+          const lp = ladderPlayerRows.find(r => r.ladder_id === l.id);
+          const rank = lp?.final_rank ? `<span style="font-size:16px;font-weight:800;color:#174CCC;">#${lp.final_rank}</span>` : '<span style="font-size:11px;font-weight:600;color:#6b7a99;">In progress</span>';
+          return `<div class="ppm-hist-row">
+            <div>
+              <div class="ppm-hist-name">${esc(l.name)}</div>
+              <div class="ppm-hist-sub">${l.season || ''}</div>
+            </div>
+            ${rank}
+          </div>`;
+        }).join('')
+      : '<div style="padding:16px;font-size:12px;font-weight:600;color:#6b7a99;">No ladder history yet.</div>';
+
+    // ── Achievements ──────────────────────────────────────────────────────
+    const badges = [];
+    if (myTournaments.some(t => bracketMatches.some(bm =>
+      bm.tournament_categories?.tournament_id === t.id &&
+      bm.round_name === 'Final' && bm.status === 'completed' &&
+      myTournTeams.some(tt => tt.id === bm.winner_id)
+    ))) badges.push({ icon:'🏆', label:'Champion', bg:'rgba(246,166,35,0.08)', border:'rgba(246,166,35,0.3)', color:'#9a6200' });
+
+    if (streak >= 5 && streakType === 'W') badges.push({ icon:'🔥', label:`${streak} Win Streak`, bg:'rgba(242,96,36,0.06)', border:'rgba(242,96,36,0.2)', color:'#F26024' });
+    else if (streak >= 3 && streakType === 'W') badges.push({ icon:'🔥', label:`${streak} Win Streak`, bg:'rgba(242,96,36,0.06)', border:'rgba(242,96,36,0.2)', color:'#F26024' });
+
+    if (myTournaments.some(t => bracketMatches.some(bm =>
+      bm.tournament_categories?.tournament_id === t.id &&
+      bm.round_name === 'Final' && bm.status === 'completed' &&
+      myTournTeams.some(tt => (tt.id === bm.team_a_id || tt.id === bm.team_b_id) && tt.id !== bm.winner_id)
+    ))) badges.push({ icon:'🥈', label:'Runner Up', bg:'#e8f0ff', border:'#c5d6f5', color:'#174CCC' });
+
+    if (winPct >= 70 && totalPlayed >= 10) badges.push({ icon:'⚡', label:'Top Performer', bg:'rgba(36,188,150,0.08)', border:'rgba(36,188,150,0.25)', color:'#085041' });
+    if (myLadders.length >= 3) badges.push({ icon:'🎯', label:'Ladder Veteran', bg:'#f8f9ff', border:'#e0e7f5', color:'#6b7a99' });
+    if (myTournaments.length >= 5) badges.push({ icon:'👑', label:'Season Regular', bg:'rgba(123,47,190,0.07)', border:'rgba(123,47,190,0.2)', color:'#7B2FBE' });
+
+    const badgesHTML = badges.length
+      ? badges.map(b => `<span class="ppm-bdg" style="background:${b.bg};border-color:${b.border};color:${b.color};">${b.icon} ${b.label}</span>`).join('')
+      : '<span style="font-size:12px;font-weight:600;color:#6b7a99;">No achievements yet — keep playing!</span>';
+
+    // ── Activity timeline ─────────────────────────────────────────────────
+    const fmtShort = (d) => { if (!d) return ''; const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('en-US', {month:'short', day:'numeric'}); };
+    const timelineHTML = playedMatches.slice(0, 8).map(m => {
+      const won = m.score_for > m.score_against;
+      const dotColor = won ? '#24BC96' : '#F26024';
+      const scoreStr = won
+        ? `<span style="color:#24BC96;font-weight:800;">${m.score_for}–${m.score_against}</span>`
+        : `<span style="color:#F26024;font-weight:800;">${m.score_for}–${m.score_against}</span>`;
+      return `<div class="ppm-tl-item">
+        <div class="ppm-tl-date">${fmtShort(m.session_date)}</div>
+        <div class="ppm-tl-dot" style="background:${dotColor};"></div>
+        <div>
+          <div class="ppm-tl-text">${won?'Won':'Lost'} ${scoreStr}</div>
+          <div class="ppm-tl-ctx">${esc(m.opponent_name||'Ladder match')}</div>
+        </div>
+      </div>`;
+    }).join('') || '<div style="padding:8px 0;font-size:12px;font-weight:600;color:#6b7a99;">No activity yet.</div>';
+
+    // ── Section header helper ─────────────────────────────────────────────
+    const secHdr = (icon, title) => `<div class="ppm-sec-hdr">${icon}<span class="ppm-sec-title">${title}</span></div>`;
+    const trophySVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
+    const boltSVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+    const barSVG   = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
+    const clockSVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+    const screenSVG= `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+
+    // ── Render all sections ───────────────────────────────────────────────
+    const streakBoxClass = streakType === 'W' ? 'ppm-streak-win' : 'ppm-streak-loss';
+    const streakIcon = streakType === 'W' ? '🔥' : '❄️';
+    const streakText = streak > 0
+      ? (streakType === 'W' ? `${streak} Match Win Streak` : `${streak} Consecutive Loss${streak>1?'es':''}`)
+      : 'No active streak';
+
+    document.getElementById('ppm-body').innerHTML = `
+      <!-- S2: Snapshot -->
+      <div class="ppm-sec">
+        ${secHdr(screenSVG, 'Competition Snapshot')}
+        <div class="ppm-sec-body">
+          <div class="ppm-snap-grid">
+            <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#174CCC;">${myTournaments.length}</div><div class="ppm-snap-lbl">Tournaments</div></div>
+            <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#174CCC;">${myLadders.length}</div><div class="ppm-snap-lbl">Ladder Seasons</div></div>
+            <div class="ppm-snap-card"><div class="ppm-snap-val">${totalPlayed}</div><div class="ppm-snap-lbl">Matches Played</div></div>
+            <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#24BC96;">${winPct}%</div><div class="ppm-snap-lbl">Win %</div></div>
+            <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#24BC96;">${totalWins}</div><div class="ppm-snap-lbl">Total Wins</div></div>
+            <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#F26024;">${totalLosses}</div><div class="ppm-snap-lbl">Total Losses</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S3: Momentum -->
+      <div class="ppm-sec">
+        ${secHdr(boltSVG, 'Momentum')}
+        <div class="ppm-sec-body">
+          <div class="ppm-streak-lbl">Current Streak</div>
+          <div class="ppm-streak-box ${streakBoxClass}">
+            <span style="font-size:26px;line-height:1;">${streakIcon}</span>
+            <div>
+              <div style="font-size:15px;font-weight:800;color:#0d1f4a;">${streakText}</div>
+            </div>
+          </div>
+          <div class="ppm-streak-lbl">Last 10 Matches</div>
+          <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+            ${last10.map(r => `<span class="${r==='W'?'ppm-pill-w':'ppm-pill-l'}">${r}</span>`).join('')}
+            ${last10.length ? `<span style="font-size:11px;font-weight:800;color:${last10W>=last10L?'#24BC96':'#F26024'};margin-left:10px;">${last10W}W ${last10L}L</span>` : '<span style="font-size:11px;color:#6b7a99;font-weight:600;">No matches yet</span>'}
+          </div>
+        </div>
+      </div>
+
+      <!-- S4: Competition History -->
+      <div class="ppm-sec">
+        ${secHdr(trophySVG, 'Competition History')}
+        <div class="ppm-itabs">
+          <button class="ppm-itab ppm-on" onclick="ppmTab(this,'ppm-hist-t')">Tournaments</button>
+          <button class="ppm-itab" onclick="ppmTab(this,'ppm-hist-l')">Ladders</button>
+        </div>
+        <div id="ppm-hist-t">${tournHistHTML}</div>
+        <div id="ppm-hist-l" style="display:none;">${ladderHistHTML}</div>
+      </div>
+
+      <!-- S5: Career Statistics -->
+      <div class="ppm-sec">
+        ${secHdr(barSVG, 'Career Statistics')}
+        <div class="ppm-sec-body">
+          <div class="ppm-career-grid">
+            <div class="ppm-career-card">
+              <div class="ppm-career-lbl">Tournament Record</div>
+              <div class="ppm-career-val">${myTournaments.length ? totalWins + 'W – ' + totalLosses + 'L' : '—'}</div>
+            </div>
+            <div class="ppm-career-card">
+              <div class="ppm-career-lbl">Ladder Record</div>
+              <div class="ppm-career-val">${totalWins}W – ${totalLosses}L</div>
+              <div class="ppm-career-sub" style="color:${winPct>=50?'#174CCC':'#F26024'};">${winPct}% win rate</div>
+            </div>
+            <div class="ppm-career-card">
+              <div class="ppm-career-lbl">Overall Record</div>
+              <div class="ppm-career-val">${totalWins}W – ${totalLosses}L</div>
+              <div class="ppm-career-sub" style="color:${winPct>=50?'#24BC96':'#F26024'};font-size:14px;font-weight:800;">${winPct}%</div>
+            </div>
+            <div class="ppm-career-card">
+              <div class="ppm-career-lbl">Points Earned</div>
+              <div class="ppm-career-val" style="color:#174CCC;">${playedMatches.reduce((s,m)=>s+(m.points_earned||0),0)}</div>
+            </div>
+            <div class="ppm-career-card">
+              <div class="ppm-career-lbl">Best Finish</div>
+              <div class="ppm-career-val" style="font-size:26px;">${badges.find(b=>b.icon==='🏆')?'🥇':badges.find(b=>b.icon==='🥈')?'🥈':'—'}</div>
+              <div class="ppm-career-sub">${badges.find(b=>b.icon==='🏆')?'Champion':badges.find(b=>b.icon==='🥈')?'Runner Up':'—'}</div>
+            </div>
+            <div class="ppm-career-card">
+              <div class="ppm-career-lbl">Podium Finishes</div>
+              <div class="ppm-career-val" style="color:#F6A623;">${badges.filter(b=>['🏆','🥈'].includes(b.icon)).length}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S6: Achievements -->
+      <div class="ppm-sec">
+        <div class="ppm-sec-hdr"><span style="font-size:13px;">🏅</span><span class="ppm-sec-title">Achievements</span></div>
+        <div class="ppm-sec-body">
+          <div style="display:flex;flex-wrap:wrap;">${badgesHTML}</div>
+        </div>
+      </div>
+
+      <!-- S7: Recent Activity -->
+      <div class="ppm-sec">
+        ${secHdr(clockSVG, 'Recent Activity')}
+        <div class="ppm-sec-body" style="padding:8px 16px;">
+          <div>${timelineHTML}</div>
+        </div>
+      </div>
+    `;
+  };
+
+  window.ppmTab = (btn, showId) => {
+    btn.closest('.ppm-sec').querySelectorAll('.ppm-itab').forEach(t => t.classList.remove('ppm-on'));
+    btn.classList.add('ppm-on');
+    ['ppm-hist-t','ppm-hist-l'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = el.id === showId ? 'block' : 'none';
+    });
   };
 
   const openEdit = async (id) => {
@@ -9061,6 +9364,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     closeLpModal: () => closeLpModal(),
     // Players
     openEdit: (btn) => openEdit(parseInt(btn.dataset.pid, 10)),
+    openPlayerProfile: (btn) => openPlayerProfile(parseInt(btn.dataset.pid, 10)),
     closeModal: () => closeModal(),
     openPlayerHistory: () => openPlayerHistory(),
     closePlayerHistory: () => closePlayerHistory(),
