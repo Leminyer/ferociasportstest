@@ -2794,9 +2794,11 @@
   <!-- TOURNAMENT MODAL -->
   <div class="t-modal-bg" id="t-modal">
     <div class="t-modal">
-      <div id="t-modal-header" style="padding-bottom:14px;border-bottom:0.5px solid #e0e7f5;margin-bottom:16px;">
-        <div class="t-modal-title" id="t-modal-title" style="margin-bottom:3px;">Modal</div>
+      <div id="t-modal-header" style="padding-bottom:14px;border-bottom:0.5px solid #e0e7f5;margin-bottom:16px;position:relative;">
+        <div class="t-modal-title" id="t-modal-title" style="margin-bottom:3px;padding-right:40px;">Modal</div>
         <div id="t-modal-subtitle" style="font-size:11px;font-weight:600;color:#6b7a99;display:none;"></div>
+        <button id="t-modal-close-x" onclick="closeTModal()"
+          style="display:none;position:absolute;top:0;right:0;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;color:#e53935;font-size:14px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;">✕</button>
       </div>
       <div id="t-modal-body"></div>
     </div>
@@ -3567,7 +3569,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20260559"></script>
+<script src="app.js?v=20260560"></script>
 <script src="tournament.js?v=20260526"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────

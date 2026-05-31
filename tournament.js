@@ -995,22 +995,15 @@ async function completeTournamentFromList(id) {
   ]);
   const totalMatchCount = (allRR.length || 0) + (allBracket.length || 0);
   // Champion: find completed finals
-  const finals = await tApi(`tournament_bracket_matches?tournament_id=eq.${id}&round_name=eq.Final&status=eq.completed&select=winner_id,tournament_teams(name)`).catch(() => []);
+  const catIds = validations.map(v => v.cat.id).join(',') || '0';
+  const finals = await tApi(`tournament_bracket_matches?category_id=in.(${catIds})&round_name=eq.Final&status=eq.completed&select=winner_id`).catch(() => []);
   const champReady = finals.length > 0 && finals.every(f => f.winner_id);
   const champLabel = champReady ? 'Ready' : 'Pending';
 
   document.getElementById('t-modal-title').textContent = 'Complete & Lock Tournament';
-  // Add X close button to header
-  const hdr = document.getElementById('t-modal-header');
-  if (hdr && !document.getElementById('t-modal-close-x')) {
-    const xBtn = document.createElement('button');
-    xBtn.id = 't-modal-close-x';
-    xBtn.innerHTML = '✕';
-    xBtn.onclick = closeTModal;
-    xBtn.style.cssText = 'position:absolute;top:20px;right:20px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;color:#6b7a99;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;';
-    hdr.style.position = 'relative';
-    hdr.appendChild(xBtn);
-  }
+  // Show the permanent X button in header
+  const xBtnEl = document.getElementById('t-modal-close-x');
+  if (xBtnEl) xBtnEl.style.display = 'flex';
 
   document.getElementById('t-modal-body').innerHTML = `
     <!-- Tournament context -->
@@ -1074,7 +1067,7 @@ async function completeTournamentFromList(id) {
     <!-- Confirmation checkbox -->
     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:18px;">
       <input type="checkbox" id="t-complete-confirm-chk" style="margin-top:2px;width:15px;height:15px;cursor:pointer;accent-color:#174CCC;flex-shrink:0;">
-      <label for="t-complete-confirm-chk" style="font-size:12px;font-weight:600;color:#0d1f4a;cursor:pointer;line-height:1.5;">I understand that tournament results will be locked.</label>
+      <label for="t-complete-confirm-chk" style="font-size:12px;font-weight:600;color:#0d1f4a;cursor:pointer;line-height:1.5;display:flex;align-items:flex-start;gap:6px;"><span>☐</span><span>I understand that tournament results will be locked.</span></label>
     </div>
 
     <!-- Button -->
@@ -4398,12 +4391,9 @@ function restoreScoreModal(title, body) {
 function openTModal() { document.getElementById('t-modal').classList.add('t-modal-open'); }
 function closeTModal() {
   document.getElementById('t-modal').classList.remove('t-modal-open');
-  // Remove dynamically injected X button if present
+  // Hide the X button (only shown for complete modal)
   const xBtn = document.getElementById('t-modal-close-x');
-  if (xBtn) xBtn.remove();
-  // Reset header position
-  const hdr = document.getElementById('t-modal-header');
-  if (hdr) hdr.style.position = '';
+  if (xBtn) xBtn.style.display = 'none';
 }
 function tSetModalSubtitle(text) {
   const el = document.getElementById('t-modal-subtitle');
