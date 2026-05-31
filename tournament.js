@@ -983,14 +983,22 @@ async function completeTournamentFromList(id) {
   }
   document.getElementById('t-modal-title').textContent = 'Complete Tournament';
   document.getElementById('t-modal-body').innerHTML = `
-    <div style="padding:8px 0 16px;">
-      <p style="font-size:14px;color:#0d1f4a;line-height:1.6;">Mark this tournament as completed? No further edits will be possible.</p>
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0 20px;">
+      <div style="width:52px;height:52px;border-radius:14px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
+      </div>
+      <div style="font-size:15px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">Mark as Completed?</div>
+      <div style="font-size:13px;font-weight:600;color:#6b7a99;line-height:1.6;max-width:320px;">This will close the tournament and lock all results. No further edits will be possible.</div>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button type="button" class="t-op-btn" onclick="closeTModal()" style="width:auto;padding:8px 16px;">Cancel</button>
-      <button type="button" class="t-new-submit-btn" style="padding:8px 20px;background:linear-gradient(180deg,#24BC96,#1a9e7a);" onclick="confirmCompleteTournamentFromList(${id})">
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:rgba(242,96,36,0.06);border:0.5px solid rgba(242,96,36,0.25);border-radius:10px;margin-bottom:20px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span style="font-size:12px;font-weight:600;color:#F26024;line-height:1.5;">This action cannot be undone. Make sure all matches and scores are final before proceeding.</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;">
+      <button type="button" onclick="closeTModal()" style="padding:9px 20px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;color:#0d1f4a;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Cancel</button>
+      <button type="button" onclick="confirmCompleteTournamentFromList(${id})" style="display:inline-flex;align-items:center;gap:6px;padding:9px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#24BC96,#1a9e7a);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Complete
+        Complete Tournament
       </button>
     </div>`;
   openTModal();
