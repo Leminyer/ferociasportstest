@@ -4162,8 +4162,12 @@ window.selectLadderType = (type) => {
     document.body.style.overflow = 'hidden';
     document.getElementById('ppm-body').innerHTML = '<div class="loading" style="padding:40px;">Loading player profile...</div>';
 
-    // Find player from already-loaded list
-    const p = (allPlayers || []).find(x => x.id === id);
+    // ── Fetch player + all data fresh ────────────────────────────────────
+    let p = (allPlayers || []).find(x => x.id === id);
+    if (!p) {
+      const rows = await api(`players?id=eq.${id}&select=*`).catch(() => []);
+      p = rows[0];
+    }
     if (!p) { document.getElementById('ppm-body').innerHTML = '<div class="loading">Player not found.</div>'; return; }
 
     // ── Header ────────────────────────────────────────────────────────────
@@ -4179,7 +4183,7 @@ window.selectLadderType = (type) => {
     document.getElementById('ppm-status-pill').innerHTML = isActive ? '🟢 Active' : '⚪ Inactive';
     document.getElementById('ppm-footer-info').textContent = `Player ID #${p.id}${p.date_joined ? ' · Joined ' + fmtDate(p.date_joined) : ''}`;
 
-    // ── Fetch data ────────────────────────────────────────────────────────
+    // ── Fetch all data fresh ──────────────────────────────────────────────
     const [
       allMatches, ladderPlayerRows, allLadders,
       tournamentTeams, allTournaments, bracketMatches
@@ -4485,7 +4489,7 @@ window.selectLadderType = (type) => {
     document.getElementById('edit-modal').classList.add('open');
   };
 
-  const closeModal = () => document.getElementById('edit-modal').classList.remove('open');
+  window.closeModal = () => document.getElementById('edit-modal').classList.remove('open');
 
   const saveEditPlayer = async (e) => {
     e.preventDefault();
