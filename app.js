@@ -78,7 +78,7 @@ window.selectLadderType = (type) => {
   /* ─── SIDEBAR NAVIGATION ───────────────────────────────── */
 
   // Set active state on sidebar + bottom nav items
-  const sbSetActive = (pageOrKey) => {
+  window.sbSetActive = (pageOrKey) => {
     // Clear all sidebar item active states
     document.querySelectorAll('.sb-item, .sb-sub-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.bn-item').forEach(el => el.classList.remove('active'));
@@ -419,7 +419,7 @@ window.selectLadderType = (type) => {
     }
   };
 
-  const loadTournamentSelector = async () => {
+  window.loadTournamentSelector = async () => {
     const sel = document.getElementById('tournament-selector');
     if (!sel) return;
     try {

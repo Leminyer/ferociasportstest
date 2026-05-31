@@ -1519,6 +1519,25 @@ async function openTournament(id) {
     tCurrentCategoryId = null;
   }
   tCurrentTournamentId = id;
+
+  // ── Sync sidebar + dropdown to this tournament ───────────────────────
+  // Switch all pages off, activate tournament page
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const tPage = document.getElementById('page-t-tournaments');
+  if (tPage) tPage.classList.add('active');
+  // Highlight Tournament Hub in sidebar
+  if (typeof sbSetActive === 'function') sbSetActive('tournament-view');
+  // Pre-select this tournament in the hub dropdown
+  const sel = document.getElementById('tournament-selector');
+  if (sel) {
+    // If option doesn't exist yet (e.g. coming from management list), add it
+    if (!sel.querySelector(`option[value="${id}"]`)) {
+      if (typeof loadTournamentSelector === 'function') await loadTournamentSelector();
+    }
+    sel.value = id;
+  }
+  // ─────────────────────────────────────────────────────────────────────
+
   const el = document.getElementById('t-content');
   el.innerHTML = `<div class="t-loading">Loading tournament...</div>`;
   const [t] = await tApi(`tournaments?id=eq.${id}&select=*`);
