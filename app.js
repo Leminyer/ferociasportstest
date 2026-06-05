@@ -7301,7 +7301,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const m = ftcPlayoffMatches.find(x => String(x.id) === String(matchId));
     if (!m) { toast('Match not found.', true); return; }
     const aWins = scoreA > scoreB;
-    const pts   = { a: aWins?2:1, b: aWins?1:2 };
+    const pts   = ftcLeaguePts(scoreA, scoreB);
     try {
       await api(`ftc_ladder_matches?id=eq.${m.id}`, 'PATCH', {
         score_a: scoreA, score_b: scoreB,
@@ -7358,7 +7358,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         schedule_id: scheduleId, ladder_id: currentLadder.id,
         match_type: 'tiebreaker', team_a_id: teamAId, team_b_id: teamBId,
         score_a: scoreA, score_b: scoreB,
-        league_pts_a: scoreA>scoreB?2:1, league_pts_b: scoreB>scoreA?2:1,
+        league_pts_a: ftcLeaguePts(scoreA,scoreB).a, league_pts_b: ftcLeaguePts(scoreA,scoreB).b,
         winner_team_id: winnerId, tiebreaker_type: tieType,
         is_tiebreaker: true, status: 'completed',
       });
@@ -8356,9 +8356,15 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   // Helper: compute league pts from score (win=2, lose=1)
   const ftcLeaguePts = (scoreA, scoreB) => {
     if (scoreA === null || scoreB === null) return { a: 0, b: 0 };
-    if (scoreA > scoreB) return { a: 2, b: 1 };
-    if (scoreB > scoreA) return { a: 1, b: 2 };
-    return { a: 1, b: 1 }; // tie (handled by tiebreaker)
+    const calcPts = (sf, sa) => {
+      if (sf > sa) return 4;
+      const d = sa - sf;
+      if (d <= 2) return 3;
+      if (d <= 4) return 2;
+      if (d <= 8) return 1;
+      return 0;
+    };
+    return { a: calcPts(scoreA, scoreB), b: calcPts(scoreB, scoreA) };
   };
 
   // Helper: player name from id
