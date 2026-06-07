@@ -2264,6 +2264,7 @@ window.selectLadderType = (type) => {
             </div>
             <div style="font-size:10px;font-weight:600;color:var(--text-muted);">Points: <span id="eg-pts-teamA-display">auto</span></div>
             <input type="hidden" id="eg-ids-teamA" value="${teamAIds}">
+            <input type="hidden" id="eg-sub-ids-teamA" value="${teamA.filter(r=>r.is_sub).map(r=>r.id).join(',')}">
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding-top:32px;color:rgba(23,76,204,0.3);font-size:10px;font-weight:800;">
             <div style="width:1px;height:20px;background:rgba(23,76,204,0.15);"></div>
@@ -2278,6 +2279,7 @@ window.selectLadderType = (type) => {
             </div>
             <div style="font-size:10px;font-weight:600;color:var(--text-muted);">Points: <span id="eg-pts-teamB-display">auto</span></div>
             <input type="hidden" id="eg-ids-teamB" value="${teamBIds}">
+            <input type="hidden" id="eg-sub-ids-teamB" value="${teamB.filter(r=>r.is_sub).map(r=>r.id).join(',')}">
           </div>
         </div>
       </div>
@@ -2328,18 +2330,28 @@ window.selectLadderType = (type) => {
     const ptsA = (!isVoid && !isNaN(sfA) && !isNaN(sfB)) ? calcPoints(sfA, sfB) : 0;
     const ptsB = (!isVoid && !isNaN(sfA) && !isNaN(sfB)) ? calcPoints(sfB, sfA) : 0;
 
+    // Read sub IDs — subs always get 0 points
+    const subIdsA = (document.getElementById('eg-sub-ids-teamA')?.value || '').split(',').filter(Boolean);
+    const subIdsB = (document.getElementById('eg-sub-ids-teamB')?.value || '').split(',').filter(Boolean);
+
     try {
       const updates = [];
-      teamAIds.forEach(id => updates.push(api(`matches?id=eq.${id}`, 'PATCH', {
-        score_for:     isVoid ? null : sfA,
-        score_against: isVoid ? null : sfB,
-        points_earned: isVoid ? 0 : ptsA,
-      })));
-      teamBIds.forEach(id => updates.push(api(`matches?id=eq.${id}`, 'PATCH', {
-        score_for:     isVoid ? null : sfB,
-        score_against: isVoid ? null : sfA,
-        points_earned: isVoid ? 0 : ptsB,
-      })));
+      teamAIds.forEach(id => {
+        const isSub = subIdsA.includes(id);
+        updates.push(api(`matches?id=eq.${id}`, 'PATCH', {
+          score_for:     isVoid ? null : sfA,
+          score_against: isVoid ? null : sfB,
+          points_earned: isVoid ? 0 : isSub ? 0 : ptsA,
+        }));
+      });
+      teamBIds.forEach(id => {
+        const isSub = subIdsB.includes(id);
+        updates.push(api(`matches?id=eq.${id}`, 'PATCH', {
+          score_for:     isVoid ? null : sfB,
+          score_against: isVoid ? null : sfA,
+          points_earned: isVoid ? 0 : isSub ? 0 : ptsB,
+        }));
+      });
       await Promise.all(updates);
       toast('Game updated successfully!');
       document.getElementById('edit-game-modal').classList.remove('open');
