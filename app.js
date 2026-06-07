@@ -2290,10 +2290,38 @@ window.selectLadderType = (type) => {
     const calcDisplay = () => {
       const sfA = parseInt(document.getElementById('eg-sf-teamA').value, 10);
       const sfB = parseInt(document.getElementById('eg-sf-teamB').value, 10);
-      if (!isNaN(sfA) && !isNaN(sfB)) {
-        document.getElementById('eg-pts-teamA-display').textContent = '+' + calcPoints(sfA, sfB);
-        document.getElementById('eg-pts-teamB-display').textContent = '+' + calcPoints(sfB, sfA);
+      if (isNaN(sfA) || isNaN(sfB)) return;
+      const ptA = calcPoints(sfA, sfB);
+      const ptB = calcPoints(sfB, sfA);
+      const tAIds   = (document.getElementById('eg-ids-teamA')?.value || '').split(',').filter(Boolean);
+      const tBIds   = (document.getElementById('eg-ids-teamB')?.value || '').split(',').filter(Boolean);
+      const subIdsA = (document.getElementById('eg-sub-ids-teamA')?.value || '').split(',').filter(Boolean);
+      const subIdsB = (document.getElementById('eg-sub-ids-teamB')?.value || '').split(',').filter(Boolean);
+      const isSub   = (id, subIds) => subIds.includes(String(id));
+      const label   = (id, pts, subIds) => {
+        const p    = allPlayers.find(x => x.id == id);
+        const name = p ? p.first_name : `#${id}`;
+        const sub  = isSub(id, subIds);
+        const clr  = sub ? 'var(--text-muted)' : pts > 0 ? 'var(--teal)' : 'var(--orange)';
+        const str  = sub ? '0 pts (sub)' : `${pts > 0 ? '+' : ''}${pts} pts`;
+        return `<span style="color:${clr};font-weight:700;">${esc(name)}: ${str}</span>`;
+      };
+      const parts = [
+        ...tAIds.map(id => label(id, ptA, subIdsA)),
+        ...tBIds.map(id => label(id, ptB, subIdsB)),
+      ];
+      // Show combined per-player preview below the score inputs
+      let previewEl = document.getElementById('eg-pts-preview');
+      if (!previewEl) {
+        previewEl = document.createElement('div');
+        previewEl.id = 'eg-pts-preview';
+        previewEl.style.cssText = 'margin-top:12px;font-size:11px;display:flex;flex-wrap:wrap;gap:8px;';
+        document.getElementById('eg-scores-section')?.appendChild(previewEl);
       }
+      previewEl.innerHTML = parts.join(' &nbsp;|&nbsp; ');
+      // Also update the individual team displays for backwards compat
+      document.getElementById('eg-pts-teamA-display').textContent = '+' + ptA;
+      document.getElementById('eg-pts-teamB-display').textContent = '+' + ptB;
     };
     document.getElementById('eg-sf-teamA').addEventListener('input', calcDisplay);
     document.getElementById('eg-sf-teamB').addEventListener('input', calcDisplay);
