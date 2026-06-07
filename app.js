@@ -4307,12 +4307,16 @@ window.selectLadderType = (type) => {
     document.getElementById('ppm-footer-info').textContent = `Player ID #${p.id}${p.date_joined ? ' · Joined ' + fmtDate(p.date_joined) : ''}`;
 
     // ── Fetch all data fresh ──────────────────────────────────────────────
-    const [allMatches, ladderPlayerRows, allLadders, allTournaments, allCategories] = await Promise.all([
+    const [allMatches, ladderPlayerRows, allLadders,
+      myTournTeams, myTournaments, myTournCategories, allBracketMatches
+    ] = await Promise.all([
       api(`matches?player_id=eq.${id}&select=*&order=session_date.desc`).catch(() => []),
       api(`ladder_players?player_id=eq.${id}&select=*`).catch(() => []),
       api(`ladders?select=id,name`).catch(() => []),
-      api(`tournaments?select=id,name,date`).catch(() => []),
-      api(`tournament_categories?select=id,name,tournament_id`).catch(() => []),
+      api(`rpc/get_player_tournament_teams`, 'POST', { p_player_id: id }).catch(() => []),
+      api(`rpc/get_player_tournaments`,      'POST', { p_player_id: id }).catch(() => []),
+      api(`rpc/get_player_tournament_categories`, 'POST', { p_player_id: id }).catch(() => []),
+      api(`rpc/get_player_bracket_matches`,  'POST', { p_player_id: id }).catch(() => []),
     ]);
 
     // ── Ladder stats ──────────────────────────────────────────────────────
@@ -4325,35 +4329,11 @@ window.selectLadderType = (type) => {
     const ladderIds = [...new Set(ladderPlayerRows.map(lp => lp.ladder_id))];
     const myLadders = allLadders.filter(l => ladderIds.includes(l.id));
 
-    // ── Tournament participation ──────────────────────────────────────────
-    // Fetch all teams for all categories, filter client-side (RLS blocks player_id filters)
-    const allCatIds = allCategories.map(c => c.id);
-    let allTeams = [], allBracketMatches = [];
-    if (allCatIds.length) {
-      [allTeams, allBracketMatches] = await Promise.all([
-        api(`tournament_teams?category_id=in.(${allCatIds.join(',')})&select=id,category_id,name,player1_id,player2_id,player3_id,player4_id`).catch(() => []),
-        api(`tournament_bracket_matches?category_id=in.(${allCatIds.join(',')})&select=id,category_id,round_name,status,winner_id,team_a_id,team_b_id`).catch(() => []),
-      ]);
-    }
-
-    // Find teams this player belongs to
-    const myTournTeams = allTeams.filter(tt =>
-      [tt.player1_id, tt.player2_id, tt.player3_id, tt.player4_id].includes(id)
-    );
-    const myTeamIds = myTournTeams.map(tt => tt.id);
-    const myCatIds  = [...new Set(myTournTeams.map(tt => tt.category_id).filter(Boolean))];
-
-    // Find tournaments player participated in
-    const myTournamentIds = [...new Set(
-      allCategories.filter(c => myCatIds.includes(c.id)).map(c => c.tournament_id)
-    )];
-    const myTournaments = allTournaments.filter(t => myTournamentIds.includes(t.id));
+    // ── Tournament data — all from RPCs, no client-side filtering needed ──
+    const myTeamIds = (myTournTeams || []).map(tt => tt.id);
 
     // ── Tournament bracket stats ──────────────────────────────────────────
-    const myBracketMatches = allBracketMatches.filter(bm =>
-      bm.status === 'completed' &&
-      (myTeamIds.includes(bm.team_a_id) || myTeamIds.includes(bm.team_b_id))
-    );
+    const myBracketMatches = (allBracketMatches || []).filter(bm => bm.status === 'completed');
     const tournWins   = myBracketMatches.filter(bm => myTeamIds.includes(bm.winner_id)).length;
     const tournLosses = myBracketMatches.length - tournWins;
 
@@ -4364,11 +4344,16 @@ window.selectLadderType = (type) => {
     const winPct      = totalPlayed > 0 ? Math.round(totalWins / totalPlayed * 100) : 0;
 
     // Quick stats for header
+    const ppmSVG = (d) => `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+    const genderSVG  = ppmSVG('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>');
+    const calSVG     = ppmSVG('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>');
+    const tournSVG   = ppmSVG('<path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/>');
+    const ladderSVG  = ppmSVG('<rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="16 3 12 7 8 3"/>');
     document.getElementById('ppm-qs').innerHTML = [
-      p.gender ? `<span class="ppm-q">⚥ <b>${esc(p.gender)}</b></span>` : '',
-      p.date_joined ? `<span class="ppm-q">📅 Joined <b>${fmtDate(p.date_joined)}</b></span>` : '',
-      myTournaments.length ? `<span class="ppm-q">🏆 <b>${myTournaments.length}</b> Tournament${myTournaments.length!==1?'s':''}</span>` : '',
-      myLadders.length ? `<span class="ppm-q">🎾 <b>${myLadders.length}</b> Ladder${myLadders.length!==1?'s':''}</span>` : '',
+      p.gender ? `<span class="ppm-q">${genderSVG} <b>${esc(p.gender)}</b></span>` : '',
+      p.date_joined ? `<span class="ppm-q">${calSVG} Joined <b>${fmtDate(p.date_joined)}</b></span>` : '',
+      (myTournaments||[]).length ? `<span class="ppm-q">${tournSVG} <b>${(myTournaments||[]).length}</b> Tournament${(myTournaments||[]).length!==1?'s':''}</span>` : '',
+      (myLadders||[]).length ? `<span class="ppm-q">${ladderSVG} <b>${myLadders.length}</b> Ladder${myLadders.length!==1?'s':''}</span>` : '',
     ].join('');
 
     // ── Streak & last 10 ─────────────────────────────────────────────────
@@ -4396,10 +4381,10 @@ window.selectLadderType = (type) => {
       return '<span class="ppm-hbadge ppm-hb-gray">Participant</span>';
     };
 
-    const tournHistHTML = myTournaments.length
-      ? myTournaments.map(t => {
-          const tCatIds = allCategories.filter(c => c.tournament_id === t.id).map(c => c.id);
-          const lastBm  = allBracketMatches.filter(bm =>
+    const tournHistHTML = (myTournaments||[]).length
+      ? (myTournaments||[]).map(t => {
+          const tCatIds = (myTournCategories||[]).filter(c => c.tournament_id === t.id).map(c => c.id);
+          const lastBm  = (allBracketMatches||[]).filter(bm =>
             tCatIds.includes(bm.category_id) &&
             (myTeamIds.includes(bm.team_a_id) || myTeamIds.includes(bm.team_b_id)) &&
             bm.status === 'completed'
@@ -4415,7 +4400,7 @@ window.selectLadderType = (type) => {
       : '<div style="padding:16px;font-size:12px;font-weight:600;color:#6b7a99;">No tournament history yet.</div>';
 
     // ── Ladder history ────────────────────────────────────────────────────
-    const ladderHistHTML = myLadders.length
+    const ladderHistHTML = (myLadders||[]).length
       ? myLadders.map(l => {
           const lp   = ladderPlayerRows.find(r => r.ladder_id === l.id);
           const stat = lp?.status === 'sub' ? '<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:#f0f2f8;color:#6b7a99;">Sub</span>'
@@ -4432,14 +4417,14 @@ window.selectLadderType = (type) => {
 
     // ── Achievements ──────────────────────────────────────────────────────
     const badges = [];
-    if (myBracketMatches.some(bm =>
+    if ((myBracketMatches||[]).some(bm =>
       bm.round_name === 'Final' && myTeamIds.includes(bm.winner_id)
     )) badges.push({ icon:'🏆', label:'Champion', bg:'rgba(246,166,35,0.08)', border:'rgba(246,166,35,0.3)', color:'#9a6200' });
 
     if (streak >= 5 && streakType === 'W') badges.push({ icon:'🔥', label:`${streak} Win Streak`, bg:'rgba(242,96,36,0.06)', border:'rgba(242,96,36,0.2)', color:'#F26024' });
     else if (streak >= 3 && streakType === 'W') badges.push({ icon:'🔥', label:`${streak} Win Streak`, bg:'rgba(242,96,36,0.06)', border:'rgba(242,96,36,0.2)', color:'#F26024' });
 
-    if (myBracketMatches.some(bm =>
+    if ((myBracketMatches||[]).some(bm =>
       bm.round_name === 'Final' && !myTeamIds.includes(bm.winner_id)
     )) badges.push({ icon:'🥈', label:'Runner Up', bg:'#e8f0ff', border:'#c5d6f5', color:'#174CCC' });
 
@@ -4514,15 +4499,20 @@ window.selectLadderType = (type) => {
 
     // ── Section header helper ─────────────────────────────────────────────
     const secHdr = (icon, title) => `<div class="ppm-sec-hdr">${icon}<span class="ppm-sec-title">${title}</span></div>`;
-    const trophySVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
-    const boltSVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
-    const barSVG   = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
-    const clockSVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
-    const screenSVG= `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+    const ppmSecSVG = (d) => `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+    const trophySVG = ppmSecSVG('<path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/>');
+    const boltSVG   = ppmSecSVG('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>');
+    const barSVG    = ppmSecSVG('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>');
+    const clockSVG  = ppmSecSVG('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>');
+    const screenSVG = ppmSecSVG('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>');
+    const medalSVG  = ppmSecSVG('<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>');
+    const starSVG   = ppmSecSVG('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>');
+    const snowSVG   = ppmSecSVG('<line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/>');
 
     // ── Render all sections ───────────────────────────────────────────────
     const streakBoxClass = streakType === 'W' ? 'ppm-streak-win' : 'ppm-streak-loss';
-    const streakIcon = streakType === 'W' ? '🔥' : '❄️';
+    const fireSVG    = ppmSecSVG('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>');
+    const streakIcon = streakType === 'W' ? fireSVG : snowSVG;
     const streakText = streak > 0
       ? (streakType === 'W' ? `${streak} Match Win Streak` : `${streak} Consecutive Loss${streak>1?'es':''}`)
       : 'No active streak';
@@ -4533,7 +4523,7 @@ window.selectLadderType = (type) => {
         ${secHdr(screenSVG, 'Competition Snapshot')}
         <div class="ppm-sec-body">
           <div class="ppm-snap-grid">
-            <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#174CCC;">${myTournaments.length}</div><div class="ppm-snap-lbl">Tournaments</div></div>
+            <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#174CCC;">${(myTournaments||[]).length}</div><div class="ppm-snap-lbl">Tournaments</div></div>
             <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#174CCC;">${myLadders.length}</div><div class="ppm-snap-lbl">Ladder Seasons</div></div>
             <div class="ppm-snap-card"><div class="ppm-snap-val">${ladderPlayed + myBracketMatches.length}</div><div class="ppm-snap-lbl">Matches Played</div></div>
             <div class="ppm-snap-card"><div class="ppm-snap-val" style="color:#24BC96;">${winPct}%</div><div class="ppm-snap-lbl">Win %</div></div>
@@ -4612,7 +4602,7 @@ window.selectLadderType = (type) => {
 
       <!-- S6: Achievements -->
       <div class="ppm-sec">
-        <div class="ppm-sec-hdr"><span style="font-size:13px;">🏅</span><span class="ppm-sec-title">Achievements</span></div>
+        ${secHdr(medalSVG, 'Achievements')}
         <div class="ppm-sec-body">
           <div style="display:flex;flex-wrap:wrap;">${badgesHTML}</div>
         </div>
