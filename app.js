@@ -2014,7 +2014,9 @@ window.selectLadderType = (type) => {
               if (!team || !team.length) return '';
               const p0 = team[0];
               const score = p0.default_no_show ? '-1' : p0.score_for !== null ? String(p0.score_for) : '—';
-              const pts   = p0.default_no_show ? '-1 pt' : p0.score_for !== null ? `+${p0.points_earned} pts` : 'pending';
+              const regularPts = team.filter(p => !p.is_sub).map(p => p.points_earned || 0);
+              const teamPts    = regularPts.length ? Math.max(...regularPts) : (p0.points_earned || 0);
+              const pts        = p0.default_no_show ? '-1 pt' : p0.score_for !== null ? `+${teamPts} pts` : 'pending';
               const isPend = p0.score_for === null && !p0.default_no_show;
 
               let blockClass = 'sess-team-block ';
