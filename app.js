@@ -2498,6 +2498,8 @@ window.selectLadderType = (type) => {
     const p = ladderPlayers.find((x) => x.id === id);
     if (!p || courtPlayers.find((cp) => cp.id === id)) return;
     courtPlayers.push(p);
+    // Auto-activate sub if player is registered as sub in this ladder
+    if (p.ladder_status === 'sub') subPlayers.add(id);
     document.getElementById('player-search-entry').value = '';
     renderPlayerDropdown('');
     renderCourtPlayers();
