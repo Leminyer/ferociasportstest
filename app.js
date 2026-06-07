@@ -2734,7 +2734,7 @@ window.selectLadderType = (type) => {
     const tBIds = document.getElementById(`teamB-ids-${gameNum}`).value.split(',').filter(Boolean);
 
     // Check sub status per player and build per-player preview
-    const isSub = (id) => subPlayers.has(Number(id)) || ladderPlayers.find(p => p.id == id)?.ladder_status === 'sub';
+    const isSub = (id) => subPlayers.has(Number(id));
     const playerLabel = (id, pts) => {
       const p = allPlayers.find(x => x.id == id);
       const name = p ? p.first_name : `#${id}`;
