@@ -2264,7 +2264,7 @@ window.selectLadderType = (type) => {
             </div>
             <div style="font-size:10px;font-weight:600;color:var(--text-muted);">Points: <span id="eg-pts-teamA-display">auto</span></div>
             <input type="hidden" id="eg-ids-teamA" value="${teamAIds}">
-            <input type="hidden" id="eg-sub-ids-teamA" value="${teamA.filter(r=>r.is_sub).map(r=>r.id).join(',')}">
+            <input type="hidden" id="eg-sub-ids-teamA" value="${teamA.filter(r => { const lp = ladderPlayers.find(p => p.id === r.player_id); return r.is_sub || lp?.ladder_status === 'sub'; }).map(r=>r.id).join(',')}">
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding-top:32px;color:rgba(23,76,204,0.3);font-size:10px;font-weight:800;">
             <div style="width:1px;height:20px;background:rgba(23,76,204,0.15);"></div>
@@ -2279,7 +2279,7 @@ window.selectLadderType = (type) => {
             </div>
             <div style="font-size:10px;font-weight:600;color:var(--text-muted);">Points: <span id="eg-pts-teamB-display">auto</span></div>
             <input type="hidden" id="eg-ids-teamB" value="${teamBIds}">
-            <input type="hidden" id="eg-sub-ids-teamB" value="${teamB.filter(r=>r.is_sub).map(r=>r.id).join(',')}">
+            <input type="hidden" id="eg-sub-ids-teamB" value="${teamB.filter(r => { const lp = ladderPlayers.find(p => p.id === r.player_id); return r.is_sub || lp?.ladder_status === 'sub'; }).map(r=>r.id).join(',')}">
           </div>
         </div>
       </div>
@@ -2337,7 +2337,7 @@ window.selectLadderType = (type) => {
     try {
       const updates = [];
       teamAIds.forEach(id => {
-        const isSub = subIdsA.includes(id);
+        const isSub = subIdsA.includes(String(id));
         updates.push(api(`matches?id=eq.${id}`, 'PATCH', {
           score_for:     isVoid ? null : sfA,
           score_against: isVoid ? null : sfB,
@@ -2345,7 +2345,7 @@ window.selectLadderType = (type) => {
         }));
       });
       teamBIds.forEach(id => {
-        const isSub = subIdsB.includes(id);
+        const isSub = subIdsB.includes(String(id));
         updates.push(api(`matches?id=eq.${id}`, 'PATCH', {
           score_for:     isVoid ? null : sfB,
           score_against: isVoid ? null : sfA,
