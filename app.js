@@ -3372,9 +3372,23 @@ window.selectLadderType = (type) => {
         // ── GAME LOOP ─────────────────────────────────────────────
         gameNums.forEach((gn) => {
           const gamePlayers = court.games[gn].filter((m) => !m.default_no_show);
-          const half = Math.ceil(gamePlayers.length / 2);
-          const teamANames = gamePlayers.slice(0, half).map((m) => m.players ? `${m.players.first_name} ${m.players.last_name}` : '?');
-          const teamBNames = gamePlayers.slice(half).map((m) => m.players ? `${m.players.first_name} ${m.players.last_name}` : '?');
+          // Split into teams using same logic as sessions page:
+          // group by score_for value (same score = same team); pending = slice(0,2)/slice(2,4)
+          const pdfBuildTeams = (players) => {
+            const allPending = players.every(p => p.score_for === null);
+            if (allPending) return [players.slice(0, 2), players.slice(2)];
+            const teamMap = {};
+            players.forEach(p => {
+              const k = p.score_for !== null ? String(p.score_for) : 'pending';
+              if (!teamMap[k]) teamMap[k] = [];
+              teamMap[k].push(p);
+            });
+            const sorted = Object.keys(teamMap).sort((a,b) => parseFloat(b) - parseFloat(a));
+            return [teamMap[sorted[0]]||[], teamMap[sorted[1]]||[]];
+          };
+          const [teamAPlayers, teamBPlayers] = pdfBuildTeams(gamePlayers);
+          const teamANames = teamAPlayers.map((m) => m.players ? `${m.players.first_name} ${m.players.last_name}` : '?');
+          const teamBNames = teamBPlayers.map((m) => m.players ? `${m.players.first_name} ${m.players.last_name}` : '?');
           const gamePlayerIds = new Set(gamePlayers.map((m) => m.player_id));
           const sittingOut = Object.entries(playerMap)
             .filter(([pid]) => !gamePlayerIds.has(parseInt(pid, 10)))
