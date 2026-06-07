@@ -4503,20 +4503,26 @@ window.selectLadderType = (type) => {
     }).join('') || '<div style="padding:8px 0;font-size:12px;font-weight:600;color:#6b7a99;">No activity yet.</div>';
 
     // ── Best Finish + Podium Finishes ────────────────────────────────────
+    const bm3rd       = (myBracketMatches||[]).filter(bm => bm.round_name === '3rd Place');
     const finalsPlayed = (myBracketMatches||[]).filter(bm => bm.round_name === 'Final');
-    const semisPlayed  = (myBracketMatches||[]).filter(bm => bm.round_name?.toLowerCase().includes('semi'));
+    const semisPlayed  = (myBracketMatches||[]).filter(bm => bm.round_name === 'Semifinals');
     const isChampion   = finalsPlayed.some(bm => myTeamIds.includes(bm.winner_id));
     const isRunnerUp   = finalsPlayed.some(bm => !myTeamIds.includes(bm.winner_id));
-    const isSemi       = semisPlayed.length > 0;
+    const is3rdPlace   = bm3rd.some(bm => myTeamIds.includes(bm.winner_id));
+    const isSemi       = semisPlayed.length > 0 || bm3rd.some(bm => !myTeamIds.includes(bm.winner_id));
     const hasAny       = (myBracketMatches||[]).length > 0;
-    const bestFinishIcon  = isChampion ? '🥇' : isRunnerUp ? '🥈' : isSemi ? '🏅' : hasAny ? '🎽' : '—';
-    const bestFinishLabel = isChampion ? 'Champion' : isRunnerUp ? 'Runner Up' : isSemi ? 'Semifinalist' : hasAny ? 'Participant' : '—';
+    const bestFinishIcon  = isChampion ? '🥇' : isRunnerUp ? '🥈' : is3rdPlace ? '🥉' : isSemi ? '🏅' : hasAny ? '🎽' : '—';
+    const bestFinishLabel = isChampion ? 'Champion' : isRunnerUp ? 'Runner Up' : is3rdPlace ? '3rd Place' : isSemi ? 'Semifinalist' : hasAny ? 'Participant' : '—';
 
-    // Podium = distinct tournaments where player reached a Final (win or loss)
+    // Podium = distinct tournaments where player finished 1st, 2nd or 3rd
     const catToTournMap = {};
     (myTournCategories||[]).forEach(c => { catToTournMap[c.id] = c.tournament_id; });
+    const podiumMatches = [
+      ...finalsPlayed,                                      // 1st and 2nd place
+      ...bm3rd.filter(bm => myTeamIds.includes(bm.winner_id)), // 3rd place wins only
+    ];
     const podiumTournIds = [...new Set(
-      finalsPlayed.map(bm => catToTournMap[bm.category_id]).filter(Boolean)
+      podiumMatches.map(bm => catToTournMap[bm.category_id]).filter(Boolean)
     )];
     const podiumCount = podiumTournIds.length;
 
