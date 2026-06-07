@@ -4502,6 +4502,24 @@ window.selectLadderType = (type) => {
       </div>`;
     }).join('') || '<div style="padding:8px 0;font-size:12px;font-weight:600;color:#6b7a99;">No activity yet.</div>';
 
+    // ── Best Finish + Podium Finishes ────────────────────────────────────
+    const finalsPlayed = (myBracketMatches||[]).filter(bm => bm.round_name === 'Final');
+    const semisPlayed  = (myBracketMatches||[]).filter(bm => bm.round_name?.toLowerCase().includes('semi'));
+    const isChampion   = finalsPlayed.some(bm => myTeamIds.includes(bm.winner_id));
+    const isRunnerUp   = finalsPlayed.some(bm => !myTeamIds.includes(bm.winner_id));
+    const isSemi       = semisPlayed.length > 0;
+    const hasAny       = (myBracketMatches||[]).length > 0;
+    const bestFinishIcon  = isChampion ? '🥇' : isRunnerUp ? '🥈' : isSemi ? '🏅' : hasAny ? '🎽' : '—';
+    const bestFinishLabel = isChampion ? 'Champion' : isRunnerUp ? 'Runner Up' : isSemi ? 'Semifinalist' : hasAny ? 'Participant' : '—';
+
+    // Podium = distinct tournaments where player reached a Final (win or loss)
+    const catToTournMap = {};
+    (myTournCategories||[]).forEach(c => { catToTournMap[c.id] = c.tournament_id; });
+    const podiumTournIds = [...new Set(
+      finalsPlayed.map(bm => catToTournMap[bm.category_id]).filter(Boolean)
+    )];
+    const podiumCount = podiumTournIds.length;
+
     // ── Section header helper ─────────────────────────────────────────────
     const secHdr = (icon, title) => `<div class="ppm-sec-hdr">${icon}<span class="ppm-sec-title">${title}</span></div>`;
     const ppmSecSVG = (d) => `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -4594,12 +4612,12 @@ window.selectLadderType = (type) => {
             </div>
             <div class="ppm-career-card">
               <div class="ppm-career-lbl">Best Finish</div>
-              <div class="ppm-career-val" style="font-size:26px;">${badges.find(b=>b.icon==='🏆')?'🥇':badges.find(b=>b.icon==='🥈')?'🥈':'—'}</div>
-              <div class="ppm-career-sub">${badges.find(b=>b.icon==='🏆')?'Champion':badges.find(b=>b.icon==='🥈')?'Runner Up':'—'}</div>
+              <div class="ppm-career-val" style="font-size:26px;">${bestFinishIcon}</div>
+              <div class="ppm-career-sub">${bestFinishLabel}</div>
             </div>
             <div class="ppm-career-card">
               <div class="ppm-career-lbl">Podium Finishes</div>
-              <div class="ppm-career-val" style="color:#F6A623;">${badges.filter(b=>['🏆','🥈'].includes(b.icon)).length}</div>
+              <div class="ppm-career-val" style="color:#F6A623;">${podiumCount}</div>
             </div>
           </div>
         </div>
