@@ -1756,7 +1756,7 @@ window.selectLadderType = (type) => {
 
     try {
       const matches = await api(
-        `matches?select=*,players(first_name,last_name)&ladder_id=eq.${currentLadder.id}&order=session_date.desc,court_group,game_number`,
+        `matches?select=*,players(first_name,last_name)&ladder_id=eq.${currentLadder.id}&order=session_date.desc,court_group,game_number,id`,
       );
       if (!matches.length) {
         document.getElementById('sessions-list').innerHTML =
