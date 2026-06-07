@@ -3088,7 +3088,7 @@ window.selectLadderType = (type) => {
       const WHITE  = [255, 255, 255];
       const ORANGE = [242, 96, 36];
 
-      // Build flat list of courts ordered by time then court number for iteration
+      // Build flat list: grouped by time slot, courts sorted numerically within each slot
       const courtNums = sortedPdfTimes.flatMap(t =>
         Object.keys(byTime[t]).map(Number).sort((a,b) => a-b).map(cn => ({ time: t, courtNum: cn, data: byTime[t][cn] }))
       );
@@ -3127,9 +3127,20 @@ window.selectLadderType = (type) => {
       const ROW_H_SUM   = 6;          // player name row height
       const COURT_GAP   = 5;          // vertical gap between courts
 
+      // Split courts into two halves: left column first half, right column second half
+      // This ensures reading top-to-bottom left then right gives sequential court order
+      const half = Math.ceil(courtNums.length / 2);
+      const leftCourts  = courtNums.slice(0, half);
+      const rightCourts = courtNums.slice(half);
+      const orderedCourts = [];
+      const maxLen = Math.max(leftCourts.length, rightCourts.length);
+      // Interleave so we can use single forEach with col tracking
+      // Actually just concatenate: draw all left first, then all right
+      // We'll handle this by tracking which column we're in via index
       let col = 0;                    // 0 = left column, 1 = right column
       let yL  = 28;                   // y cursor for left column
       let yR  = 28;                   // y cursor for right column
+      const splitCourts = [...leftCourts.map(c => ({...c, col:0})), ...rightCourts.map(c => ({...c, col:1}))];
 
       // Helper: draw one court block in the summary, returns new y after drawing
       const drawSummaryCourtBlock = (courtNum, time, playerNames, noShowName, startX, startY) => {
@@ -3180,7 +3191,7 @@ window.selectLadderType = (type) => {
         return startY + blockH;
       };
 
-      courtNums.forEach(({ time, courtNum, data: court }) => {
+      splitCourts.forEach(({ time, courtNum, data: court, col: fixedCol }) => {
         const gameNums = Object.keys(court.games).map(Number).sort((a, b) => a - b);
 
         // Collect unique active players for this court
@@ -3200,9 +3211,8 @@ window.selectLadderType = (type) => {
         const totalRows = playerNames.length + (noShowName ? 1 : 0);
         const blockH    = COURT_HDR_H + totalRows * ROW_H_SUM + COURT_GAP;
 
-        // Decide which column to place this court in
-        // Strategy: always place in the shorter column
-        const useLeft = yL <= yR;
+        // Use pre-assigned column: left half first, then right half
+        const useLeft = fixedCol === 0;
         const startX  = useLeft ? COL1_X : COL2_X;
         const startY  = useLeft ? yL     : yR;
 
