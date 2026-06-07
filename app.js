@@ -2732,19 +2732,21 @@ window.selectLadderType = (type) => {
     const ptB = calcPoints(b, a);
     const tAIds = document.getElementById(`teamA-ids-${gameNum}`).value.split(',').filter(Boolean);
     const tBIds = document.getElementById(`teamB-ids-${gameNum}`).value.split(',').filter(Boolean);
-    const tANames = tAIds
-      .map((id) => allPlayers.find((p) => p.id == id))
-      .filter(Boolean)
-      .map((p) => p.first_name)
-      .join(' & ');
-    const tBNames = tBIds
-      .map((id) => allPlayers.find((p) => p.id == id))
-      .filter(Boolean)
-      .map((p) => p.first_name)
-      .join(' & ');
-    const aColor = ptA > ptB ? 'var(--teal)' : 'var(--orange)';
-    const bColor = ptB > ptA ? 'var(--teal)' : 'var(--orange)';
-    preview.innerHTML = `<span style="color:${aColor};font-weight:700;">${esc(tANames || 'Team A')}: ${ptA > 0 ? '+' : ''}${ptA} pts</span> &nbsp;|&nbsp; <span style="color:${bColor};font-weight:700;">${esc(tBNames || 'Team B')}: ${ptB > 0 ? '+' : ''}${ptB} pts</span>`;
+
+    // Check sub status per player and build per-player preview
+    const isSub = (id) => subPlayers.has(Number(id)) || ladderPlayers.find(p => p.id == id)?.ladder_status === 'sub';
+    const playerLabel = (id, pts) => {
+      const p = allPlayers.find(x => x.id == id);
+      const name = p ? p.first_name : `#${id}`;
+      const sub  = isSub(id);
+      const clr  = sub ? 'var(--text-muted)' : pts > 0 ? 'var(--teal)' : 'var(--orange)';
+      const ptsStr = sub ? '0 pts (sub)' : `${pts > 0 ? '+' : ''}${pts} pts`;
+      return `<span style="color:${clr};font-weight:700;">${esc(name)}: ${ptsStr}</span>`;
+    };
+
+    const teamAParts = tAIds.map(id => playerLabel(id, ptA));
+    const teamBParts = tBIds.map(id => playerLabel(id, ptB));
+    preview.innerHTML = [...teamAParts, ...teamBParts].join(' &nbsp;|&nbsp; ');
   };
 
   const autoCalcExtraGame = (gameNum) => {
