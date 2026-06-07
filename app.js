@@ -2236,8 +2236,15 @@ window.selectLadderType = (type) => {
       if (teamA[0].score_for < teamB[0].score_for) { [teamA, teamB] = [teamB, teamA]; }
     }
 
-    const teamANames = teamA.map(r => r.players ? `${esc(r.players.first_name)} ${esc(r.players.last_name)}` : 'Unknown').join('<br>');
-    const teamBNames = teamB.map(r => r.players ? `${esc(r.players.first_name)} ${esc(r.players.last_name)}` : 'Unknown').join('<br>');
+    const isSubRow = (r) => r.is_sub || ladderPlayers.find(p => p.id === r.player_id)?.ladder_status === 'sub';
+    const teamANames = teamA.map(r => {
+      const name = r.players ? `${esc(r.players.first_name)} ${esc(r.players.last_name)}` : 'Unknown';
+      return isSubRow(r) ? `${name} <span style="font-size:10px;font-weight:700;color:#6b7a99;background:#f0f2f8;padding:1px 6px;border-radius:99px;vertical-align:middle;">Sub</span>` : name;
+    }).join('<br>');
+    const teamBNames = teamB.map(r => {
+      const name = r.players ? `${esc(r.players.first_name)} ${esc(r.players.last_name)}` : 'Unknown';
+      return isSubRow(r) ? `${name} <span style="font-size:10px;font-weight:700;color:#6b7a99;background:#f0f2f8;padding:1px 6px;border-radius:99px;vertical-align:middle;">Sub</span>` : name;
+    }).join('<br>');
     const teamAScore = teamA[0] ? (teamA[0].score_for !== null ? teamA[0].score_for : '') : '';
     const teamBScore = teamB[0] ? (teamB[0].score_for !== null ? teamB[0].score_for : '') : '';
     const teamAAgainst = teamA[0] ? (teamA[0].score_against !== null ? teamA[0].score_against : '') : '';
@@ -2257,7 +2264,16 @@ window.selectLadderType = (type) => {
       <div id="eg-scores-section" class="${isVoided ? 'opacity-04' : ''}">
         <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:start;">
           <div style="background:#e8f0ff;border-radius:8px;padding:14px;">
-            <div style="font-size:12px;font-weight:800;color:#0d1f4a;margin-bottom:8px;line-height:1.5;">${teamANames}</div>
+            <div style="font-size:12px;font-weight:800;color:#0d1f4a;margin-bottom:8px;line-height:1.8;">
+              ${teamA.map(r => {
+                const name = r.players ? `${esc(r.players.first_name)} ${esc(r.players.last_name)}` : 'Unknown';
+                const sub  = isSubRow(r);
+                return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                  <span>${name}${sub ? ` <span style="font-size:10px;font-weight:700;color:#6b7a99;background:#f0f2f8;padding:1px 6px;border-radius:99px;">Sub</span>` : ''}</span>
+                  <span id="eg-inline-pts-${r.id}" style="font-size:11px;font-weight:700;color:#6b7a99;white-space:nowrap;"></span>
+                </div>`;
+              }).join('')}
+            </div>
             <div class="form-group" style="margin-bottom:6px;">
               <label style="font-size:10px;">Score</label>
               <input type="number" min="0" max="11" id="eg-sf-teamA" value="${teamAScore}" placeholder="0" data-egteam="A">
@@ -2272,7 +2288,16 @@ window.selectLadderType = (type) => {
             <div style="width:1px;height:20px;background:rgba(23,76,204,0.15);"></div>
           </div>
           <div style="background:#e8f5f1;border-radius:8px;padding:14px;">
-            <div style="font-size:12px;font-weight:800;color:#0d1f4a;margin-bottom:8px;line-height:1.5;">${teamBNames}</div>
+            <div style="font-size:12px;font-weight:800;color:#0d1f4a;margin-bottom:8px;line-height:1.8;">
+              ${teamB.map(r => {
+                const name = r.players ? `${esc(r.players.first_name)} ${esc(r.players.last_name)}` : 'Unknown';
+                const sub  = isSubRow(r);
+                return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                  <span>${name}${sub ? ` <span style="font-size:10px;font-weight:700;color:#6b7a99;background:#f0f2f8;padding:1px 6px;border-radius:99px;">Sub</span>` : ''}</span>
+                  <span id="eg-inline-pts-${r.id}" style="font-size:11px;font-weight:700;color:#6b7a99;white-space:nowrap;"></span>
+                </div>`;
+              }).join('')}
+            </div>
             <div class="form-group" style="margin-bottom:6px;">
               <label style="font-size:10px;">Score</label>
               <input type="number" min="0" max="11" id="eg-sf-teamB" value="${teamBScore}" placeholder="0" data-egteam="B">
@@ -2293,33 +2318,28 @@ window.selectLadderType = (type) => {
       if (isNaN(sfA) || isNaN(sfB)) return;
       const ptA = calcPoints(sfA, sfB);
       const ptB = calcPoints(sfB, sfA);
-      const tAIds   = (document.getElementById('eg-ids-teamA')?.value || '').split(',').filter(Boolean);
-      const tBIds   = (document.getElementById('eg-ids-teamB')?.value || '').split(',').filter(Boolean);
       const subIdsA = (document.getElementById('eg-sub-ids-teamA')?.value || '').split(',').filter(Boolean);
       const subIdsB = (document.getElementById('eg-sub-ids-teamB')?.value || '').split(',').filter(Boolean);
-      const isSub   = (id, subIds) => subIds.includes(String(id));
-      const label   = (id, pts, subIds) => {
-        const p    = allPlayers.find(x => x.id == id);
-        const name = p ? p.first_name : `#${id}`;
-        const sub  = isSub(id, subIds);
-        const clr  = sub ? 'var(--text-muted)' : pts > 0 ? 'var(--teal)' : 'var(--orange)';
-        const str  = sub ? '0 pts (sub)' : `${pts > 0 ? '+' : ''}${pts} pts`;
-        return `<span style="color:${clr};font-weight:700;">${esc(name)}: ${str}</span>`;
-      };
-      const parts = [
-        ...tAIds.map(id => label(id, ptA, subIdsA)),
-        ...tBIds.map(id => label(id, ptB, subIdsB)),
-      ];
-      // Show combined per-player preview below the score inputs
-      let previewEl = document.getElementById('eg-pts-preview');
-      if (!previewEl) {
-        previewEl = document.createElement('div');
-        previewEl.id = 'eg-pts-preview';
-        previewEl.style.cssText = 'margin-top:12px;font-size:11px;display:flex;flex-wrap:wrap;gap:8px;';
-        document.getElementById('eg-scores-section')?.appendChild(previewEl);
-      }
-      previewEl.innerHTML = parts.join(' &nbsp;|&nbsp; ');
-      // Also update the individual team displays for backwards compat
+
+      // Update Team A player lines with inline points
+      teamA.forEach(r => {
+        const elId = `eg-inline-pts-${r.id}`;
+        const el   = document.getElementById(elId);
+        if (!el) return;
+        const sub  = subIdsA.includes(String(r.id));
+        el.textContent = sub ? '0 pts' : `${ptA > 0 ? '+' : ''}${ptA} pts`;
+        el.style.color = sub ? '#6b7a99' : '#174CCC';
+      });
+      // Update Team B player lines with inline points
+      teamB.forEach(r => {
+        const elId = `eg-inline-pts-${r.id}`;
+        const el   = document.getElementById(elId);
+        if (!el) return;
+        const sub  = subIdsB.includes(String(r.id));
+        el.textContent = sub ? '0 pts' : `${ptB > 0 ? '+' : ''}${ptB} pts`;
+        el.style.color = sub ? '#6b7a99' : '#174CCC';
+      });
+      // Legacy displays
       document.getElementById('eg-pts-teamA-display').textContent = '+' + ptA;
       document.getElementById('eg-pts-teamB-display').textContent = '+' + ptB;
     };
@@ -2713,13 +2733,30 @@ window.selectLadderType = (type) => {
         <div class="vs-grid">
           <div class="team-pad-blue">
             <div class="blue-tag mb-6">Team A</div>
-            <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:10px;min-height:40px;line-height:1.3;">${esc(teamANames)}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.8;">
+              ${tA.map(p => {
+                const sub = subPlayers.has(p.id);
+                const pts = document.getElementById ? '' : '';
+                return `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                  <span>${esc(p.first_name + ' ' + p.last_name)}${sub ? ` <span style="font-size:9px;font-weight:700;color:#6b7a99;background:#f0f2f8;padding:1px 5px;border-radius:99px;">Sub</span>` : ''}</span>
+                  <span id="rc-pts-${gameNum}-a-${p.id}" style="font-size:10px;font-weight:700;color:#6b7a99;white-space:nowrap;"></span>
+                </div>`;
+              }).join('')}
+            </div>
             <input type="number" min="0" max="11" placeholder="Score" id="scoreA-${gameNum}" data-autoscore="${gameNum}" class="score-input">
           </div>
           <div class="vs-tag"><span>VS</span></div>
           <div class="team-pad-teal">
             <div class="label-tag mb-6" style="color:var(--teal);">Team B</div>
-            <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:10px;min-height:40px;line-height:1.3;">${esc(teamBNames)}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.8;">
+              ${tB.map(p => {
+                const sub = subPlayers.has(p.id);
+                return `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                  <span>${esc(p.first_name + ' ' + p.last_name)}${sub ? ` <span style="font-size:9px;font-weight:700;color:#6b7a99;background:#f0f2f8;padding:1px 5px;border-radius:99px;">Sub</span>` : ''}</span>
+                  <span id="rc-pts-${gameNum}-b-${p.id}" style="font-size:10px;font-weight:700;color:#6b7a99;white-space:nowrap;"></span>
+                </div>`;
+              }).join('')}
+            </div>
             <input type="number" min="0" max="11" placeholder="Score" id="scoreB-${gameNum}" data-autoscore="${gameNum}" class="score-input">
           </div>
         </div>
@@ -2772,6 +2809,22 @@ window.selectLadderType = (type) => {
       return `<span style="color:${clr};font-weight:700;">${esc(name)}: ${ptsStr}</span>`;
     };
 
+    // Update inline pts spans inside game card player rows
+    tAIds.forEach(id => {
+      const el  = document.getElementById(`rc-pts-${gameNum}-a-${id}`);
+      if (!el) return;
+      const sub = isSub(id);
+      el.textContent = sub ? '0 pts' : `${ptA > 0 ? '+' : ''}${ptA} pts`;
+      el.style.color  = sub ? '#6b7a99' : '#174CCC';
+    });
+    tBIds.forEach(id => {
+      const el  = document.getElementById(`rc-pts-${gameNum}-b-${id}`);
+      if (!el) return;
+      const sub = isSub(id);
+      el.textContent = sub ? '0 pts' : `${ptB > 0 ? '+' : ''}${ptB} pts`;
+      el.style.color  = sub ? '#6b7a99' : '#174CCC';
+    });
+    // Keep summary preview for overall display
     const teamAParts = tAIds.map(id => playerLabel(id, ptA));
     const teamBParts = tBIds.map(id => playerLabel(id, ptB));
     preview.innerHTML = [...teamAParts, ...teamBParts].join(' &nbsp;|&nbsp; ');
