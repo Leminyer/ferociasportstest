@@ -8544,8 +8544,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       if (boxB) boxB.style.background = !winA ? 'rgba(36,188,150,0.04)' : 'white';
       const winner = winA ? nameA : nameB;
       const pts = ftcLeaguePts(a, b);
+      const winnerPts = winA ? pts.a : pts.b;
       if (banner) banner.style.display = 'flex';
-      if (bannerText) bannerText.textContent = `${winner} wins · ${a} – ${b} · +${pts.a} league pts`;
+      if (bannerText) bannerText.textContent = `${winner} wins · ${a} – ${b} · +${winnerPts} league pts`;
     } else {
       if (boxA) { boxA.style.border = '1.5px solid #e0e7f5'; boxA.style.background = 'white'; }
       if (boxB) { boxB.style.border = '1.5px solid #e0e7f5'; boxB.style.background = 'white'; }
@@ -8570,9 +8571,15 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const other = side === 'a' ? 'b' : 'a';
     ftcForfeitState[other] = false;
 
-    // Apply visual state
-    if (btnA) btnA.style.cssText += ftcForfeitState.a ? FTC_FORFEIT_ACTIVE : FTC_FORFEIT_INACTIVE;
-    if (btnB) btnB.style.cssText += ftcForfeitState.b ? FTC_FORFEIT_ACTIVE : FTC_FORFEIT_INACTIVE;
+    // Apply visual state — set each property individually to ensure override
+    const applyForfeitStyle = (btn, active) => {
+      if (!btn) return;
+      btn.style.background = active ? 'rgba(242,96,36,0.1)' : '#f0f2f8';
+      btn.style.color       = active ? '#F26024'             : '#6b7a99';
+      btn.style.border      = active ? '0.5px solid #F26024' : '0.5px solid transparent';
+    };
+    applyForfeitStyle(btnA, ftcForfeitState.a);
+    applyForfeitStyle(btnB, ftcForfeitState.b);
 
     // Set scores based on active forfeit
     if (ftcForfeitState.a) {
@@ -8595,8 +8602,8 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     ftcForfeitState = { a: false, b: false };
     const btnA = document.getElementById('ftc-forfeit-a');
     const btnB = document.getElementById('ftc-forfeit-b');
-    if (btnA) btnA.setAttribute('style', btnA.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border:[^;]+;/g,'') + FTC_FORFEIT_INACTIVE);
-    if (btnB) btnB.setAttribute('style', btnB.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border:[^;]+;/g,'') + FTC_FORFEIT_INACTIVE);
+    if (btnA) { btnA.style.background='#f0f2f8'; btnA.style.color='#6b7a99'; btnA.style.border='0.5px solid transparent'; }
+    if (btnB) { btnB.style.background='#f0f2f8'; btnB.style.color='#6b7a99'; btnB.style.border='0.5px solid transparent'; }
     window._ftcScoreCallerContext = callerContext || 'schedule';
     const m = ftcMatches.find(x => x.id === matchId);
     if (!m) return;
