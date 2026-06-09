@@ -8313,7 +8313,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                   '</td>' +
                   // Fix 6: Team A — no box, just players + sub button
                   '<td style="padding:10px 8px 10px 16px;vertical-align:middle;text-align:right;">' +
-                    '<div style="font-size:12px;font-weight:700;color:' + nameA + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + '</div>' +
+                    '<div style="font-size:12px;font-weight:700;color:' + nameA + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_a_p1_id) + '<br>' + pName(m.team_a_p2_id) + (m.forfeit_team_id === m.team_a_id ? ' <span style="font-size:9px;font-weight:800;background:rgba(242,96,36,0.1);color:#F26024;padding:1px 5px;border-radius:4px;vertical-align:middle;">FF</span>' : '') + '</div>' +
                     '<div style="display:flex;justify-content:flex-end;"><button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'A\')" style="font-size:9px;padding:2px 8px;">Sub Team A</button></div>' +
                   '</td>' +
                   // Score center
@@ -8329,7 +8329,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
                   '</td>' +
                   // Fix 6: Team B — no box, just players + sub button
                   '<td style="padding:10px 8px;vertical-align:middle;">' +
-                    '<div style="font-size:12px;font-weight:700;color:' + nameB + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + '</div>' +
+                    '<div style="font-size:12px;font-weight:700;color:' + nameB + ';line-height:1.5;margin-bottom:5px;">' + pName(m.team_b_p1_id) + '<br>' + pName(m.team_b_p2_id) + (m.forfeit_team_id === m.team_b_id ? ' <span style="font-size:9px;font-weight:800;background:rgba(242,96,36,0.1);color:#F26024;padding:1px 5px;border-radius:4px;vertical-align:middle;">FF</span>' : '') + '</div>' +
                     '<button class="ftc-edit-mini" onclick="event.stopPropagation();ftcOpenMatchEditTeam(' + m.id + ',\'B\')" style="font-size:9px;padding:2px 8px;">Sub Team B</button>' +
                   '</td>' +
                   // Status
@@ -8655,23 +8655,25 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const m = ftcMatches.find(x => x.id === matchId);
     if (!m) return;
     const pts = ftcLeaguePts(scoreA, scoreB);
-    const winnerId = scoreA > scoreB ? m.team_a_id : m.team_b_id;
+    const winnerId  = scoreA > scoreB ? m.team_a_id : m.team_b_id;
+    const forfeitId = ftcForfeitState.a ? m.team_a_id : ftcForfeitState.b ? m.team_b_id : null;
 
     const saveBtn = document.getElementById('ftc-score-save-btn');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
     try {
       await api(`ftc_ladder_matches?id=eq.${matchId}`, 'PATCH', {
-        score_a:        scoreA,
-        score_b:        scoreB,
-        league_pts_a:   pts.a,
-        league_pts_b:   pts.b,
-        winner_team_id: winnerId,
-        status:         'completed',
+        score_a:          scoreA,
+        score_b:          scoreB,
+        league_pts_a:     pts.a,
+        league_pts_b:     pts.b,
+        winner_team_id:   winnerId,
+        forfeit_team_id:  forfeitId,
+        status:           'completed',
       });
       // Update local state
       m.score_a = scoreA; m.score_b = scoreB;
       m.league_pts_a = pts.a; m.league_pts_b = pts.b;
-      m.winner_team_id = winnerId; m.status = 'completed';
+      m.winner_team_id = winnerId; m.forfeit_team_id = forfeitId; m.status = 'completed';
       // Update ftcMatches array
       const idx = ftcMatches.findIndex(x => x.id === matchId);
       if (idx >= 0) ftcMatches[idx] = { ...ftcMatches[idx], ...m };
