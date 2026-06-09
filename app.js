@@ -6956,6 +6956,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
             <select id="ftc-po-format" style="font-size:12px;font-weight:700;color:#0d1f4a;padding:8px 12px;border:0.5px solid #174CCC;border-radius:8px;background:white;width:100%;" onchange="ftcUpdatePlayoffFormat()">
               <option value="top4">Top 4 teams (Semi → Final)</option>
               <option value="top6">Top 6 teams (QF → Semi → Final)</option>
+              <option value="top8">Top 8 teams (QF → Semi → Final)</option>
             </select>
           </div>
           <div>
@@ -6993,7 +6994,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   // Update include badges when format changes
   window.ftcUpdatePlayoffFormat = () => {
     const format = document.getElementById('ftc-po-format')?.value || 'top4';
-    const n = format === 'top6' ? 6 : 4;
+    const n = format === 'top8' ? 8 : format === 'top6' ? 6 : 4;
     const rows = document.querySelectorAll('#ftc-po-seed-body tr');
     rows.forEach((row, i) => {
       const cell = row.querySelector(`[id^="ftc-po-incl-"]`);
@@ -7009,7 +7010,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   window.ftcGeneratePlayoffBracket = async () => {
     if (!currentLadder) return;
     const format = document.getElementById('ftc-po-format')?.value || 'top4';
-    const n = format === 'top6' ? 6 : 4;
+    const n = format === 'top8' ? 8 : format === 'top6' ? 6 : 4;
 
     // Compute seeded teams (reuse standings logic)
     const completedMatches = ftcMatches.filter(m => m.status === 'completed' && !m.is_tiebreaker);
@@ -7032,12 +7033,23 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
         { playoff_round:'semifinal', playoff_match_num:2, team_a_id:seeded[1]?.id, team_b_id:seeded[2]?.id, seed_a:2, seed_b:3 },
         { playoff_round:'final',     playoff_match_num:1, team_a_id:null, team_b_id:null, seed_a:null, seed_b:null },
       ];
-    } else {
+    } else if (format === 'top6') {
       scheduleRows = [
         { playoff_round:'quarterfinal', playoff_match_num:1, team_a_id:seeded[2]?.id, team_b_id:seeded[5]?.id, seed_a:3, seed_b:6 },
         { playoff_round:'quarterfinal', playoff_match_num:2, team_a_id:seeded[3]?.id, team_b_id:seeded[4]?.id, seed_a:4, seed_b:5 },
         { playoff_round:'semifinal',    playoff_match_num:1, team_a_id:seeded[0]?.id, team_b_id:null, seed_a:1, seed_b:null },
         { playoff_round:'semifinal',    playoff_match_num:2, team_a_id:seeded[1]?.id, team_b_id:null, seed_a:2, seed_b:null },
+        { playoff_round:'final',        playoff_match_num:1, team_a_id:null, team_b_id:null, seed_a:null, seed_b:null },
+      ];
+    } else {
+      // top8: 1v8, 2v7, 3v6, 4v5 in QFs; SF and Final placeholders (TBD after QF results)
+      scheduleRows = [
+        { playoff_round:'quarterfinal', playoff_match_num:1, team_a_id:seeded[0]?.id, team_b_id:seeded[7]?.id, seed_a:1, seed_b:8 },
+        { playoff_round:'quarterfinal', playoff_match_num:2, team_a_id:seeded[1]?.id, team_b_id:seeded[6]?.id, seed_a:2, seed_b:7 },
+        { playoff_round:'quarterfinal', playoff_match_num:3, team_a_id:seeded[2]?.id, team_b_id:seeded[5]?.id, seed_a:3, seed_b:6 },
+        { playoff_round:'quarterfinal', playoff_match_num:4, team_a_id:seeded[3]?.id, team_b_id:seeded[4]?.id, seed_a:4, seed_b:5 },
+        { playoff_round:'semifinal',    playoff_match_num:1, team_a_id:null, team_b_id:null, seed_a:null, seed_b:null },
+        { playoff_round:'semifinal',    playoff_match_num:2, team_a_id:null, team_b_id:null, seed_a:null, seed_b:null },
         { playoff_round:'final',        playoff_match_num:1, team_a_id:null, team_b_id:null, seed_a:null, seed_b:null },
       ];
     }
@@ -7142,7 +7154,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const champTeamId = champion ? (ftcPlayoffMatches.filter(m=>m.schedule_id===champion.id&&m.status==='completed').reduce((acc,m)=>{ if(m.winner_team_id===champion.team_a_id)acc.a++; else acc.b++; return acc; },{a:0,b:0})) : null;
 
     let bracketHtml = `<div class="card" style="margin-bottom:14px;">
-      <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Playoff Bracket — ${rounds.includes('quarterfinal')?'Top 6':'Top 4'}</div>
+      <div style="font-size:14px;font-weight:800;color:#0d1f4a;margin-bottom:4px;">Playoff Bracket — ${rounds.includes('quarterfinal')?(seededCount>=8?'Top 8':'Top 6'):'Top 4'}</div>
       <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Click any matchup to enter or edit scores. Same 4-game format (MD, WD, MX1, MX2).</div>
       <div style="display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:8px;">`;
 
@@ -7985,6 +7997,21 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     const firstMatchDate = ftcNextWeekday(startDate, targetDay);
     const rounds = ftcGenerateRoundRobin(ftcTeams, weeks);
 
+    // Validate: no team should get a bye more than once across ALL weeks
+    const byeCounts = {};
+    rounds.forEach(round => {
+      round.matchups.filter(m => m.bye).forEach(m => {
+        const tid = m.teamA?.id;
+        if (tid) byeCounts[tid] = (byeCounts[tid] || 0) + 1;
+      });
+    });
+    const doubleBye = Object.entries(byeCounts).find(([,c]) => c > 1);
+    if (doubleBye) {
+      const team = ftcTeams.find(t => String(t.id) === doubleBye[0]);
+      toast(`Schedule error: ${team?.name || 'A team'} was assigned a bye more than once. Please check team count and weeks.`, true);
+      return;
+    }
+
     const rows = [];
     rounds.forEach((round, i) => {
       const matchDate = ftcAddWeeks(firstMatchDate, i);
@@ -8086,9 +8113,9 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       return;
     }
 
-    // Group by week
+    // Group by week — exclude playoff rows (week 99 / is_playoff)
     const byWeek = {};
-    ftcSchedule.forEach(s => {
+    ftcSchedule.filter(s => !s.is_playoff && s.week_number !== 99).forEach(s => {
       if (!byWeek[s.week_number]) byWeek[s.week_number] = [];
       byWeek[s.week_number].push(s);
     });
@@ -8366,29 +8393,12 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
               return renderCourtBlock(c1, '#174CCC', c1Matches, tAn, tBn) +
                      renderCourtBlock(c2, '#24BC96', c2Matches, tAn, tBn);
             }
-            // Check for 2-2 tiebreaker situation
-            const regularSubMatches  = subMatches.filter(m => !m.is_tiebreaker);
-            const tiebreakerMatch    = subMatches.find(m => m.is_tiebreaker);
-            const winsA = regularSubMatches.filter(m => m.status === 'completed' && m.winner_team_id === s.team_a_id).length;
-            const winsB = regularSubMatches.filter(m => m.status === 'completed' && m.winner_team_id === s.team_b_id).length;
-            const is22Tie = winsA === 2 && winsB === 2 && !tiebreakerMatch;
-            const tiebannerHtml = is22Tie
-              ? '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(242,96,36,0.06);border-top:0.5px solid rgba(242,96,36,0.2);">' +
-                  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F26024" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
-                  '<span style="font-size:11px;font-weight:700;color:#F26024;">2–2 tie — tiebreaker required</span>' +
-                  '<button onclick="ftcOpenTiebreakerModal(' + s.id + ',' + s.team_a_id + ',' + s.team_b_id + ')" style="padding:5px 14px;border:none;border-radius:99px;background:#F26024;color:white;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;cursor:pointer;margin-left:auto;">Record Tiebreaker</button>' +
-                '</div>'
-              : tiebreakerMatch
-                ? '<div style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(36,188,150,0.06);border-top:0.5px solid rgba(36,188,150,0.2);">' +
-                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
-                    '<span style="font-size:11px;font-weight:700;color:#085041;">Tiebreaker recorded · ' + (tiebreakerMatch.score_a + ' – ' + tiebreakerMatch.score_b) + '</span>' +
-                  '</div>'
-                : '';
+            // Season schedule — no tiebreaker (tiebreaker is playoff only)
+            const regularSubMatches = subMatches.filter(m => !m.is_tiebreaker);
 
             const matchDetailHtml = subMatches.length > 0
               ? '<div id="' + expandId + '" style="display:none;border-top:0.5px solid #e0e7f5;background:white;">' +
                 buildMatchDetailHtml(regularSubMatches, courtParts) +
-                tiebannerHtml +
                 '</div>'
               : '';
 
@@ -8535,7 +8545,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       const winner = winA ? nameA : nameB;
       const pts = ftcLeaguePts(a, b);
       if (banner) banner.style.display = 'flex';
-      if (bannerText) bannerText.textContent = `${winner} wins · ${a} – ${b} · +2 league pts`;
+      if (bannerText) bannerText.textContent = `${winner} wins · ${a} – ${b} · +${pts.a} league pts`;
     } else {
       if (boxA) { boxA.style.border = '1.5px solid #e0e7f5'; boxA.style.background = 'white'; }
       if (boxB) { boxB.style.border = '1.5px solid #e0e7f5'; boxB.style.background = 'white'; }
@@ -8543,20 +8553,50 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
     }
   };
 
-  // Forfeit handling
+  // Forfeit toggle handling
+  const FTC_FORFEIT_ACTIVE   = 'background:rgba(242,96,36,0.1);color:#F26024;border:0.5px solid #F26024;';
+  const FTC_FORFEIT_INACTIVE = 'background:#f0f2f8;color:#6b7a99;border:0.5px solid transparent;';
+  let ftcForfeitState = { a: false, b: false };
+
   window.ftcForfeit = (side) => {
-    if (side === 'a') {
-      document.getElementById('ftc-score-input-a').value = '0';
-      document.getElementById('ftc-score-input-b').value = '11';
+    const btnA = document.getElementById('ftc-forfeit-a');
+    const btnB = document.getElementById('ftc-forfeit-b');
+    const inA  = document.getElementById('ftc-score-input-a');
+    const inB  = document.getElementById('ftc-score-input-b');
+
+    // Toggle the clicked side
+    ftcForfeitState[side] = !ftcForfeitState[side];
+    // Deactivate the other side
+    const other = side === 'a' ? 'b' : 'a';
+    ftcForfeitState[other] = false;
+
+    // Apply visual state
+    if (btnA) btnA.style.cssText += ftcForfeitState.a ? FTC_FORFEIT_ACTIVE : FTC_FORFEIT_INACTIVE;
+    if (btnB) btnB.style.cssText += ftcForfeitState.b ? FTC_FORFEIT_ACTIVE : FTC_FORFEIT_INACTIVE;
+
+    // Set scores based on active forfeit
+    if (ftcForfeitState.a) {
+      if (inA) inA.value = '0';
+      if (inB) inB.value = '11';
+    } else if (ftcForfeitState.b) {
+      if (inA) inA.value = '11';
+      if (inB) inB.value = '0';
     } else {
-      document.getElementById('ftc-score-input-a').value = '11';
-      document.getElementById('ftc-score-input-b').value = '0';
+      // Both deactivated — clear scores
+      if (inA) inA.value = '';
+      if (inB) inB.value = '';
     }
     ftcScoreUpdate();
   };
 
   // Open score modal
   window.ftcOpenScoreModal = (matchId, callerContext) => {
+    // Reset forfeit state on modal open
+    ftcForfeitState = { a: false, b: false };
+    const btnA = document.getElementById('ftc-forfeit-a');
+    const btnB = document.getElementById('ftc-forfeit-b');
+    if (btnA) btnA.setAttribute('style', btnA.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border:[^;]+;/g,'') + FTC_FORFEIT_INACTIVE);
+    if (btnB) btnB.setAttribute('style', btnB.getAttribute('style').replace(/background:[^;]+;color:[^;]+;border:[^;]+;/g,'') + FTC_FORFEIT_INACTIVE);
     window._ftcScoreCallerContext = callerContext || 'schedule';
     const m = ftcMatches.find(x => x.id === matchId);
     if (!m) return;
