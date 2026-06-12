@@ -4885,9 +4885,7 @@ window.selectLadderType = (type) => {
     // Build competition impact HTML outside template to avoid nested backtick parsing issues
     const winIds  = isWinA ? teamAIds : teamBIds;
     const loseIds = isWinA ? teamBIds : teamAIds;
-    console.log('[impact] winIds:', winIds, 'loseIds:', loseIds, 'allPlayers count:', allPlayers.length);
-    winIds.forEach(pid => console.log('[impact] win pid:', pid, typeof pid, '-> player:', allPlayers.find(x => Number(x.id)===Number(pid))));
-    loseIds.forEach(pid => console.log('[impact] lose pid:', pid, typeof pid, '-> player:', allPlayers.find(x => Number(x.id)===Number(pid))));
+
     const playerRow = (pid, isWin) => {
       const ini  = initials(pid);
       const name = esc(pName(pid) || '—');
@@ -4910,6 +4908,7 @@ window.selectLadderType = (type) => {
       + '<div style="padding:14px;border-right:0.5px solid #e0e7f5;">' + winIds.map(pid => playerRow(pid, true)).join('') + '</div>'
       + '<div style="padding:14px;">' + loseIds.map(pid => playerRow(pid, false)).join('') + '</div>'
       + '</div></div>';
+
 
     document.getElementById('vm-title').textContent = fmtDate(m.match_date) + ' • ' + (m.purpose || 'Friendly Match');
 
@@ -4967,7 +4966,7 @@ window.selectLadderType = (type) => {
       </div>
 
       <!-- Result banner -->
-      <div style="background:rgba(36,188,150,0.06);border-radius:10px;border:0.5px solid rgba(36,188,150,0.2);padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">
+      <div style="background:rgba(36,188,150,0.06);border-radius:10px;border:0.5px solid rgba(36,188,150,0.2);padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;">
         <div style="width:36px;height:36px;border-radius:50%;background:rgba(36,188,150,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           ${trophySVG}
         </div>
@@ -4979,7 +4978,7 @@ window.selectLadderType = (type) => {
       </div>
 
       <!-- Info row: 3 columns -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
         <!-- Match Information -->
         <div style="background:white;border-radius:10px;border:0.5px solid #e0e7f5;padding:14px;">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
@@ -5027,11 +5026,14 @@ window.selectLadderType = (type) => {
 
       <!-- Competition Impact — built outside template to avoid nested backtick issues -->
       ${impactHTML}
-      ${m.notes ? `<div style="background:#f8f9ff;border-radius:10px;padding:12px 14px;border:0.5px solid #e0e7f5;margin-top:10px;"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:5px;">Notes</div><div style="font-size:12px;font-weight:600;color:#0d1f4a;line-height:1.6;">${esc(m.notes)}</div></div>` : ''}
+      ${m.notes ? `<div style="background:#f8f9ff;border-radius:10px;padding:12px 14px;border:0.5px solid #e0e7f5;margin-bottom:14px;"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:5px;">Notes</div><div style="font-size:12px;font-weight:600;color:#0d1f4a;line-height:1.6;">${esc(m.notes)}</div></div>` : ''}
     `;
 
     document.getElementById('view-match-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
+    // Scroll body to top after render
+    const vmBody = document.getElementById('vm-body');
+    if (vmBody) vmBody.scrollTop = 0;
   };
 
   window.mhEnterScore = (id) => { toast('Enter score — coming soon!'); };
