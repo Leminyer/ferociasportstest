@@ -4889,22 +4889,24 @@ window.selectLadderType = (type) => {
         </span>
       </div>
 
-      <!-- Score row -->
-      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:16px;">
+      <!-- Score row — equal height cards, names per line, Team A/B labels -->
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:stretch;margin-bottom:16px;">
         <!-- Team A card -->
-        <div style="background:white;border-radius:12px;padding:16px;border:1px solid ${isWinA?'rgba(36,188,150,0.3)':'#e0e7f5'};${isWinA?'background:rgba(36,188,150,0.04);':''}">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:${isWinA?'8px':'0'};">
-            ${avatar(teamAIds[0], '#e8f0ff', '#174CCC')}
-            <div>
-              <div style="font-size:14px;font-weight:800;color:#0d1f4a;line-height:1.2;">${esc(teamANames.join('<br>') || '—')}</div>
-              <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-top:2px;">Player</div>
+        <div style="background:${isWinA?'rgba(36,188,150,0.04)':'white'};border-radius:12px;padding:16px;border:1px solid ${isWinA?'rgba(36,188,150,0.3)':'#e0e7f5'};display:flex;flex-direction:column;justify-content:space-between;">
+          <div>
+            <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#6b7a99;margin-bottom:8px;">Team A</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              ${avatar(teamAIds[0], '#e8f0ff', '#174CCC')}
+              <div>
+                ${teamANames.map(n=>`<div style="font-size:13px;font-weight:800;color:#0d1f4a;line-height:1.3;">${esc(n)}</div>`).join('')}
+              </div>
             </div>
           </div>
-          ${!isWinA ? '' : `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:99px;background:rgba(36,188,150,0.12);font-size:10px;font-weight:800;color:#24BC96;">${trophySVG} MATCH WINNER</div>`}
+          ${isWinA ? `<div style="margin-top:10px;display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:99px;background:rgba(36,188,150,0.12);font-size:10px;font-weight:800;color:#24BC96;">${trophySVG} MATCH WINNER</div>` : ''}
         </div>
 
         <!-- Score center -->
-        <div style="text-align:center;">
+        <div style="text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 0;">
           <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;">
             <span style="font-size:52px;font-weight:900;color:${isWinA?'#0d1f4a':'#24BC96'};line-height:1;font-family:'Bebas Neue',sans-serif;">${games.length?games[0][0]:'—'}</span>
             <span style="font-size:24px;font-weight:800;color:#b0bbd6;">-</span>
@@ -4918,15 +4920,17 @@ window.selectLadderType = (type) => {
         </div>
 
         <!-- Team B card -->
-        <div style="background:white;border-radius:12px;padding:16px;border:1px solid ${!isWinA?'rgba(36,188,150,0.3)':'#e0e7f5'};${!isWinA?'background:rgba(36,188,150,0.04);':''}">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:${!isWinA?'8px':'0'};">
-            ${avatar(teamBIds[0], !isWinA?'rgba(36,188,150,0.15)':'#e8f0ff', !isWinA?'#085041':'#174CCC')}
-            <div>
-              <div style="font-size:14px;font-weight:800;color:#0d1f4a;line-height:1.2;">${esc(teamBNames.join('<br>') || '—')}</div>
-              <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-top:2px;">Player</div>
+        <div style="background:${!isWinA?'rgba(36,188,150,0.04)':'white'};border-radius:12px;padding:16px;border:1px solid ${!isWinA?'rgba(36,188,150,0.3)':'#e0e7f5'};display:flex;flex-direction:column;justify-content:space-between;">
+          <div>
+            <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#6b7a99;margin-bottom:8px;">Team B</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              ${avatar(teamBIds[0], !isWinA?'rgba(36,188,150,0.15)':'#e8f0ff', !isWinA?'#085041':'#174CCC')}
+              <div>
+                ${teamBNames.map(n=>`<div style="font-size:13px;font-weight:800;color:#0d1f4a;line-height:1.3;">${esc(n)}</div>`).join('')}
+              </div>
             </div>
           </div>
-          ${isWinA ? '' : `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:99px;background:rgba(36,188,150,0.12);font-size:10px;font-weight:800;color:#24BC96;">${trophySVG} MATCH WINNER</div>`}
+          ${!isWinA ? `<div style="margin-top:10px;display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:99px;background:rgba(36,188,150,0.12);font-size:10px;font-weight:800;color:#24BC96;">${trophySVG} MATCH WINNER</div>` : ''}
         </div>
       </div>
 
@@ -4961,7 +4965,7 @@ window.selectLadderType = (type) => {
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;">
               <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#6b7a99;">${courtSVG} Court</span>
-              <span style="font-size:11px;font-weight:700;color:#0d1f4a;">—</span>
+              <span style="font-size:11px;font-weight:700;color:#0d1f4a;">${m.court ? esc(m.court) : '—'}</span>
             </div>
           </div>
         </div>
@@ -4989,32 +4993,34 @@ window.selectLadderType = (type) => {
         </div>
       </div>
 
-      <!-- Competition Impact -->
+      <!-- Competition Impact — all players -->
       <div style="background:white;border-radius:10px;border:0.5px solid #e0e7f5;overflow:hidden;">
         <div style="display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:0.5px solid #e0e7f5;">
           ${trendSVG}
           <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#0d1f4a;">Competition Impact</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;">
-          <!-- Winner impact -->
-          <div style="display:flex;align-items:center;gap:10px;padding:14px;border-right:0.5px solid #e0e7f5;">
-            <div style="width:38px;height:38px;border-radius:50%;background:rgba(36,188,150,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#085041;flex-shrink:0;">
-              ${initials(isWinA ? teamAIds[0] : teamBIds[0])}
-            </div>
-            <div>
-              <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(winnerName)}</div>
-              <div style="font-size:11px;font-weight:700;color:#24BC96;">+1 Win</div>
-            </div>
+          <!-- Winners -->
+          <div style="padding:14px;border-right:0.5px solid #e0e7f5;">
+            ${(isWinA ? teamAIds : teamBIds).map(pid => `
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <div style="width:36px;height:36px;border-radius:50%;background:rgba(36,188,150,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#085041;flex-shrink:0;">${initials(pid)}</div>
+                <div>
+                  <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(pName(pid)||'—')}</div>
+                  <div style="font-size:11px;font-weight:700;color:#24BC96;">+1 Win</div>
+                </div>
+              </div>`).join('')}
           </div>
-          <!-- Loser impact -->
-          <div style="display:flex;align-items:center;gap:10px;padding:14px;">
-            <div style="width:38px;height:38px;border-radius:50%;background:#f0f2f8;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#6b7a99;flex-shrink:0;">
-              ${initials(isWinA ? teamBIds[0] : teamAIds[0])}
-            </div>
-            <div>
-              <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(loserName)}</div>
-              <div style="font-size:11px;font-weight:700;color:#F26024;">+1 Loss</div>
-            </div>
+          <!-- Losers -->
+          <div style="padding:14px;">
+            ${(isWinA ? teamBIds : teamAIds).map(pid => `
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <div style="width:36px;height:36px;border-radius:50%;background:#f0f2f8;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#6b7a99;flex-shrink:0;">${initials(pid)}</div>
+                <div>
+                  <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(pName(pid)||'—')}</div>
+                  <div style="font-size:11px;font-weight:700;color:#F26024;">+1 Loss</div>
+                </div>
+              </div>`).join('')}
           </div>
         </div>
       </div>
@@ -5100,6 +5106,8 @@ window.selectLadderType = (type) => {
     // Reset notes
     const notes = document.getElementById('lm-notes');
     if (notes) notes.value = '';
+    const court = document.getElementById('lm-court');
+    if (court) court.value = '';
 
     // Clear all player selects before repopulating (prevents stale values restoring)
     LM_SEL_IDS.forEach(id => {
@@ -5290,6 +5298,7 @@ window.selectLadderType = (type) => {
       match_type:   _lmType,
       match_date:   date,
       match_time:   document.getElementById('lm-time')?.value || null,
+      court:        document.getElementById('lm-court')?.value?.trim() || null,
       team_a_p1_id: parseInt(ap1),
       team_a_p2_id: document.getElementById('lm-a-p2')?.value ? parseInt(document.getElementById('lm-a-p2').value) : null,
       team_b_p1_id: parseInt(bp1),
