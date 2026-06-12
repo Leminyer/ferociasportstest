@@ -4821,69 +4821,206 @@ window.selectLadderType = (type) => {
   window.mhViewMatch = (id) => {
     const m = _mhMatches.find(x => x.id === id);
     if (!m) return;
-    const pName = (pid) => { const p = allPlayers.find(x => x.id === pid); return p ? `${p.first_name} ${p.last_name}` : null; };
-    const teamA = [pName(m.team_a_p1_id), pName(m.team_a_p2_id)].filter(Boolean).join('<br>');
-    const teamB = [pName(m.team_b_p1_id), pName(m.team_b_p2_id)].filter(Boolean).join('<br>');
-    const calSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-    const checkSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-    const purposeColors = { Friendly:'#085041', Training:'#174CCC', Challenge:'#F26024', 'Rating Observation':'#7B2FBE' };
-    const purposeBg    = { Friendly:'rgba(36,188,150,0.1)', Training:'#e8f0ff', Challenge:'rgba(242,96,36,0.08)', 'Rating Observation':'rgba(123,47,190,0.08)' };
-    const usageBadges  = [
-      m.use_dna    ? `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(123,47,190,0.08);color:#7B2FBE;">DNA</span>` : '',
-      m.use_rating ? `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:#e8f0ff;color:#174CCC;">Rating</span>` : '',
-      m.use_private? `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:#f0f2f8;color:#6b7a99;">Private</span>` : '',
-    ].filter(Boolean).join(' ') || '<span style="font-size:11px;font-weight:600;color:#6b7a99;">None</span>';
-    const games = [
-      { lbl:'Game 1', a:m.game1_score_a, b:m.game1_score_b },
-      { lbl:'Game 2', a:m.game2_score_a, b:m.game2_score_b },
-      { lbl:'Game 3', a:m.game3_score_a, b:m.game3_score_b },
-    ].filter(g => g.a !== null && g.b !== null);
 
-    document.getElementById('vm-title').textContent = `${fmtDate(m.match_date)} · ${esc(m.purpose||'Match')}`;
+    const getPlayer = (pid) => allPlayers.find(x => x.id === pid);
+    const pName     = (pid) => { const p = getPlayer(pid); return p ? `${p.first_name} ${p.last_name}` : null; };
+    const initials  = (pid) => { const p = getPlayer(pid); return p ? (p.first_name[0]||'') + (p.last_name[0]||'') : '?'; };
+
+    // All players on each team
+    const teamAIds = [m.team_a_p1_id, m.team_a_p2_id].filter(Boolean);
+    const teamBIds = [m.team_b_p1_id, m.team_b_p2_id].filter(Boolean);
+    const teamANames = teamAIds.map(pName).filter(Boolean);
+    const teamBNames = teamBIds.map(pName).filter(Boolean);
+    const isWinA = m.winner_team === 'A';
+
+    // Score totals across games
+    const games = [
+      [m.game1_score_a, m.game1_score_b],
+      [m.game2_score_a, m.game2_score_b],
+      [m.game3_score_a, m.game3_score_b],
+    ].filter(([a,b]) => a !== null && b !== null);
+    const totalA = games.reduce((s,[a])=>s+a,0);
+    const totalB = games.reduce((s,[,b])=>s+b,0);
+
+    // Score display — for singles/doubles show per-game or total
+    const scoreDisplay = games.length > 0
+      ? `${isWinA ? totalA : totalB} - ${isWinA ? totalB : totalA}`
+      : '— - —';
+    const finalScoreStr = games.map(([a,b])=>`${a}–${b}`).join(', ');
+
+    // Match type pill SVG
+    const typeSVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+    const trophySVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
+    const infoSVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    const targetSVG= `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
+    const barSVG   = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7B2FBE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
+    const trendSVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`;
+    const peopleSVG= `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+    const shieldSVG= `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7B2FBE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+    const handSVG  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#24BC96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
+    const calSVG   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const courtSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>`;
+
+    // Avatar helper
+    const avatar = (pid, bgColor, textColor) => {
+      const ini = initials(pid);
+      return `<div style="width:44px;height:44px;border-radius:50%;background:${bgColor};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${textColor};flex-shrink:0;">${ini}</div>`;
+    };
+
+    // Data usage label
+    const usageItems = [m.use_dna?'DNA':null, m.use_rating?'Rating':null, m.use_private?'Private':null].filter(Boolean);
+    const usageLabel = usageItems.length ? usageItems.join(' + ') : 'Not Reported';
+
+    // Purpose badge colors
+    const purposeColor = { Friendly:'#24BC96', Training:'#174CCC', Challenge:'#F26024', 'Rating Observation':'#7B2FBE' }[m.purpose] || '#6b7a99';
+    const purposeBgCol = { Friendly:'rgba(36,188,150,0.1)', Training:'#e8f0ff', Challenge:'rgba(242,96,36,0.08)', 'Rating Observation':'rgba(123,47,190,0.08)' }[m.purpose] || '#f0f2f8';
+
+    // Winner/loser result text
+    const winnerName = teamANames.length ? (isWinA ? teamANames.join(' & ') : teamBNames.join(' & ')) : '—';
+    const loserName  = teamANames.length ? (isWinA ? teamBNames.join(' & ') : teamANames.join(' & ')) : '—';
+
+    document.getElementById('vm-title').textContent = `${fmtDate(m.match_date)} • ${m.purpose || 'Friendly Match'}`;
+
     document.getElementById('vm-body').innerHTML = `
-      <div class="vm-banner">
-        <span class="vm-type-pill">${esc(MH_TYPE_LABELS[m.match_type]||m.match_type)}</span>
-        <span class="vm-date">${calSVG} ${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time:''}</span>
+      <!-- Match type pill -->
+      <div style="margin-bottom:16px;">
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:99px;background:#e8f0ff;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#174CCC;">
+          ${typeSVG} ${esc(MH_TYPE_LABELS[m.match_type]||m.match_type)}
+        </span>
       </div>
-      <div class="vm-teams">
-        <div class="vm-team ${m.winner_team==='A'?'vm-team-win':'vm-team-loss'}">
-          <div class="vm-team-name">${teamA}</div>
-          ${m.winner_team==='A'?`<span class="vm-win-badge">${checkSVG} Winner</span>`:'<span style="font-size:10px;font-weight:600;color:#b0bbd6;">—</span>'}
+
+      <!-- Score row -->
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:16px;">
+        <!-- Team A card -->
+        <div style="background:white;border-radius:12px;padding:16px;border:1px solid ${isWinA?'rgba(36,188,150,0.3)':'#e0e7f5'};${isWinA?'background:rgba(36,188,150,0.04);':''}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:${isWinA?'8px':'0'};">
+            ${avatar(teamAIds[0], '#e8f0ff', '#174CCC')}
+            <div>
+              <div style="font-size:14px;font-weight:800;color:#0d1f4a;line-height:1.2;">${esc(teamANames.join('<br>') || '—')}</div>
+              <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-top:2px;">Player</div>
+            </div>
+          </div>
+          ${!isWinA ? '' : `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:99px;background:rgba(36,188,150,0.12);font-size:10px;font-weight:800;color:#24BC96;">${trophySVG} MATCH WINNER</div>`}
         </div>
-        <div class="vm-vs">VS</div>
-        <div class="vm-team ${m.winner_team==='B'?'vm-team-win':'vm-team-loss'}">
-          <div class="vm-team-name">${teamB}</div>
-          ${m.winner_team==='B'?`<span class="vm-win-badge">${checkSVG} Winner</span>`:'<span style="font-size:10px;font-weight:600;color:#b0bbd6;">—</span>'}
+
+        <!-- Score center -->
+        <div style="text-align:center;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;">
+            <span style="font-size:52px;font-weight:900;color:${isWinA?'#0d1f4a':'#24BC96'};line-height:1;font-family:'Bebas Neue',sans-serif;">${games.length?games[0][0]:'—'}</span>
+            <span style="font-size:24px;font-weight:800;color:#b0bbd6;">-</span>
+            <span style="font-size:52px;font-weight:900;color:${!isWinA?'#0d1f4a':'#24BC96'};line-height:1;font-family:'Bebas Neue',sans-serif;">${games.length?games[0][1]:'—'}</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+            <div style="height:1px;width:28px;background:#e0e7f5;"></div>
+            <span style="font-size:10px;font-weight:800;color:#b0bbd6;letter-spacing:1px;">VS</span>
+            <div style="height:1px;width:28px;background:#e0e7f5;"></div>
+          </div>
+        </div>
+
+        <!-- Team B card -->
+        <div style="background:white;border-radius:12px;padding:16px;border:1px solid ${!isWinA?'rgba(36,188,150,0.3)':'#e0e7f5'};${!isWinA?'background:rgba(36,188,150,0.04);':''}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:${!isWinA?'8px':'0'};">
+            ${avatar(teamBIds[0], !isWinA?'rgba(36,188,150,0.15)':'#e8f0ff', !isWinA?'#085041':'#174CCC')}
+            <div>
+              <div style="font-size:14px;font-weight:800;color:#0d1f4a;line-height:1.2;">${esc(teamBNames.join('<br>') || '—')}</div>
+              <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-top:2px;">Player</div>
+            </div>
+          </div>
+          ${isWinA ? '' : `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:99px;background:rgba(36,188,150,0.12);font-size:10px;font-weight:800;color:#24BC96;">${trophySVG} MATCH WINNER</div>`}
         </div>
       </div>
-      ${games.length ? `
-      <div>
-        <div class="vm-scores-lbl">Score</div>
-        <div class="vm-scores-row">
-          ${games.map(g => {
-            const aWins = g.a > g.b;
-            const bWins = g.b > g.a;
-            const teamAWins = m.winner_team === 'A';
-            return `<div class="vm-score-pill">
-              <div class="vm-score-game-lbl">${g.lbl}</div>
-              <div class="vm-score-val ${((teamAWins && aWins)||(!teamAWins && bWins))?'vm-score-val-win':''}">${g.a}–${g.b}</div>
-            </div>`;
-          }).join('')}
+
+      <!-- Result banner -->
+      <div style="background:rgba(36,188,150,0.06);border-radius:10px;border:0.5px solid rgba(36,188,150,0.2);padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(36,188,150,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          ${trophySVG}
         </div>
-      </div>` : ''}
-      <div class="vm-divider"></div>
-      <div class="vm-details">
-        <div class="vm-detail">
-          <div class="vm-detail-lbl">Purpose</div>
-          <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${purposeBg[m.purpose]||'#f0f2f8'};color:${purposeColors[m.purpose]||'#6b7a99'};">${esc(m.purpose||'—')}</span>
-        </div>
-        <div class="vm-detail">
-          <div class="vm-detail-lbl">Data Usage</div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;">${usageBadges}</div>
+        <div>
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#24BC96;margin-bottom:3px;">Result</div>
+          <div style="font-size:13px;font-weight:800;color:#0d1f4a;margin-bottom:2px;">${esc(winnerName)} defeated ${esc(loserName)}</div>
+          <div style="font-size:11px;font-weight:600;color:#6b7a99;">Final Score: ${finalScoreStr || scoreDisplay}</div>
         </div>
       </div>
-      ${m.notes ? `<div class="vm-notes"><div class="vm-detail-lbl" style="margin-bottom:6px;">Notes</div><div class="vm-notes-text">${esc(m.notes)}</div></div>` : ''}
+
+      <!-- Info row: 3 columns -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+        <!-- Match Information -->
+        <div style="background:white;border-radius:10px;border:0.5px solid #e0e7f5;padding:14px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+            ${infoSVG}
+            <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#0d1f4a;">Match Information</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#6b7a99;">${peopleSVG} Format</span>
+              <span style="font-size:11px;font-weight:700;color:#0d1f4a;">${esc(MH_TYPE_LABELS[m.match_type]||m.match_type)}</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#6b7a99;">${calSVG} Date</span>
+              <span style="font-size:11px;font-weight:700;color:#0d1f4a;">${fmtDate(m.match_date)}</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#6b7a99;">${courtSVG} Court</span>
+              <span style="font-size:11px;font-weight:700;color:#0d1f4a;">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Purpose -->
+        <div style="background:white;border-radius:10px;border:0.5px solid #e0e7f5;padding:14px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+            ${targetSVG}
+            <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#0d1f4a;">Purpose</span>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:${purposeBgCol};font-size:11px;font-weight:700;color:${purposeColor};">
+            ${handSVG} ${esc(m.purpose||'Friendly')}
+          </span>
+        </div>
+
+        <!-- Data Usage -->
+        <div style="background:white;border-radius:10px;border:0.5px solid #e0e7f5;padding:14px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+            ${barSVG}
+            <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#0d1f4a;">Data Usage</span>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:rgba(123,47,190,0.08);font-size:11px;font-weight:700;color:#7B2FBE;">
+            ${shieldSVG} ${esc(usageLabel)}
+          </span>
+        </div>
+      </div>
+
+      <!-- Competition Impact -->
+      <div style="background:white;border-radius:10px;border:0.5px solid #e0e7f5;overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:0.5px solid #e0e7f5;">
+          ${trendSVG}
+          <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#0d1f4a;">Competition Impact</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;">
+          <!-- Winner impact -->
+          <div style="display:flex;align-items:center;gap:10px;padding:14px;border-right:0.5px solid #e0e7f5;">
+            <div style="width:38px;height:38px;border-radius:50%;background:rgba(36,188,150,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#085041;flex-shrink:0;">
+              ${initials(isWinA ? teamAIds[0] : teamBIds[0])}
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(winnerName)}</div>
+              <div style="font-size:11px;font-weight:700;color:#24BC96;">+1 Win</div>
+            </div>
+          </div>
+          <!-- Loser impact -->
+          <div style="display:flex;align-items:center;gap:10px;padding:14px;">
+            <div style="width:38px;height:38px;border-radius:50%;background:#f0f2f8;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#6b7a99;flex-shrink:0;">
+              ${initials(isWinA ? teamBIds[0] : teamAIds[0])}
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(loserName)}</div>
+              <div style="font-size:11px;font-weight:700;color:#F26024;">+1 Loss</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      ${m.notes ? `<div style="background:#f8f9ff;border-radius:10px;padding:12px 14px;border:0.5px solid #e0e7f5;margin-top:10px;"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:5px;">Notes</div><div style="font-size:12px;font-weight:600;color:#0d1f4a;line-height:1.6;">${esc(m.notes)}</div></div>` : ''}
     `;
+
     document.getElementById('view-match-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
   };

@@ -970,12 +970,14 @@
   .lm-footer{padding:14px 24px;border-top:0.5px solid #e0e7f5;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:white;}
   /* View Match Modal */
   #view-match-modal{z-index:410;}
-  .vm-shell{background:white;border-radius:16px;width:88vw;max-width:560px;box-shadow:0 24px 80px rgba(8,15,46,.3);overflow:hidden;position:relative;}
-  .vm-hdr{padding:20px 24px 18px;border-bottom:0.5px solid #e0e7f5;position:relative;}
-  .vm-eyebrow{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#174CCC;margin-bottom:4px;}
-  .vm-title{font-size:16px;font-weight:800;color:#0d1f4a;}
-  .vm-x{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;color:#e53935;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-  .vm-body{padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
+  .vm-shell{background:#f8f9ff;border-radius:16px;width:92vw;max-width:740px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(8,15,46,.3);overflow:hidden;position:relative;}
+  .vm-hdr{padding:20px 24px 16px;border-bottom:0.5px solid #e0e7f5;background:white;position:relative;flex-shrink:0;}
+  .vm-hdr-top{display:flex;align-items:flex-start;gap:12px;}
+  .vm-hdr-icon{width:42px;height:42px;border-radius:10px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .vm-eyebrow{font-size:16px;font-weight:800;color:#0d1f4a;letter-spacing:.3px;}
+  .vm-title{font-size:12px;font-weight:600;color:#6b7a99;margin-top:2px;}
+  .vm-x{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;color:#e53935;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+  .vm-body{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;}
   .vm-banner{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f8f9ff;border-radius:10px;border:0.5px solid #e0e7f5;}
   .vm-type-pill{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:4px 12px;border-radius:99px;background:#e8f0ff;color:#174CCC;}
   .vm-date{font-size:11px;font-weight:700;color:#6b7a99;display:flex;align-items:center;gap:5px;}
@@ -3785,13 +3787,20 @@
 <div class="modal-bg" id="view-match-modal">
   <div class="vm-shell">
     <div class="vm-hdr">
-      <button class="vm-x" onclick="closeViewMatchModal()">✕</button>
-      <div class="vm-eyebrow">Match Details</div>
-      <div class="vm-title" id="vm-title">—</div>
+      <button class="vm-x" onclick="closeViewMatchModal()">×</button>
+      <div class="vm-hdr-top">
+        <div class="vm-hdr-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+        </div>
+        <div>
+          <div class="vm-eyebrow">MATCH SUMMARY</div>
+          <div class="vm-title" id="vm-title">—</div>
+        </div>
+      </div>
     </div>
     <div class="vm-body" id="vm-body"></div>
-    <div class="vm-footer">
-      <button onclick="closeViewMatchModal()" style="padding:9px 22px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:#0d1f4a;cursor:pointer;">Close</button>
+    <div class="vm-footer" style="padding:14px 24px;border-top:0.5px solid #e0e7f5;background:white;flex-shrink:0;">
+      <button onclick="closeViewMatchModal()" style="width:100%;padding:12px;border:none;border-radius:10px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Close</button>
     </div>
   </div>
 </div>
@@ -3994,7 +4003,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20260605"></script>
+<script src="app.js?v=20260606"></script>
 <script src="tournament.js?v=20260526"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────
