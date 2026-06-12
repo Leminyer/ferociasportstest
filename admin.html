@@ -3050,6 +3050,40 @@
 
   </div>
 
+  <!-- ── MATCH HUB PAGE ─────────────────────────────────── -->
+  <div id="page-match-hub" class="page">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:2px;">Match Hub</div>
+        <div style="font-size:12px;font-weight:600;color:#6b7a99;">Track friendly matches, report scores, and build player DNA over time.</div>
+      </div>
+      <button onclick="openLogMatchModal()" style="display:inline-flex;align-items:center;gap:6px;padding:10px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Log Friendly Match
+      </button>
+    </div>
+    <div class="mh-cards">
+      <div class="mh-card"><div class="mh-card-val" id="mh-total">—</div><div class="mh-card-lbl">Total Matches</div><div class="mh-card-sub">All time</div></div>
+      <div class="mh-card"><div class="mh-card-val" id="mh-month">—</div><div class="mh-card-lbl">This Month</div><div class="mh-card-sub" id="mh-month-lbl"></div></div>
+      <div class="mh-card"><div class="mh-card-val" id="mh-players">—</div><div class="mh-card-lbl">Active Players</div><div class="mh-card-sub">With data</div></div>
+      <div class="mh-card"><div class="mh-card-val" id="mh-pending" style="color:#F26024;">—</div><div class="mh-card-lbl">Pending Scores</div><div class="mh-card-sub">Awaiting entry</div></div>
+      <div class="mh-card"><div class="mh-card-val" id="mh-dna" style="color:#7B2FBE;">—</div><div class="mh-card-lbl">DNA Data Points</div><div class="mh-card-sub">Collected</div></div>
+    </div>
+    <div class="mh-tbl-wrap">
+      <div class="mh-tbl-hdr">
+        <div class="mh-tbl-title">Match History</div>
+        <div class="mh-filter-row">
+          <button class="mh-filter mh-on" onclick="mhFilter(this,'all')">All</button>
+          <button class="mh-filter" onclick="mhFilter(this,'Friendly')">Friendly</button>
+          <button class="mh-filter" onclick="mhFilter(this,'Training')">Training</button>
+          <button class="mh-filter" onclick="mhFilter(this,'Challenge')">Challenge</button>
+          <button class="mh-filter" onclick="mhFilter(this,'pending')">Pending</button>
+        </div>
+      </div>
+      <div id="mh-table-body"><div class="loading">Loading matches...</div></div>
+    </div>
+  </div>
+
 </main>
 
 </div><!-- end .main-content -->
@@ -3700,44 +3734,6 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- ── MATCH HUB PAGE ───────────────────────────────────── -->
-<div id="page-match-hub" class="page">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;">
-    <div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0d1f4a;letter-spacing:1px;line-height:1;margin-bottom:2px;">Match Hub</div>
-      <div style="font-size:12px;font-weight:600;color:#6b7a99;">Track friendly matches, report scores, and build player DNA over time.</div>
-    </div>
-    <button onclick="openLogMatchModal()" style="display:inline-flex;align-items:center;gap:6px;padding:10px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Log Friendly Match
-    </button>
-  </div>
-  <!-- Stat cards -->
-  <div class="mh-cards">
-    <div class="mh-card"><div class="mh-card-val" id="mh-total">—</div><div class="mh-card-lbl">Total Matches</div><div class="mh-card-sub">All time</div></div>
-    <div class="mh-card"><div class="mh-card-val" id="mh-month">—</div><div class="mh-card-lbl">This Month</div><div class="mh-card-sub" id="mh-month-lbl"></div></div>
-    <div class="mh-card"><div class="mh-card-val" id="mh-players">—</div><div class="mh-card-lbl">Active Players</div><div class="mh-card-sub">With data</div></div>
-    <div class="mh-card"><div class="mh-card-val" id="mh-pending" style="color:#F26024;">—</div><div class="mh-card-lbl">Pending Scores</div><div class="mh-card-sub">Awaiting entry</div></div>
-    <div class="mh-card"><div class="mh-card-val" id="mh-dna" style="color:#7B2FBE;">—</div><div class="mh-card-lbl">DNA Data Points</div><div class="mh-card-sub">Collected</div></div>
-  </div>
-  <!-- Table -->
-  <div class="mh-tbl-wrap">
-    <div class="mh-tbl-hdr">
-      <div class="mh-tbl-title">Match History</div>
-      <div class="mh-filter-row">
-        <button class="mh-filter mh-on" onclick="mhFilter(this,'all')">All</button>
-        <button class="mh-filter" onclick="mhFilter(this,'Friendly')">Friendly</button>
-        <button class="mh-filter" onclick="mhFilter(this,'Training')">Training</button>
-        <button class="mh-filter" onclick="mhFilter(this,'Challenge')">Challenge</button>
-        <button class="mh-filter" onclick="mhFilter(this,'pending')">Pending</button>
-      </div>
-    </div>
-    <div id="mh-table-body">
-      <div class="loading">Loading matches...</div>
-    </div>
-  </div>
-</div>
-
 <!-- ── LOG MATCH MODAL ───────────────────────────────────── -->
 <div class="modal-bg" id="log-match-modal">
   <div class="lm-shell">
@@ -3936,7 +3932,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20260592"></script>
+<script src="app.js?v=20260593"></script>
 <script src="tournament.js?v=20260526"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────
