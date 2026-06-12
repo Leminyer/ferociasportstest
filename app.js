@@ -4674,6 +4674,10 @@ window.selectLadderType = (type) => {
 
   // ── Load Match Hub page ───────────────────────────────────────────────
   const loadMatchHub = async () => {
+    // Ensure players are loaded for name rendering
+    if (!allPlayers.length) {
+      try { allPlayers = await api('players?select=*&order=first_name'); } catch(_) {}
+    }
     _mhMatches = await api('friendly_matches?select=*&order=match_date.desc').catch(() => []);
     mhRenderCards();
     mhRenderTable();
