@@ -103,12 +103,13 @@ window.selectLadderType = (type) => {
       'orders':       ['sb-orders',      null],
       'promotions':   ['sb-promotions',  null],
       'share':        ['sb-share',       null],
+      'match-hub':    ['sb-match-hub',   null],
     };
     const ids = maps[pageOrKey] || [];
     ids.forEach(id => { if (id) { const el = document.getElementById(id); if (el) el.classList.add('active'); } });
 
     // Bottom nav: pages in "more" drawer activate the ⋯ button
-    const morePages = ['add-player','ladders','t-tournaments','events','orders','promotions','share'];
+    const morePages = ['add-player','ladders','t-tournaments','events','orders','promotions','share','match-hub'];
     if (morePages.includes(pageOrKey)) {
       document.getElementById('bn-more')?.classList.add('active');
       const mdEl = document.getElementById(`md-${pageOrKey}`);
@@ -491,6 +492,7 @@ window.selectLadderType = (type) => {
     if (name === 'orders') loadOrdersPage();
     if (name === 'events') loadEventsPage();
     if (name === 'promotions' && typeof loadPromotionsPage !== 'undefined') loadPromotionsPage();
+    if (name === 'match-hub') loadMatchHub();
     if (name === 't-tournaments' && typeof loadTournamentModule !== 'undefined') loadTournamentModule();
     if (name === 'tournament-view') {
       const el = document.getElementById('tournament-view-content');
@@ -4654,6 +4656,307 @@ window.selectLadderType = (type) => {
       const el = document.getElementById(id);
       if (el) el.style.display = el.id === showId ? 'block' : 'none';
     });
+  };
+
+  // ── MATCH HUB ─────────────────────────────────────────────────────────────
+
+  let _mhMatches = [];
+  let _mhFilter  = 'all';
+  let _lmGameCount = 1;
+  let _lmType = 'singles';
+
+  const LM_SEL_IDS = ['lm-a-p1','lm-a-p2','lm-b-p1','lm-b-p2'];
+
+  const MH_TYPE_LABELS = {
+    singles: 'Singles', mens: "Men's Doubles",
+    womens: "Women's Doubles", mixed: 'Mixed Doubles'
+  };
+
+  // ── Load Match Hub page ───────────────────────────────────────────────
+  const loadMatchHub = async () => {
+    _mhMatches = await api('friendly_matches?select=*&order=match_date.desc').catch(() => []);
+    mhRenderCards();
+    mhRenderTable();
+  };
+
+  const mhRenderCards = () => {
+    const now   = new Date();
+    const month = now.getMonth();
+    const year  = now.getFullYear();
+    const total   = _mhMatches.length;
+    const thisMonth = _mhMatches.filter(m => {
+      const d = new Date(m.match_date);
+      return d.getMonth() === month && d.getFullYear() === year;
+    }).length;
+    const pending  = _mhMatches.filter(m => m.status === 'pending').length;
+    const dnaCount = _mhMatches.filter(m => m.use_dna).length;
+    // Active players: unique player IDs across all matches
+    const pids = new Set();
+    _mhMatches.forEach(m => {
+      [m.team_a_p1_id,m.team_a_p2_id,m.team_b_p1_id,m.team_b_p2_id].filter(Boolean).forEach(id => pids.add(id));
+    });
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    el('mh-total',   total);
+    el('mh-month',   thisMonth);
+    el('mh-month-lbl', monthNames[month] + ' ' + year);
+    el('mh-players', pids.size);
+    el('mh-pending', pending);
+    el('mh-dna',     dnaCount);
+  };
+
+  window.mhFilter = (btn, filter) => {
+    document.querySelectorAll('.mh-filter').forEach(b => b.classList.remove('mh-on'));
+    btn.classList.add('mh-on');
+    _mhFilter = filter;
+    mhRenderTable();
+  };
+
+  const mhRenderTable = () => {
+    const container = document.getElementById('mh-table-body');
+    if (!container) return;
+    const filtered = _mhFilter === 'all'
+      ? _mhMatches
+      : _mhFilter === 'pending'
+        ? _mhMatches.filter(m => m.status === 'pending')
+        : _mhMatches.filter(m => m.purpose === _mhFilter);
+
+    if (!filtered.length) {
+      container.innerHTML = '<div class="empty" style="padding:24px;">No matches found.</div>';
+      return;
+    }
+
+    const purposeClass = { Friendly:'mh-b-friendly', Training:'mh-b-training', Challenge:'mh-b-challenge', 'Rating Observation':'mh-b-rating' };
+    const usageBadges = (m) => {
+      const b = [];
+      if (m.use_dna)     b.push('<span class="mh-badge mh-b-dna">DNA</span>');
+      if (m.use_rating)  b.push('<span class="mh-badge mh-b-training">Rating</span>');
+      if (m.use_private) b.push('<span class="mh-badge" style="background:#f0f2f8;color:#6b7a99;">Private</span>');
+      return b.join(' ') || '—';
+    };
+
+    const pName = (id) => {
+      const p = allPlayers.find(x => x.id === id);
+      return p ? `${p.first_name} ${p.last_name}` : '—';
+    };
+
+    const rows = filtered.map(m => {
+      const isPending = m.status === 'pending';
+      const g1 = (m.game1_score_a !== null && m.game1_score_b !== null) ? `${m.game1_score_a}–${m.game1_score_b}` : '';
+      const g2 = (m.game2_score_a !== null && m.game2_score_b !== null) ? `${m.game2_score_a}–${m.game2_score_b}` : '';
+      const g3 = (m.game3_score_a !== null && m.game3_score_b !== null) ? `${m.game3_score_a}–${m.game3_score_b}` : '';
+      const scoreStr = [g1,g2,g3].filter(Boolean).join(', ') || '—';
+      const teamAStr = [pName(m.team_a_p1_id), pName(m.team_a_p2_id)].filter(p=>p!=='—').join(' / ');
+      const teamBStr = [pName(m.team_b_p1_id), pName(m.team_b_p2_id)].filter(p=>p!=='—').join(' / ');
+      const winner = m.winner_team === 'A' ? teamAStr : m.winner_team === 'B' ? teamBStr : '—';
+      return `<tr>
+        <td style="color:#6b7a99;white-space:nowrap;">${fmtDate(m.match_date)}</td>
+        <td>${esc(MH_TYPE_LABELS[m.match_type] || m.match_type)}</td>
+        <td style="font-size:11px;">${esc(teamAStr)}<br><span style="color:#6b7a99;">vs ${esc(teamBStr)}</span></td>
+        <td style="font-weight:800;">${scoreStr}</td>
+        <td style="font-size:11px;color:#174CCC;font-weight:700;">${esc(winner)}</td>
+        <td><span class="mh-badge ${purposeClass[m.purpose]||''}">${esc(m.purpose||'—')}</span></td>
+        <td>${usageBadges(m)}</td>
+        <td><span class="mh-badge ${isPending?'mh-b-pending':'mh-b-complete'}">${isPending?'Pending':'Complete'}</span></td>
+        <td>${isPending
+          ? `<button class="mh-action" style="color:#F26024;border-color:#F26024;" onclick="mhEnterScore(${m.id})">Enter Score</button>`
+          : `<button class="mh-action" onclick="mhViewMatch(${m.id})">View</button>`
+        }</td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `<table class="mh-table">
+      <thead><tr>
+        <th>Date</th><th>Match Type</th><th>Players</th><th>Score</th>
+        <th>Winner</th><th>Purpose</th><th>Data Usage</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  };
+
+  window.mhViewMatch  = (id) => { toast('View match detail — coming soon!'); };
+  window.mhEnterScore = (id) => { toast('Enter score — coming soon!'); };
+
+  // ── Log Match Modal ───────────────────────────────────────────────────
+  window.openLogMatchModal = () => {
+    // Set today's date
+    const d = document.getElementById('lm-date');
+    if (d && !d.value) d.value = new Date().toISOString().split('T')[0];
+    // Reset game count
+    _lmGameCount = 1;
+    document.getElementById('lm-g2-row').style.display = 'none';
+    document.getElementById('lm-g3-row').style.display = 'none';
+    document.getElementById('lm-add-game-btn').style.display = 'inline-flex';
+    // Populate player selects
+    lmPopulateSelects();
+    // Open modal
+    document.getElementById('log-match-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    lmUpdatePreview();
+  };
+
+  window.closeLogMatchModal = () => {
+    document.getElementById('log-match-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  const lmPopulateSelects = () => {
+    LM_SEL_IDS.forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const curVal = sel.value;
+      sel.innerHTML = '<option value="">Select player...</option>';
+      (allPlayers || [])
+        .filter(p => p.status === 'active')
+        .sort((a,b) => a.first_name.localeCompare(b.first_name))
+        .forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `${p.first_name} ${p.last_name}`;
+          sel.appendChild(opt);
+        });
+      sel.value = curVal;
+    });
+    lmSyncSelects();
+  };
+
+  window.lmSyncSelects = () => {
+    const selected = {};
+    LM_SEL_IDS.forEach(id => {
+      const val = document.getElementById(id)?.value;
+      if (val) selected[val] = id;
+    });
+    LM_SEL_IDS.forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const curVal = sel.value;
+      Array.from(sel.options).forEach(opt => {
+        if (!opt.value) return;
+        const takenBy = selected[opt.value];
+        opt.disabled  = takenBy && takenBy !== id;
+        opt.textContent = opt.disabled
+          ? (allPlayers.find(p => p.id == opt.value)?.first_name || opt.value) + ' (selected)'
+          : (allPlayers.find(p => String(p.id) === opt.value)
+              ? `${allPlayers.find(p => String(p.id) === opt.value).first_name} ${allPlayers.find(p => String(p.id) === opt.value).last_name}`
+              : opt.textContent.replace(' (selected)',''));
+      });
+      sel.value = curVal;
+    });
+    lmUpdatePreview();
+  };
+
+  window.lmSetType = (btn, type) => {
+    document.querySelectorAll('.lm-pill').forEach(p => p.classList.remove('lm-on'));
+    btn.classList.add('lm-on');
+    _lmType = type;
+    const isDoubles = type !== 'singles';
+    ['lm-a-p2-wrap','lm-b-p2-wrap'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.opacity = isDoubles ? '1' : '0.4';
+    });
+    if (!isDoubles) {
+      document.getElementById('lm-a-p2').value = '';
+      document.getElementById('lm-b-p2').value = '';
+      lmSyncSelects();
+    }
+    lmUpdatePreview();
+  };
+
+  window.lmAddGame = () => {
+    if (_lmGameCount >= 3) return;
+    _lmGameCount++;
+    document.getElementById(`lm-g${_lmGameCount}-row`).style.display = 'grid';
+    if (_lmGameCount >= 3) document.getElementById('lm-add-game-btn').style.display = 'none';
+  };
+
+  window.lmSelectPurpose = (card, value) => {
+    document.querySelectorAll('.lm-purpose').forEach(c => {
+      c.classList.remove('lm-on');
+      const icon = c.querySelector('.lm-purpose-icon');
+      if (icon) { icon.style.background = '#f0f2f8'; }
+      const svg = icon?.querySelector('svg');
+      if (svg) svg.setAttribute('stroke','#6b7a99');
+    });
+    card.classList.add('lm-on');
+    const icon = card.querySelector('.lm-purpose-icon');
+    if (icon) { icon.style.background = '#174CCC'; }
+    const svg = icon?.querySelector('svg');
+    if (svg) svg.setAttribute('stroke','white');
+    const hid = document.getElementById('lm-purpose-val');
+    if (hid) hid.value = value;
+    lmUpdatePreview();
+  };
+
+  window.lmToggleData = (row, field) => {
+    const isOn = row.classList.toggle('lm-on');
+    const chk  = row.querySelector('.lm-chk');
+    if (chk) {
+      chk.style.background   = isOn ? '#174CCC' : 'white';
+      chk.style.borderColor  = isOn ? '#174CCC' : '#e0e7f5';
+      chk.innerHTML = isOn
+        ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '';
+    }
+    const hid = document.getElementById(`lm-use-${field}`);
+    if (hid) hid.value = isOn ? 'true' : 'false';
+    lmUpdatePreview();
+  };
+
+  const lmUpdatePreview = () => {
+    const typeLabel = MH_TYPE_LABELS[_lmType] || _lmType;
+    const purpose   = document.getElementById('lm-purpose-val')?.value || 'Friendly';
+    const date      = document.getElementById('lm-date')?.value || '';
+    const usageParts = [];
+    if (document.getElementById('lm-use-dna')?.value === 'true')     usageParts.push('Player DNA');
+    if (document.getElementById('lm-use-rating')?.value === 'true')  usageParts.push('Rating');
+    if (document.getElementById('lm-use-private')?.value === 'true') usageParts.push('Private');
+    const usage = usageParts.length ? usageParts.join(' + ') : 'None';
+    const textEl = document.getElementById('lm-preview-text');
+    const subEl  = document.getElementById('lm-preview-sub');
+    if (textEl) textEl.textContent = `${typeLabel} · ${date ? fmtDate(date) : '—'} · ${purpose}`;
+    if (subEl)  subEl.textContent  = `Data: ${usage} · Saving will lock the match record`;
+  };
+
+  window.lmSaveMatch = async () => {
+    const ap1 = document.getElementById('lm-a-p1')?.value;
+    const bp1 = document.getElementById('lm-b-p1')?.value;
+    const date = document.getElementById('lm-date')?.value;
+    if (!ap1 || !bp1) { toast('Please select at least Player 1 for each team.', true); return; }
+    if (!date)         { toast('Please select a match date.', true); return; }
+    const g1a = document.getElementById('lm-g1a')?.value;
+    const g1b = document.getElementById('lm-g1b')?.value;
+    if (!g1a || !g1b)  { toast('Please enter Game 1 scores.', true); return; }
+
+    const body = {
+      match_type:   _lmType,
+      match_date:   date,
+      match_time:   document.getElementById('lm-time')?.value || null,
+      team_a_p1_id: parseInt(ap1),
+      team_a_p2_id: document.getElementById('lm-a-p2')?.value ? parseInt(document.getElementById('lm-a-p2').value) : null,
+      team_b_p1_id: parseInt(bp1),
+      team_b_p2_id: document.getElementById('lm-b-p2')?.value ? parseInt(document.getElementById('lm-b-p2').value) : null,
+      game1_score_a: parseInt(g1a), game1_score_b: parseInt(g1b),
+      game2_score_a: document.getElementById('lm-g2a')?.value ? parseInt(document.getElementById('lm-g2a').value) : null,
+      game2_score_b: document.getElementById('lm-g2b')?.value ? parseInt(document.getElementById('lm-g2b').value) : null,
+      game3_score_a: document.getElementById('lm-g3a')?.value ? parseInt(document.getElementById('lm-g3a').value) : null,
+      game3_score_b: document.getElementById('lm-g3b')?.value ? parseInt(document.getElementById('lm-g3b').value) : null,
+      winner_team:  parseInt(g1a) > parseInt(g1b) ? 'A' : 'B',
+      purpose:      document.getElementById('lm-purpose-val')?.value || 'Friendly',
+      use_dna:      document.getElementById('lm-use-dna')?.value === 'true',
+      use_rating:   document.getElementById('lm-use-rating')?.value === 'true',
+      use_private:  document.getElementById('lm-use-private')?.value === 'true',
+      notes:        document.getElementById('lm-notes')?.value || null,
+      status:       'completed',
+    };
+
+    try {
+      await api('friendly_matches', 'POST', body);
+      toast('Match logged successfully!');
+      closeLogMatchModal();
+      loadMatchHub();
+    } catch(e) {
+      toast('Error saving match: ' + e.message, true);
+    }
   };
 
   const openEdit = async (id) => {
