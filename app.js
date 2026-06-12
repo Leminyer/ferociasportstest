@@ -4818,11 +4818,14 @@ window.selectLadderType = (type) => {
     document.body.style.overflow = '';
   };
 
-  window.mhViewMatch = (id) => {
+  window.mhViewMatch = async (id) => {
     const m = _mhMatches.find(x => x.id === id);
     if (!m) return;
-
-    const getPlayer = (pid) => allPlayers.find(x => x.id === pid);
+    // Ensure players are loaded
+    if (!allPlayers.length) {
+      try { allPlayers = await api('players?select=*&order=first_name'); } catch(_) {}
+    }
+    const getPlayer = (pid) => allPlayers.find(x => Number(x.id) === Number(pid));
     const pName     = (pid) => { const p = getPlayer(pid); return p ? `${p.first_name} ${p.last_name}` : null; };
     const initials  = (pid) => { const p = getPlayer(pid); return p ? (p.first_name[0]||'') + (p.last_name[0]||'') : '?'; };
 
