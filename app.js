@@ -8058,15 +8058,18 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
       ftcMatches = await api(
         `ftc_ladder_matches?ladder_id=eq.${currentLadder.id}&select=*&order=schedule_id,match_type`
       );
-      // Toggle delete/generate buttons based on whether schedule exists
-      const _delBtn = document.getElementById('ftc-delete-schedule-btn');
-      const _genBtn = document.getElementById('ftc-generate-schedule-btn');
+      // Toggle delete/generate/preview buttons based on whether schedule exists
+      const _delBtn  = document.getElementById('ftc-delete-schedule-btn');
+      const _genBtn  = document.getElementById('ftc-generate-schedule-btn');
+      const _prevBtn = document.querySelector('button[onclick="ftcPreviewSchedule()"]');
       if (ftcSchedule.length > 0) {
-        if (_delBtn) _delBtn.style.display = 'inline-flex';
-        if (_genBtn) _genBtn.style.display = 'none';
+        if (_delBtn)  _delBtn.style.display  = 'inline-flex';
+        if (_genBtn)  _genBtn.style.display  = 'none';
+        if (_prevBtn) _prevBtn.style.display = 'none';
       } else {
-        if (_delBtn) _delBtn.style.display = 'none';
-        if (_genBtn) _genBtn.style.display = 'inline-flex';
+        if (_delBtn)  _delBtn.style.display  = 'none';
+        if (_genBtn)  _genBtn.style.display  = 'inline-flex';
+        if (_prevBtn) _prevBtn.style.display = 'inline-flex';
       }
       renderFtcSchedule();
     } catch (err) {
