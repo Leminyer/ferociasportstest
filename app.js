@@ -4879,7 +4879,33 @@ window.selectLadderType = (type) => {
     const winnerName = teamANames.length ? (isWinA ? teamANames.join(' & ') : teamBNames.join(' & ')) : '—';
     const loserName  = teamANames.length ? (isWinA ? teamBNames.join(' & ') : teamANames.join(' & ')) : '—';
 
-    document.getElementById('vm-title').textContent = `${fmtDate(m.match_date)} • ${m.purpose || 'Friendly Match'}`;
+    // Build competition impact HTML outside template to avoid nested backtick parsing issues
+    const winIds  = isWinA ? teamAIds : teamBIds;
+    const loseIds = isWinA ? teamBIds : teamAIds;
+    const playerRow = (pid, isWin) => {
+      const ini  = initials(pid);
+      const name = esc(pName(pid) || '—');
+      const bg   = isWin ? 'rgba(36,188,150,0.15)' : '#f0f2f8';
+      const clr  = isWin ? '#085041' : '#6b7a99';
+      const pts  = isWin
+        ? '<span style="font-size:11px;font-weight:700;color:#24BC96;">+1 Win</span>'
+        : '<span style="font-size:11px;font-weight:700;color:#F26024;">+1 Loss</span>';
+      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+        + '<div style="width:36px;height:36px;border-radius:50%;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:' + clr + ';flex-shrink:0;">' + ini + '</div>'
+        + '<div><div style="font-size:12px;font-weight:800;color:#0d1f4a;">' + name + '</div>' + pts + '</div>'
+        + '</div>';
+    };
+    const impactHTML = '<div style="background:white;border-radius:10px;border:0.5px solid #e0e7f5;overflow:hidden;">'
+      + '<div style="display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:0.5px solid #e0e7f5;">'
+      + trendSVG
+      + '<span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#0d1f4a;">Competition Impact</span>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;">'
+      + '<div style="padding:14px;border-right:0.5px solid #e0e7f5;">' + winIds.map(pid => playerRow(pid, true)).join('') + '</div>'
+      + '<div style="padding:14px;">' + loseIds.map(pid => playerRow(pid, false)).join('') + '</div>'
+      + '</div></div>';
+
+    document.getElementById('vm-title').textContent = fmtDate(m.match_date) + ' • ' + (m.purpose || 'Friendly Match');
 
     document.getElementById('vm-body').innerHTML = `
       <!-- Match type pill -->
@@ -4993,31 +5019,8 @@ window.selectLadderType = (type) => {
         </div>
       </div>
 
-      <!-- Competition Impact — all players -->
-      <div style="background:white;border-radius:10px;border:0.5px solid #e0e7f5;overflow:hidden;">
-        <div style="display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:0.5px solid #e0e7f5;">
-          ${trendSVG}
-          <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#0d1f4a;">Competition Impact</span>
-        </div>
-        ${(() => {
-          const winIds  = isWinA ? teamAIds : teamBIds;
-          const loseIds = isWinA ? teamBIds : teamAIds;
-          const playerRow = (pid, isWin) => {
-            const ini  = initials(pid);
-            const name = esc(pName(pid)||'—');
-            const bg   = isWin ? 'rgba(36,188,150,0.15)' : '#f0f2f8';
-            const clr  = isWin ? '#085041' : '#6b7a99';
-            const pts  = isWin ? '<span style="font-size:11px;font-weight:700;color:#24BC96;">+1 Win</span>' : '<span style="font-size:11px;font-weight:700;color:#F26024;">+1 Loss</span>';
-            return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
-              '<div style="width:36px;height:36px;border-radius:50%;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:' + clr + ';flex-shrink:0;">' + ini + '</div>' +
-              '<div><div style="font-size:12px;font-weight:800;color:#0d1f4a;">' + name + '</div>' + pts + '</div></div>';
-          };
-          return '<div style="display:grid;grid-template-columns:1fr 1fr;">' +
-            '<div style="padding:14px;border-right:0.5px solid #e0e7f5;">' + winIds.map(pid => playerRow(pid, true)).join('') + '</div>' +
-            '<div style="padding:14px;">' + loseIds.map(pid => playerRow(pid, false)).join('') + '</div>' +
-            '</div>';
-        })()}
-      </div>
+      <!-- Competition Impact — built outside template to avoid nested backtick issues -->
+      ${impactHTML}
       ${m.notes ? `<div style="background:#f8f9ff;border-radius:10px;padding:12px 14px;border:0.5px solid #e0e7f5;margin-top:10px;"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:5px;">Notes</div><div style="font-size:12px;font-weight:600;color:#0d1f4a;line-height:1.6;">${esc(m.notes)}</div></div>` : ''}
     `;
 
