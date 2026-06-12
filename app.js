@@ -4707,7 +4707,17 @@ window.selectLadderType = (type) => {
     el('mh-players', pids.size);
     el('mh-pending', pending);
     el('mh-dna',     dnaCount);
+    // Update card label to be accurate
+    const plCard = document.querySelector('#mh-players')?.closest('.mh-card');
+    if (plCard) {
+      const lbl = plCard.querySelector('.mh-card-lbl');
+      const sub = plCard.querySelector('.mh-card-sub');
+      if (lbl) lbl.textContent = 'Unique Players';
+      if (sub) sub.textContent = 'Across all matches';
+    }
   };
+
+  let _mhTypeFilter = 'all';
 
   window.mhFilter = (btn, filter) => {
     document.querySelectorAll('.mh-filter').forEach(b => b.classList.remove('mh-on'));
@@ -4716,14 +4726,24 @@ window.selectLadderType = (type) => {
     mhRenderTable();
   };
 
+  window.mhTypeFilter = (btn, type) => {
+    document.querySelectorAll('.mh-type-filter').forEach(b => b.classList.remove('mh-on'));
+    btn.classList.add('mh-on');
+    _mhTypeFilter = type;
+    mhRenderTable();
+  };
+
   const mhRenderTable = () => {
     const container = document.getElementById('mh-table-body');
     if (!container) return;
-    const filtered = _mhFilter === 'all'
+    let filtered = _mhFilter === 'all'
       ? _mhMatches
       : _mhFilter === 'pending'
         ? _mhMatches.filter(m => m.status === 'pending')
         : _mhMatches.filter(m => m.purpose === _mhFilter);
+    if (_mhTypeFilter !== 'all') {
+      filtered = filtered.filter(m => m.match_type === _mhTypeFilter);
+    }
 
     if (!filtered.length) {
       container.innerHTML = '<div class="empty" style="padding:24px;">No matches found.</div>';
@@ -4762,10 +4782,13 @@ window.selectLadderType = (type) => {
         <td><span class="mh-badge ${purposeClass[m.purpose]||''}">${esc(m.purpose||'—')}</span></td>
         <td>${usageBadges(m)}</td>
         <td><span class="mh-badge ${isPending?'mh-b-pending':'mh-b-complete'}">${isPending?'Pending':'Complete'}</span></td>
-        <td>${isPending
-          ? `<button class="mh-action" style="color:#F26024;border-color:#F26024;" onclick="mhEnterScore(${m.id})">Enter Score</button>`
-          : `<button class="mh-action" onclick="mhViewMatch(${m.id})">View</button>`
-        }</td>
+        <td style="white-space:nowrap;">
+          ${isPending
+            ? `<button class="mh-action" style="color:#F26024;border-color:#F26024;" onclick="mhEnterScore(${m.id})">Enter Score</button>`
+            : `<button class="mh-action" onclick="mhViewMatch(${m.id})">View</button>`
+          }
+          <button class="mh-action" style="color:#e53935;border-color:#fca5a5;margin-left:4px;" onclick="mhDeleteMatch(${m.id})">Delete</button>
+        </td>
       </tr>`;
     }).join('');
 
@@ -4778,21 +4801,151 @@ window.selectLadderType = (type) => {
     </table>`;
   };
 
-  window.mhViewMatch  = (id) => { toast('View match detail — coming soon!'); };
+  window.mhDeleteMatch = async (id) => {
+    const ok = await confirmModal({ title:'Delete Match', message:'Are you sure you want to delete this match? This cannot be undone.', okLabel:'Delete', okClass:'btn-danger' });
+    if (!ok) return;
+    try {
+      await api(`friendly_matches?id=eq.${id}`, 'DELETE');
+      toast('Match deleted.');
+      loadMatchHub();
+    } catch(e) { toast('Error deleting match: ' + e.message, true); }
+  };
+
+  window.mhViewMatch = (id) => {
+    const m = _mhMatches.find(x => x.id === id);
+    if (!m) return;
+    const pName = (pid) => { const p = allPlayers.find(x => x.id === pid); return p ? `${p.first_name} ${p.last_name}` : null; };
+    const teamA = [pName(m.team_a_p1_id), pName(m.team_a_p2_id)].filter(Boolean).join(' & ');
+    const teamB = [pName(m.team_b_p1_id), pName(m.team_b_p2_id)].filter(Boolean).join(' & ');
+    const winner = m.winner_team === 'A' ? teamA : teamB;
+    const scores = [
+      m.game1_score_a !== null ? `Game 1: ${m.game1_score_a}–${m.game1_score_b}` : null,
+      m.game2_score_a !== null ? `Game 2: ${m.game2_score_a}–${m.game2_score_b}` : null,
+      m.game3_score_a !== null ? `Game 3: ${m.game3_score_a}–${m.game3_score_b}` : null,
+    ].filter(Boolean);
+    const usage = [m.use_dna?'Player DNA':null, m.use_rating?'Provisional Rating':null, m.use_private?'Private Note':null].filter(Boolean).join(', ') || 'None';
+    const purposeColors = { Friendly:'#085041', Training:'#174CCC', Challenge:'#F26024', 'Rating Observation':'#7B2FBE' };
+    const purposeBg = { Friendly:'rgba(36,188,150,0.1)', Training:'#e8f0ff', Challenge:'rgba(242,96,36,0.08)', 'Rating Observation':'rgba(123,47,190,0.08)' };
+
+    // Use t-modal (shared modal)
+    document.getElementById('t-modal-title').textContent = 'Match Details';
+    document.getElementById('t-modal-body').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="background:#f8f9ff;border-radius:10px;padding:14px;border:0.5px solid #e0e7f5;">
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:8px;">${esc(MH_TYPE_LABELS[m.match_type]||m.match_type)} · ${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time:''}</div>
+          <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px;">
+            <div style="text-align:center;padding:10px;background:${m.winner_team==='A'?'rgba(36,188,150,0.08)':'white'};border-radius:8px;border:0.5px solid ${m.winner_team==='A'?'rgba(36,188,150,0.3)':'#e0e7f5'};">
+              <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(teamA)}</div>
+              ${m.winner_team==='A'?'<div style="font-size:9px;font-weight:700;color:#24BC96;margin-top:3px;">🏆 Winner</div>':''}
+            </div>
+            <div style="font-size:11px;font-weight:800;color:#b0bbd6;">VS</div>
+            <div style="text-align:center;padding:10px;background:${m.winner_team==='B'?'rgba(36,188,150,0.08)':'white'};border-radius:8px;border:0.5px solid ${m.winner_team==='B'?'rgba(36,188,150,0.3)':'#e0e7f5'};">
+              <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(teamB)}</div>
+              ${m.winner_team==='B'?'<div style="font-size:9px;font-weight:700;color:#24BC96;margin-top:3px;">🏆 Winner</div>':''}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
+            ${scores.map(s=>`<span style="font-size:12px;font-weight:800;color:#0d1f4a;background:#f0f2f8;padding:4px 12px;border-radius:99px;">${s}</span>`).join('')}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:#f8f9ff;border-radius:8px;padding:10px 12px;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:4px;">Purpose</div>
+            <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${purposeBg[m.purpose]||'#f0f2f8'};color:${purposeColors[m.purpose]||'#6b7a99'};">${esc(m.purpose||'—')}</span>
+          </div>
+          <div style="background:#f8f9ff;border-radius:8px;padding:10px 12px;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:4px;">Data Usage</div>
+            <div style="font-size:11px;font-weight:600;color:#0d1f4a;">${esc(usage)}</div>
+          </div>
+        </div>
+        ${m.notes?`<div style="background:#f8f9ff;border-radius:8px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:4px;">Notes</div><div style="font-size:12px;font-weight:600;color:#0d1f4a;">${esc(m.notes)}</div></div>`:''}
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <button onclick="closeTModal()" style="padding:8px 20px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:#0d1f4a;cursor:pointer;">Close</button>
+          <button onclick="closeTModal();mhDeleteMatch(${id})" style="padding:8px 20px;border:none;border-radius:99px;background:#fee2e2;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:#e53935;cursor:pointer;">Delete Match</button>
+        </div>
+      </div>`;
+    if (typeof openTModal === 'function') openTModal();
+  };
+
   window.mhEnterScore = (id) => { toast('Enter score — coming soon!'); };
 
   // ── Log Match Modal ───────────────────────────────────────────────────
   window.openLogMatchModal = () => {
-    // Set today's date
+    // ── Full form reset ───────────────────────────────────────────────
+    // Date — always reset to today
     const d = document.getElementById('lm-date');
-    if (d && !d.value) d.value = new Date().toISOString().split('T')[0];
-    // Reset game count
+    if (d) d.value = new Date().toISOString().split('T')[0];
+    const t = document.getElementById('lm-time');
+    if (t) t.value = '';
+
+    // Reset match type to Singles
+    _lmType = 'singles';
+    document.querySelectorAll('.lm-pill').forEach(p => p.classList.remove('lm-on'));
+    const firstPill = document.querySelector('.lm-pill');
+    if (firstPill) firstPill.classList.add('lm-on');
+    // Hide P2 dropdowns for singles
+    ['lm-a-p2-wrap','lm-b-p2-wrap'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.style.opacity = '0.4'; }
+    });
+    ['lm-a-p2','lm-b-p2'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) { sel.value = ''; sel.disabled = true; }
+    });
+
+    // Reset scores
+    ['lm-g1a','lm-g1b','lm-g2a','lm-g2b','lm-g3a','lm-g3b'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+
+    // Reset game rows
     _lmGameCount = 1;
     document.getElementById('lm-g2-row').style.display = 'none';
     document.getElementById('lm-g3-row').style.display = 'none';
     document.getElementById('lm-add-game-btn').style.display = 'inline-flex';
+
+    // Reset purpose to Friendly
+    document.querySelectorAll('.lm-purpose').forEach(c => {
+      c.classList.remove('lm-on');
+      const icon = c.querySelector('.lm-purpose-icon');
+      if (icon) { icon.style.background = '#f0f2f8'; }
+      const svg = icon?.querySelector('svg');
+      if (svg) svg.setAttribute('stroke','#6b7a99');
+    });
+    const firstPurpose = document.querySelector('.lm-purpose');
+    if (firstPurpose) {
+      firstPurpose.classList.add('lm-on');
+      const icon = firstPurpose.querySelector('.lm-purpose-icon');
+      if (icon) { icon.style.background = '#174CCC'; }
+      const svg = icon?.querySelector('svg');
+      if (svg) svg.setAttribute('stroke','white');
+    }
+    const purposeHid = document.getElementById('lm-purpose-val');
+    if (purposeHid) purposeHid.value = 'Friendly';
+
+    // Reset data usage — DNA on, others off
+    document.querySelectorAll('.lm-data-row').forEach((row, i) => {
+      const chk = row.querySelector('.lm-chk');
+      if (i === 0) {
+        row.classList.add('lm-on');
+        if (chk) { chk.style.background='#174CCC'; chk.style.borderColor='#174CCC'; chk.innerHTML='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
+      } else {
+        row.classList.remove('lm-on');
+        if (chk) { chk.style.background='white'; chk.style.borderColor='#e0e7f5'; chk.innerHTML=''; }
+      }
+    });
+    document.getElementById('lm-use-dna').value     = 'true';
+    document.getElementById('lm-use-rating').value  = 'false';
+    document.getElementById('lm-use-private').value = 'false';
+
+    // Reset notes
+    const notes = document.getElementById('lm-notes');
+    if (notes) notes.value = '';
+
     // Populate player selects
     lmPopulateSelects();
+
     // Open modal
     document.getElementById('log-match-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -4805,13 +4958,41 @@ window.selectLadderType = (type) => {
   };
 
   const lmPopulateSelects = () => {
-    LM_SEL_IDS.forEach(id => {
-      const sel = document.getElementById(id);
+    // Gender filter based on match type
+    const genderFilter = (selId) => {
+      if (_lmType === 'mens')   return 'Male';
+      if (_lmType === 'womens') return 'Female';
+      if (_lmType === 'mixed') {
+        // P1 slots: no restriction; P2 slots: opposite of P1
+        return null; // all players, mixed validation on save
+      }
+      return null; // singles — all players
+    };
+
+    const isP2 = (id) => id === 'lm-a-p2' || id === 'lm-b-p2';
+
+    LM_SEL_IDS.forEach(selId => {
+      const sel = document.getElementById(selId);
       if (!sel) return;
       const curVal = sel.value;
+
+      // Disable P2 fields for singles
+      if (_lmType === 'singles' && isP2(selId)) {
+        sel.disabled = true;
+        sel.value = '';
+        return;
+      } else {
+        sel.disabled = false;
+      }
+
+      // Determine gender filter for this select
+      let gFilter = null;
+      if (_lmType === 'mens')   gFilter = 'Male';
+      if (_lmType === 'womens') gFilter = 'Female';
+
       sel.innerHTML = '<option value="">Select player...</option>';
       (allPlayers || [])
-        .filter(p => p.status === 'active')
+        .filter(p => p.status === 'active' && (!gFilter || p.gender === gFilter))
         .sort((a,b) => a.first_name.localeCompare(b.first_name))
         .forEach(p => {
           const opt = document.createElement('option');
@@ -4819,7 +5000,8 @@ window.selectLadderType = (type) => {
           opt.textContent = `${p.first_name} ${p.last_name}`;
           sel.appendChild(opt);
         });
-      sel.value = curVal;
+      // Restore previous value only if still valid
+      if (curVal && sel.querySelector(`option[value="${curVal}"]`)) sel.value = curVal;
     });
     lmSyncSelects();
   };
@@ -4858,11 +5040,8 @@ window.selectLadderType = (type) => {
       const el = document.getElementById(id);
       if (el) el.style.opacity = isDoubles ? '1' : '0.4';
     });
-    if (!isDoubles) {
-      document.getElementById('lm-a-p2').value = '';
-      document.getElementById('lm-b-p2').value = '';
-      lmSyncSelects();
-    }
+    // Repopulate with gender filter + disable P2 for singles
+    lmPopulateSelects();
     lmUpdatePreview();
   };
 
@@ -4923,13 +5102,27 @@ window.selectLadderType = (type) => {
 
   window.lmSaveMatch = async () => {
     const ap1 = document.getElementById('lm-a-p1')?.value;
+    const ap2 = document.getElementById('lm-a-p2')?.value;
     const bp1 = document.getElementById('lm-b-p1')?.value;
+    const bp2 = document.getElementById('lm-b-p2')?.value;
     const date = document.getElementById('lm-date')?.value;
     if (!ap1 || !bp1) { toast('Please select at least Player 1 for each team.', true); return; }
     if (!date)         { toast('Please select a match date.', true); return; }
     const g1a = document.getElementById('lm-g1a')?.value;
     const g1b = document.getElementById('lm-g1b')?.value;
     if (!g1a || !g1b)  { toast('Please enter Game 1 scores.', true); return; }
+
+    // Fix 5: Mixed doubles validation — each team needs 1M + 1F
+    if (_lmType === 'mixed') {
+      const getGender = (pid) => allPlayers.find(p => String(p.id) === String(pid))?.gender;
+      const gA1 = getGender(ap1), gA2 = getGender(ap2);
+      const gB1 = getGender(bp1), gB2 = getGender(bp2);
+      if (!ap2 || !bp2) { toast('Mixed doubles requires 2 players per team.', true); return; }
+      const teamAValid = (gA1 === 'Male' && gA2 === 'Female') || (gA1 === 'Female' && gA2 === 'Male');
+      const teamBValid = (gB1 === 'Male' && gB2 === 'Female') || (gB1 === 'Female' && gB2 === 'Male');
+      if (!teamAValid) { toast('Team A must have one Male and one Female player.', true); return; }
+      if (!teamBValid) { toast('Team B must have one Male and one Female player.', true); return; }
+    }
 
     const body = {
       match_type:   _lmType,
@@ -4944,7 +5137,17 @@ window.selectLadderType = (type) => {
       game2_score_b: document.getElementById('lm-g2b')?.value ? parseInt(document.getElementById('lm-g2b').value) : null,
       game3_score_a: document.getElementById('lm-g3a')?.value ? parseInt(document.getElementById('lm-g3a').value) : null,
       game3_score_b: document.getElementById('lm-g3b')?.value ? parseInt(document.getElementById('lm-g3b').value) : null,
-      winner_team:  parseInt(g1a) > parseInt(g1b) ? 'A' : 'B',
+      winner_team:  (() => {
+        // Count games won per team
+        const games = [
+          [parseInt(g1a)||0, parseInt(g1b)||0],
+          [parseInt(document.getElementById('lm-g2a')?.value)||0, parseInt(document.getElementById('lm-g2b')?.value)||0],
+          [parseInt(document.getElementById('lm-g3a')?.value)||0, parseInt(document.getElementById('lm-g3b')?.value)||0],
+        ].filter(([a,b]) => a > 0 || b > 0);
+        const wA = games.filter(([a,b]) => a > b).length;
+        const wB = games.filter(([a,b]) => b > a).length;
+        return wA >= wB ? 'A' : 'B';
+      })(),
       purpose:      document.getElementById('lm-purpose-val')?.value || 'Friendly',
       use_dna:      document.getElementById('lm-use-dna')?.value === 'true',
       use_rating:   document.getElementById('lm-use-rating')?.value === 'true',

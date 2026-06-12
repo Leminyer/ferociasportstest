@@ -893,6 +893,8 @@
   .mh-filter-row{display:flex;gap:6px;flex-wrap:wrap;}
   .mh-filter{padding:5px 12px;border-radius:99px;border:0.5px solid #e0e7f5;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#6b7a99;cursor:pointer;}
   .mh-filter.mh-on{background:#e8f0ff;color:#174CCC;border-color:#c5d6f5;}
+  .mh-type-filter{padding:5px 12px;border-radius:99px;border:0.5px solid #e0e7f5;background:white;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#6b7a99;cursor:pointer;}
+  .mh-type-filter.mh-on{background:#e8f0ff;color:#174CCC;border-color:#c5d6f5;}
   .mh-table{width:100%;border-collapse:collapse;}
   .mh-table th{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;padding:10px 14px;text-align:left;background:#f8f9ff;border-bottom:0.5px solid #e0e7f5;}
   .mh-table td{font-size:12px;font-weight:600;color:#0d1f4a;padding:12px 14px;border-bottom:0.5px solid #f4f5f8;vertical-align:middle;}
@@ -3070,14 +3072,31 @@
       <div class="mh-card"><div class="mh-card-val" id="mh-dna" style="color:#7B2FBE;">—</div><div class="mh-card-lbl">DNA Data Points</div><div class="mh-card-sub">Collected</div></div>
     </div>
     <div class="mh-tbl-wrap">
-      <div class="mh-tbl-hdr">
-        <div class="mh-tbl-title">Match History</div>
-        <div class="mh-filter-row">
-          <button class="mh-filter mh-on" onclick="mhFilter(this,'all')">All</button>
-          <button class="mh-filter" onclick="mhFilter(this,'Friendly')">Friendly</button>
-          <button class="mh-filter" onclick="mhFilter(this,'Training')">Training</button>
-          <button class="mh-filter" onclick="mhFilter(this,'Challenge')">Challenge</button>
-          <button class="mh-filter" onclick="mhFilter(this,'pending')">Pending</button>
+      <div class="mh-tbl-hdr" style="flex-direction:column;align-items:flex-start;gap:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+          <div class="mh-tbl-title">Match History</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:10px;font-weight:700;color:#6b7a99;white-space:nowrap;">Purpose:</span>
+            <div class="mh-filter-row">
+              <button class="mh-filter mh-on" onclick="mhFilter(this,'all')">All</button>
+              <button class="mh-filter" onclick="mhFilter(this,'Friendly')">Friendly</button>
+              <button class="mh-filter" onclick="mhFilter(this,'Training')">Training</button>
+              <button class="mh-filter" onclick="mhFilter(this,'Challenge')">Challenge</button>
+              <button class="mh-filter" onclick="mhFilter(this,'pending')">Pending</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:10px;font-weight:700;color:#6b7a99;white-space:nowrap;">Type:</span>
+            <div class="mh-filter-row">
+              <button class="mh-type-filter mh-on" onclick="mhTypeFilter(this,'all')">All</button>
+              <button class="mh-type-filter" onclick="mhTypeFilter(this,'singles')">Singles</button>
+              <button class="mh-type-filter" onclick="mhTypeFilter(this,'mens')">Men's</button>
+              <button class="mh-type-filter" onclick="mhTypeFilter(this,'womens')">Women's</button>
+              <button class="mh-type-filter" onclick="mhTypeFilter(this,'mixed')">Mixed</button>
+            </div>
+          </div>
         </div>
       </div>
       <div id="mh-table-body"><div class="loading">Loading matches...</div></div>
@@ -3932,7 +3951,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20260602"></script>
+<script src="app.js?v=20260603"></script>
 <script src="tournament.js?v=20260526"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────
