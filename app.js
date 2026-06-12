@@ -5005,6 +5005,7 @@ window.selectLadderType = (type) => {
 
   const saveEditPlayer = async (e) => {
     e.preventDefault();
+    console.log('[saveEditPlayer] called');
     const id = parseInt(document.getElementById('edit-id').value, 10);
     const originalStatus = document.getElementById('edit-original-status').value;
     const newStatus = document.getElementById('edit-status').value;
