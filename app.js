@@ -5057,6 +5057,7 @@ window.selectLadderType = (type) => {
       const _origEmail  = (_origPlayer?.email      || '').trim();
 
       await api(`players?id=eq.${id}`, 'PATCH', body);
+      console.log('[saveEditPlayer] PATCH done, starting sync. origEmail:', _origEmail);
 
       // Sync subscriber record if exists — match by original name + email
       try {
@@ -10219,7 +10220,7 @@ I'm looking forward to an amazing season of friendly competition and good vibes 
   document.getElementById('player-status-filter')?.addEventListener('change', filterPlayers);
   document.getElementById('player-search')?.addEventListener('input', filterPlayers);
   document.querySelector('#edit-ladder-modal form')?.addEventListener('submit', saveEditLadder);
-  document.querySelector('#edit-modal form')?.addEventListener('submit', saveEditPlayer);
+  document.getElementById('edit-player-form')?.addEventListener('submit', saveEditPlayer);
   document.getElementById('add-player-form')?.addEventListener('submit', addPlayer);
 
   // Expose helpers that tournament.js (loaded right after this file) needs.
