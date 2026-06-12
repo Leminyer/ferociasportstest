@@ -4707,29 +4707,14 @@ window.selectLadderType = (type) => {
     el('mh-players', pids.size);
     el('mh-pending', pending);
     el('mh-dna',     dnaCount);
-    // Update card label to be accurate
-    const plCard = document.querySelector('#mh-players')?.closest('.mh-card');
-    if (plCard) {
-      const lbl = plCard.querySelector('.mh-card-lbl');
-      const sub = plCard.querySelector('.mh-card-sub');
-      if (lbl) lbl.textContent = 'Unique Players';
-      if (sub) sub.textContent = 'Across all matches';
-    }
+
   };
 
   let _mhTypeFilter = 'all';
 
-  window.mhFilter = (btn, filter) => {
-    document.querySelectorAll('.mh-filter').forEach(b => b.classList.remove('mh-on'));
-    btn.classList.add('mh-on');
-    _mhFilter = filter;
-    mhRenderTable();
-  };
-
-  window.mhTypeFilter = (btn, type) => {
-    document.querySelectorAll('.mh-type-filter').forEach(b => b.classList.remove('mh-on'));
-    btn.classList.add('mh-on');
-    _mhTypeFilter = type;
+  window.mhFilterDdl = () => {
+    _mhFilter     = document.getElementById('mh-purpose-ddl')?.value || 'all';
+    _mhTypeFilter = document.getElementById('mh-type-ddl')?.value   || 'all';
     mhRenderTable();
   };
 
@@ -4802,8 +4787,26 @@ window.selectLadderType = (type) => {
   };
 
   window.mhDeleteMatch = async (id) => {
-    const ok = await confirmModal({ title:'Delete Match', message:'Are you sure you want to delete this match? This cannot be undone.', okLabel:'Delete', okClass:'btn-danger' });
-    if (!ok) return;
+    document.getElementById('t-modal-title').textContent = 'Delete Match';
+    document.getElementById('t-modal-body').innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0 20px;">
+        <div style="width:48px;height:48px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        </div>
+        <div style="font-size:15px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">Delete this match?</div>
+        <div style="font-size:13px;font-weight:600;color:#6b7a99;line-height:1.6;">This will permanently remove the match and all its data. This action cannot be undone.</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button onclick="closeTModal()" style="padding:9px 20px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:#0d1f4a;cursor:pointer;">Cancel</button>
+        <button onclick="mhConfirmDelete(${id})" style="padding:9px 22px;border:none;border-radius:99px;background:#e53935;color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Delete Match</button>
+      </div>`;
+    const xBtn = document.getElementById('t-modal-close-x');
+    if (xBtn) xBtn.style.display = 'flex';
+    openTModal();
+  };
+
+  window.mhConfirmDelete = async (id) => {
+    closeTModal();
     try {
       await api(`friendly_matches?id=eq.${id}`, 'DELETE');
       toast('Match deleted.');
@@ -4811,60 +4814,79 @@ window.selectLadderType = (type) => {
     } catch(e) { toast('Error deleting match: ' + e.message, true); }
   };
 
+  window.closeViewMatchModal = () => {
+    document.getElementById('view-match-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
   window.mhViewMatch = (id) => {
     const m = _mhMatches.find(x => x.id === id);
     if (!m) return;
     const pName = (pid) => { const p = allPlayers.find(x => x.id === pid); return p ? `${p.first_name} ${p.last_name}` : null; };
-    const teamA = [pName(m.team_a_p1_id), pName(m.team_a_p2_id)].filter(Boolean).join(' & ');
-    const teamB = [pName(m.team_b_p1_id), pName(m.team_b_p2_id)].filter(Boolean).join(' & ');
-    const winner = m.winner_team === 'A' ? teamA : teamB;
-    const scores = [
-      m.game1_score_a !== null ? `Game 1: ${m.game1_score_a}–${m.game1_score_b}` : null,
-      m.game2_score_a !== null ? `Game 2: ${m.game2_score_a}–${m.game2_score_b}` : null,
-      m.game3_score_a !== null ? `Game 3: ${m.game3_score_a}–${m.game3_score_b}` : null,
-    ].filter(Boolean);
-    const usage = [m.use_dna?'Player DNA':null, m.use_rating?'Provisional Rating':null, m.use_private?'Private Note':null].filter(Boolean).join(', ') || 'None';
+    const teamA = [pName(m.team_a_p1_id), pName(m.team_a_p2_id)].filter(Boolean).join('<br>');
+    const teamB = [pName(m.team_b_p1_id), pName(m.team_b_p2_id)].filter(Boolean).join('<br>');
+    const calSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const checkSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
     const purposeColors = { Friendly:'#085041', Training:'#174CCC', Challenge:'#F26024', 'Rating Observation':'#7B2FBE' };
-    const purposeBg = { Friendly:'rgba(36,188,150,0.1)', Training:'#e8f0ff', Challenge:'rgba(242,96,36,0.08)', 'Rating Observation':'rgba(123,47,190,0.08)' };
+    const purposeBg    = { Friendly:'rgba(36,188,150,0.1)', Training:'#e8f0ff', Challenge:'rgba(242,96,36,0.08)', 'Rating Observation':'rgba(123,47,190,0.08)' };
+    const usageBadges  = [
+      m.use_dna    ? `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(123,47,190,0.08);color:#7B2FBE;">DNA</span>` : '',
+      m.use_rating ? `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:#e8f0ff;color:#174CCC;">Rating</span>` : '',
+      m.use_private? `<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:#f0f2f8;color:#6b7a99;">Private</span>` : '',
+    ].filter(Boolean).join(' ') || '<span style="font-size:11px;font-weight:600;color:#6b7a99;">None</span>';
+    const games = [
+      { lbl:'Game 1', a:m.game1_score_a, b:m.game1_score_b },
+      { lbl:'Game 2', a:m.game2_score_a, b:m.game2_score_b },
+      { lbl:'Game 3', a:m.game3_score_a, b:m.game3_score_b },
+    ].filter(g => g.a !== null && g.b !== null);
 
-    // Use t-modal (shared modal)
-    document.getElementById('t-modal-title').textContent = 'Match Details';
-    document.getElementById('t-modal-body').innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:14px;">
-        <div style="background:#f8f9ff;border-radius:10px;padding:14px;border:0.5px solid #e0e7f5;">
-          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:8px;">${esc(MH_TYPE_LABELS[m.match_type]||m.match_type)} · ${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time:''}</div>
-          <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px;">
-            <div style="text-align:center;padding:10px;background:${m.winner_team==='A'?'rgba(36,188,150,0.08)':'white'};border-radius:8px;border:0.5px solid ${m.winner_team==='A'?'rgba(36,188,150,0.3)':'#e0e7f5'};">
-              <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(teamA)}</div>
-              ${m.winner_team==='A'?'<div style="font-size:9px;font-weight:700;color:#24BC96;margin-top:3px;">🏆 Winner</div>':''}
-            </div>
-            <div style="font-size:11px;font-weight:800;color:#b0bbd6;">VS</div>
-            <div style="text-align:center;padding:10px;background:${m.winner_team==='B'?'rgba(36,188,150,0.08)':'white'};border-radius:8px;border:0.5px solid ${m.winner_team==='B'?'rgba(36,188,150,0.3)':'#e0e7f5'};">
-              <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(teamB)}</div>
-              ${m.winner_team==='B'?'<div style="font-size:9px;font-weight:700;color:#24BC96;margin-top:3px;">🏆 Winner</div>':''}
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
-            ${scores.map(s=>`<span style="font-size:12px;font-weight:800;color:#0d1f4a;background:#f0f2f8;padding:4px 12px;border-radius:99px;">${s}</span>`).join('')}
-          </div>
+    document.getElementById('vm-title').textContent = `${fmtDate(m.match_date)} · ${esc(m.purpose||'Match')}`;
+    document.getElementById('vm-body').innerHTML = `
+      <div class="vm-banner">
+        <span class="vm-type-pill">${esc(MH_TYPE_LABELS[m.match_type]||m.match_type)}</span>
+        <span class="vm-date">${calSVG} ${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time:''}</span>
+      </div>
+      <div class="vm-teams">
+        <div class="vm-team ${m.winner_team==='A'?'vm-team-win':'vm-team-loss'}">
+          <div class="vm-team-name">${teamA}</div>
+          ${m.winner_team==='A'?`<span class="vm-win-badge">${checkSVG} Winner</span>`:'<span style="font-size:10px;font-weight:600;color:#b0bbd6;">—</span>'}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <div style="background:#f8f9ff;border-radius:8px;padding:10px 12px;">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:4px;">Purpose</div>
-            <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${purposeBg[m.purpose]||'#f0f2f8'};color:${purposeColors[m.purpose]||'#6b7a99'};">${esc(m.purpose||'—')}</span>
-          </div>
-          <div style="background:#f8f9ff;border-radius:8px;padding:10px 12px;">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:4px;">Data Usage</div>
-            <div style="font-size:11px;font-weight:600;color:#0d1f4a;">${esc(usage)}</div>
-          </div>
+        <div class="vm-vs">VS</div>
+        <div class="vm-team ${m.winner_team==='B'?'vm-team-win':'vm-team-loss'}">
+          <div class="vm-team-name">${teamB}</div>
+          ${m.winner_team==='B'?`<span class="vm-win-badge">${checkSVG} Winner</span>`:'<span style="font-size:10px;font-weight:600;color:#b0bbd6;">—</span>'}
         </div>
-        ${m.notes?`<div style="background:#f8f9ff;border-radius:8px;padding:10px 12px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:4px;">Notes</div><div style="font-size:12px;font-weight:600;color:#0d1f4a;">${esc(m.notes)}</div></div>`:''}
-        <div style="display:flex;justify-content:flex-end;gap:8px;">
-          <button onclick="closeTModal()" style="padding:8px 20px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:#0d1f4a;cursor:pointer;">Close</button>
-          <button onclick="closeTModal();mhDeleteMatch(${id})" style="padding:8px 20px;border:none;border-radius:99px;background:#fee2e2;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:#e53935;cursor:pointer;">Delete Match</button>
+      </div>
+      ${games.length ? `
+      <div>
+        <div class="vm-scores-lbl">Score</div>
+        <div class="vm-scores-row">
+          ${games.map(g => {
+            const aWins = g.a > g.b;
+            const bWins = g.b > g.a;
+            const teamAWins = m.winner_team === 'A';
+            return `<div class="vm-score-pill">
+              <div class="vm-score-game-lbl">${g.lbl}</div>
+              <div class="vm-score-val ${((teamAWins && aWins)||(!teamAWins && bWins))?'vm-score-val-win':''}">${g.a}–${g.b}</div>
+            </div>`;
+          }).join('')}
         </div>
-      </div>`;
-    if (typeof openTModal === 'function') openTModal();
+      </div>` : ''}
+      <div class="vm-divider"></div>
+      <div class="vm-details">
+        <div class="vm-detail">
+          <div class="vm-detail-lbl">Purpose</div>
+          <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${purposeBg[m.purpose]||'#f0f2f8'};color:${purposeColors[m.purpose]||'#6b7a99'};">${esc(m.purpose||'—')}</span>
+        </div>
+        <div class="vm-detail">
+          <div class="vm-detail-lbl">Data Usage</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">${usageBadges}</div>
+        </div>
+      </div>
+      ${m.notes ? `<div class="vm-notes"><div class="vm-detail-lbl" style="margin-bottom:6px;">Notes</div><div class="vm-notes-text">${esc(m.notes)}</div></div>` : ''}
+    `;
+    document.getElementById('view-match-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
   };
 
   window.mhEnterScore = (id) => { toast('Enter score — coming soon!'); };
@@ -4943,7 +4965,11 @@ window.selectLadderType = (type) => {
     const notes = document.getElementById('lm-notes');
     if (notes) notes.value = '';
 
-    // Populate player selects
+    // Clear all player selects before repopulating (prevents stale values restoring)
+    LM_SEL_IDS.forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) sel.value = '';
+    });
     lmPopulateSelects();
 
     // Open modal

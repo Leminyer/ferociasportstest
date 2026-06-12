@@ -882,11 +882,15 @@
   .ppm-profile-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:0.5px solid #e0e7f5;background:white;color:#174CCC;cursor:pointer;transition:all .15s;}
   .ppm-profile-btn:hover{background:#e8f0ff;border-color:#c5d6f5;}
   /* ── MATCH HUB ─────────────────────────────────────────── */
-  .mh-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px;}
-  .mh-card{background:white;border:0.5px solid #e0e7f5;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(23,76,204,0.05);}
-  .mh-card-val{font-size:26px;font-weight:800;color:#0d1f4a;line-height:1;margin-bottom:4px;}
-  .mh-card-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;}
-  .mh-card-sub{font-size:10px;font-weight:600;color:#24BC96;margin-top:3px;}
+  .mh-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+  .mh-card{background:var(--white);border-radius:10px;padding:16px 18px 14px;border:0.5px solid #e0e7f5;border-top:3px solid transparent;box-shadow:0 1px 4px rgba(23,76,204,0.06);}
+  .mh-card.mh-c-blue{border-top-color:#174CCC;}
+  .mh-card.mh-c-green{border-top-color:#24BC96;}
+  .mh-card.mh-c-orange{border-top-color:#F26024;}
+  .mh-card.mh-c-purple{border-top-color:#7B2FBE;}
+  .mh-card-lbl{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#0d1f4a;margin-bottom:6px;}
+  .mh-card-val{font-family:'Bebas Neue',sans-serif;font-size:40px;color:#0d1f4a;line-height:1;margin-bottom:6px;}
+  .mh-card-sub{font-size:11px;font-weight:600;}
   .mh-tbl-wrap{background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;}
   .mh-tbl-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:0.5px solid #e0e7f5;}
   .mh-tbl-title{font-size:13px;font-weight:800;color:#0d1f4a;}
@@ -964,6 +968,37 @@
   .lm-preview-text{font-size:12px;font-weight:700;color:#0d1f4a;}
   .lm-preview-sub{font-size:10px;font-weight:600;color:#6b7a99;margin-top:2px;}
   .lm-footer{padding:14px 24px;border-top:0.5px solid #e0e7f5;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:white;}
+  /* View Match Modal */
+  #view-match-modal{z-index:410;}
+  .vm-shell{background:white;border-radius:16px;width:88vw;max-width:560px;box-shadow:0 24px 80px rgba(8,15,46,.3);overflow:hidden;position:relative;}
+  .vm-hdr{padding:20px 24px 18px;border-bottom:0.5px solid #e0e7f5;position:relative;}
+  .vm-eyebrow{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#174CCC;margin-bottom:4px;}
+  .vm-title{font-size:16px;font-weight:800;color:#0d1f4a;}
+  .vm-x{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:8px;border:0.5px solid #e0e7f5;background:white;color:#e53935;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .vm-body{padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
+  .vm-banner{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f8f9ff;border-radius:10px;border:0.5px solid #e0e7f5;}
+  .vm-type-pill{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:4px 12px;border-radius:99px;background:#e8f0ff;color:#174CCC;}
+  .vm-date{font-size:11px;font-weight:700;color:#6b7a99;display:flex;align-items:center;gap:5px;}
+  .vm-teams{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch;}
+  .vm-team{border-radius:10px;padding:14px;border:0.5px solid #e0e7f5;text-align:center;}
+  .vm-team-win{background:rgba(36,188,150,0.06);border-color:rgba(36,188,150,0.3);}
+  .vm-team-loss{background:#f8f9ff;}
+  .vm-team-name{font-size:13px;font-weight:800;color:#0d1f4a;line-height:1.4;margin-bottom:6px;}
+  .vm-win-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#24BC96;background:rgba(36,188,150,0.12);padding:3px 10px;border-radius:99px;}
+  .vm-vs{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#b0bbd6;}
+  .vm-scores-lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:8px;}
+  .vm-scores-row{display:flex;gap:6px;flex-wrap:wrap;}
+  .vm-score-pill{display:inline-flex;flex-direction:column;align-items:center;padding:8px 14px;border-radius:10px;background:#f8f9ff;border:0.5px solid #e0e7f5;min-width:72px;}
+  .vm-score-game-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:3px;}
+  .vm-score-val{font-size:18px;font-weight:800;color:#0d1f4a;font-family:'Bebas Neue',sans-serif;}
+  .vm-score-val-win{color:#24BC96;}
+  .vm-divider{height:0.5px;background:#e0e7f5;}
+  .vm-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .vm-detail{background:#f8f9ff;border-radius:10px;padding:12px 14px;border:0.5px solid #e0e7f5;}
+  .vm-detail-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:6px;}
+  .vm-notes{background:#f8f9ff;border-radius:10px;padding:12px 14px;border:0.5px solid #e0e7f5;}
+  .vm-notes-text{font-size:12px;font-weight:600;color:#0d1f4a;line-height:1.6;}
+  .vm-footer{padding:14px 24px;border-top:0.5px solid #e0e7f5;display:flex;justify-content:flex-end;}
   .lm-footer-hint{font-size:10px;font-weight:600;color:#6b7a99;}
   .lm-btn-cancel{padding:9px 20px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:#0d1f4a;cursor:pointer;}
   .lm-btn-save{padding:9px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
@@ -3065,38 +3100,31 @@
       </button>
     </div>
     <div class="mh-cards">
-      <div class="mh-card"><div class="mh-card-val" id="mh-total">—</div><div class="mh-card-lbl">Total Matches</div><div class="mh-card-sub">All time</div></div>
-      <div class="mh-card"><div class="mh-card-val" id="mh-month">—</div><div class="mh-card-lbl">This Month</div><div class="mh-card-sub" id="mh-month-lbl"></div></div>
-      <div class="mh-card"><div class="mh-card-val" id="mh-players">—</div><div class="mh-card-lbl">Active Players</div><div class="mh-card-sub">With data</div></div>
-      <div class="mh-card"><div class="mh-card-val" id="mh-pending" style="color:#F26024;">—</div><div class="mh-card-lbl">Pending Scores</div><div class="mh-card-sub">Awaiting entry</div></div>
-      <div class="mh-card"><div class="mh-card-val" id="mh-dna" style="color:#7B2FBE;">—</div><div class="mh-card-lbl">DNA Data Points</div><div class="mh-card-sub">Collected</div></div>
+      <div class="mh-card mh-c-blue"><div class="mh-card-lbl">Total Matches</div><div class="mh-card-val" id="mh-total">—</div><div class="mh-card-sub ctx-blue">All time</div></div>
+      <div class="mh-card mh-c-blue"><div class="mh-card-lbl">This Month</div><div class="mh-card-val" id="mh-month">—</div><div class="mh-card-sub ctx-blue" id="mh-month-lbl"></div></div>
+      <div class="mh-card mh-c-green"><div class="mh-card-lbl">Unique Players</div><div class="mh-card-val" id="mh-players">—</div><div class="mh-card-sub ctx-green">Across all matches</div></div>
+      <div class="mh-card mh-c-orange"><div class="mh-card-lbl">Pending Scores</div><div class="mh-card-val" id="mh-pending">—</div><div class="mh-card-sub ctx-orange">Awaiting entry</div></div>
+      <div class="mh-card mh-c-purple"><div class="mh-card-lbl">DNA Data Points</div><div class="mh-card-val" id="mh-dna">—</div><div class="mh-card-sub" style="color:#7B2FBE;">Collected</div></div>
     </div>
     <div class="mh-tbl-wrap">
-      <div class="mh-tbl-hdr" style="flex-direction:column;align-items:flex-start;gap:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
-          <div class="mh-tbl-title">Match History</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:10px;font-weight:700;color:#6b7a99;white-space:nowrap;">Purpose:</span>
-            <div class="mh-filter-row">
-              <button class="mh-filter mh-on" onclick="mhFilter(this,'all')">All</button>
-              <button class="mh-filter" onclick="mhFilter(this,'Friendly')">Friendly</button>
-              <button class="mh-filter" onclick="mhFilter(this,'Training')">Training</button>
-              <button class="mh-filter" onclick="mhFilter(this,'Challenge')">Challenge</button>
-              <button class="mh-filter" onclick="mhFilter(this,'pending')">Pending</button>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:10px;font-weight:700;color:#6b7a99;white-space:nowrap;">Type:</span>
-            <div class="mh-filter-row">
-              <button class="mh-type-filter mh-on" onclick="mhTypeFilter(this,'all')">All</button>
-              <button class="mh-type-filter" onclick="mhTypeFilter(this,'singles')">Singles</button>
-              <button class="mh-type-filter" onclick="mhTypeFilter(this,'mens')">Men's</button>
-              <button class="mh-type-filter" onclick="mhTypeFilter(this,'womens')">Women's</button>
-              <button class="mh-type-filter" onclick="mhTypeFilter(this,'mixed')">Mixed</button>
-            </div>
-          </div>
+      <div class="mh-tbl-hdr">
+        <div class="mh-tbl-title">Match History</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <select id="mh-purpose-ddl" onchange="mhFilterDdl()" style="padding:7px 12px;border:0.5px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:#0d1f4a;background:white;cursor:pointer;outline:none;">
+            <option value="all">All Purposes</option>
+            <option value="Friendly">Friendly</option>
+            <option value="Training">Training</option>
+            <option value="Challenge">Challenge</option>
+            <option value="Rating Observation">Rating Observation</option>
+            <option value="pending">Pending Only</option>
+          </select>
+          <select id="mh-type-ddl" onchange="mhFilterDdl()" style="padding:7px 12px;border:0.5px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:#0d1f4a;background:white;cursor:pointer;outline:none;">
+            <option value="all">All Types</option>
+            <option value="singles">Singles</option>
+            <option value="mens">Men's Doubles</option>
+            <option value="womens">Women's Doubles</option>
+            <option value="mixed">Mixed Doubles</option>
+          </select>
         </div>
       </div>
       <div id="mh-table-body"><div class="loading">Loading matches...</div></div>
@@ -3753,6 +3781,21 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- ── VIEW MATCH MODAL ─────────────────────────────────── -->
+<div class="modal-bg" id="view-match-modal">
+  <div class="vm-shell">
+    <div class="vm-hdr">
+      <button class="vm-x" onclick="closeViewMatchModal()">✕</button>
+      <div class="vm-eyebrow">Match Details</div>
+      <div class="vm-title" id="vm-title">—</div>
+    </div>
+    <div class="vm-body" id="vm-body"></div>
+    <div class="vm-footer">
+      <button onclick="closeViewMatchModal()" style="padding:9px 22px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:#0d1f4a;cursor:pointer;">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── LOG MATCH MODAL ───────────────────────────────────── -->
 <div class="modal-bg" id="log-match-modal">
   <div class="lm-shell">
@@ -3951,7 +3994,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20260603"></script>
+<script src="app.js?v=20260604"></script>
 <script src="tournament.js?v=20260526"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────
