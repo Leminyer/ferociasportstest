@@ -5059,17 +5059,21 @@ window.selectLadderType = (type) => {
 
       // Sync subscriber record if exists — match by original name + email
       try {
-        const matchingSubs = await api(
-          `subscribers?first_name=ilike.${encodeURIComponent(_origFirst)}&last_name=ilike.${encodeURIComponent(_origLast)}&email=ilike.${encodeURIComponent(_origEmail)}&select=id&limit=1`
-        );
-        if (matchingSubs.length) {
-          await api(`subscribers?id=eq.${matchingSubs[0].id}`, 'PATCH', {
-            first_name: body.first_name,
-            last_name:  body.last_name,
-            email:      body.email,
-          });
+        const { data: matchingSubs } = await supabase
+          .from('subscribers')
+          .select('id')
+          .ilike('first_name', _origFirst)
+          .ilike('last_name',  _origLast)
+          .ilike('email',      _origEmail)
+          .limit(1);
+        if (matchingSubs && matchingSubs.length) {
+          await supabase
+            .from('subscribers')
+            .update({ first_name: body.first_name, last_name: body.last_name, email: body.email })
+            .eq('id', matchingSubs[0].id);
+          console.log('[sync] Subscriber updated for player', id);
         }
-      } catch(_) {}
+      } catch(_e) { console.warn('[sync] Subscriber sync failed:', _e.message); }
 
       // Record history if needed. We do this AFTER the player update so
       // we don't end up with an orphan history row if the update fails.
