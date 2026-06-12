@@ -5049,7 +5049,27 @@ window.selectLadderType = (type) => {
     };
 
     try {
+      // Capture original values from cache BEFORE updating
+      const _origPlayer = allPlayers.find(p => p.id === id);
+      const _origFirst  = (_origPlayer?.first_name || '').trim();
+      const _origLast   = (_origPlayer?.last_name  || '').trim();
+      const _origEmail  = (_origPlayer?.email      || '').trim();
+
       await api(`players?id=eq.${id}`, 'PATCH', body);
+
+      // Sync subscriber record if exists — match by original name + email
+      try {
+        const matchingSubs = await api(
+          `subscribers?first_name=ilike.${encodeURIComponent(_origFirst)}&last_name=ilike.${encodeURIComponent(_origLast)}&email=ilike.${encodeURIComponent(_origEmail)}&select=id&limit=1`
+        );
+        if (matchingSubs.length) {
+          await api(`subscribers?id=eq.${matchingSubs[0].id}`, 'PATCH', {
+            first_name: body.first_name,
+            last_name:  body.last_name,
+            email:      body.email,
+          });
+        }
+      } catch(_) {}
 
       // Record history if needed. We do this AFTER the player update so
       // we don't end up with an orphan history row if the update fails.
