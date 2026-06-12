@@ -4894,7 +4894,7 @@ window.selectLadderType = (type) => {
         <!-- Team A card -->
         <div style="background:${isWinA?'rgba(36,188,150,0.04)':'white'};border-radius:12px;padding:16px;border:1px solid ${isWinA?'rgba(36,188,150,0.3)':'#e0e7f5'};display:flex;flex-direction:column;justify-content:space-between;">
           <div>
-            <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#6b7a99;margin-bottom:8px;">Team A</div>
+            ${m.match_type !== 'singles' ? '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#6b7a99;margin-bottom:8px;">Team A</div>' : ''}
             <div style="display:flex;align-items:center;gap:10px;">
               ${avatar(teamAIds[0], '#e8f0ff', '#174CCC')}
               <div>
@@ -4908,9 +4908,9 @@ window.selectLadderType = (type) => {
         <!-- Score center -->
         <div style="text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 0;">
           <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;">
-            <span style="font-size:52px;font-weight:900;color:${isWinA?'#0d1f4a':'#24BC96'};line-height:1;font-family:'Bebas Neue',sans-serif;">${games.length?games[0][0]:'—'}</span>
+            <span style="font-size:52px;font-weight:900;color:${isWinA?'#24BC96':'#0d1f4a'};line-height:1;font-family:'Bebas Neue',sans-serif;">${games.length?games[0][0]:'—'}</span>
             <span style="font-size:24px;font-weight:800;color:#b0bbd6;">-</span>
-            <span style="font-size:52px;font-weight:900;color:${!isWinA?'#0d1f4a':'#24BC96'};line-height:1;font-family:'Bebas Neue',sans-serif;">${games.length?games[0][1]:'—'}</span>
+            <span style="font-size:52px;font-weight:900;color:${!isWinA?'#24BC96':'#0d1f4a'};line-height:1;font-family:'Bebas Neue',sans-serif;">${games.length?games[0][1]:'—'}</span>
           </div>
           <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
             <div style="height:1px;width:28px;background:#e0e7f5;"></div>
@@ -4922,7 +4922,7 @@ window.selectLadderType = (type) => {
         <!-- Team B card -->
         <div style="background:${!isWinA?'rgba(36,188,150,0.04)':'white'};border-radius:12px;padding:16px;border:1px solid ${!isWinA?'rgba(36,188,150,0.3)':'#e0e7f5'};display:flex;flex-direction:column;justify-content:space-between;">
           <div>
-            <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#6b7a99;margin-bottom:8px;">Team B</div>
+            ${m.match_type !== 'singles' ? '<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#6b7a99;margin-bottom:8px;">Team B</div>' : ''}
             <div style="display:flex;align-items:center;gap:10px;">
               ${avatar(teamBIds[0], !isWinA?'rgba(36,188,150,0.15)':'#e8f0ff', !isWinA?'#085041':'#174CCC')}
               <div>
@@ -4999,30 +4999,24 @@ window.selectLadderType = (type) => {
           ${trendSVG}
           <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#0d1f4a;">Competition Impact</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;">
-          <!-- Winners -->
-          <div style="padding:14px;border-right:0.5px solid #e0e7f5;">
-            ${(isWinA ? teamAIds : teamBIds).map(pid => `
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                <div style="width:36px;height:36px;border-radius:50%;background:rgba(36,188,150,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#085041;flex-shrink:0;">${initials(pid)}</div>
-                <div>
-                  <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(pName(pid)||'—')}</div>
-                  <div style="font-size:11px;font-weight:700;color:#24BC96;">+1 Win</div>
-                </div>
-              </div>`).join('')}
-          </div>
-          <!-- Losers -->
-          <div style="padding:14px;">
-            ${(isWinA ? teamBIds : teamAIds).map(pid => `
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                <div style="width:36px;height:36px;border-radius:50%;background:#f0f2f8;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#6b7a99;flex-shrink:0;">${initials(pid)}</div>
-                <div>
-                  <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${esc(pName(pid)||'—')}</div>
-                  <div style="font-size:11px;font-weight:700;color:#F26024;">+1 Loss</div>
-                </div>
-              </div>`).join('')}
-          </div>
-        </div>
+        ${(() => {
+          const winIds  = isWinA ? teamAIds : teamBIds;
+          const loseIds = isWinA ? teamBIds : teamAIds;
+          const playerRow = (pid, isWin) => {
+            const ini  = initials(pid);
+            const name = esc(pName(pid)||'—');
+            const bg   = isWin ? 'rgba(36,188,150,0.15)' : '#f0f2f8';
+            const clr  = isWin ? '#085041' : '#6b7a99';
+            const pts  = isWin ? '<span style="font-size:11px;font-weight:700;color:#24BC96;">+1 Win</span>' : '<span style="font-size:11px;font-weight:700;color:#F26024;">+1 Loss</span>';
+            return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+              '<div style="width:36px;height:36px;border-radius:50%;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:' + clr + ';flex-shrink:0;">' + ini + '</div>' +
+              '<div><div style="font-size:12px;font-weight:800;color:#0d1f4a;">' + name + '</div>' + pts + '</div></div>';
+          };
+          return '<div style="display:grid;grid-template-columns:1fr 1fr;">' +
+            '<div style="padding:14px;border-right:0.5px solid #e0e7f5;">' + winIds.map(pid => playerRow(pid, true)).join('') + '</div>' +
+            '<div style="padding:14px;">' + loseIds.map(pid => playerRow(pid, false)).join('') + '</div>' +
+            '</div>';
+        })()}
       </div>
       ${m.notes ? `<div style="background:#f8f9ff;border-radius:10px;padding:12px 14px;border:0.5px solid #e0e7f5;margin-top:10px;"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7a99;margin-bottom:5px;">Notes</div><div style="font-size:12px;font-weight:600;color:#0d1f4a;line-height:1.6;">${esc(m.notes)}</div></div>` : ''}
     `;
