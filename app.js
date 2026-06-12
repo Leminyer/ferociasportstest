@@ -5059,19 +5059,31 @@ window.selectLadderType = (type) => {
 
       // Sync subscriber record if exists — match by original name + email
       try {
-        const { data: matchingSubs } = await supabase
+        console.log('[sync] Looking for subscriber:', { _origFirst, _origLast, _origEmail });
+        const { data: matchingSubs, error: subErr } = await supabase
           .from('subscribers')
-          .select('id')
+          .select('id, first_name, last_name, email')
           .ilike('first_name', _origFirst)
           .ilike('last_name',  _origLast)
           .ilike('email',      _origEmail)
           .limit(1);
+        console.log('[sync] Query result:', matchingSubs, 'Error:', subErr);
         if (matchingSubs && matchingSubs.length) {
-          await supabase
+          const { data: upd, error: updErr } = await supabase
             .from('subscribers')
             .update({ first_name: body.first_name, last_name: body.last_name, email: body.email })
-            .eq('id', matchingSubs[0].id);
-          console.log('[sync] Subscriber updated for player', id);
+            .eq('id', matchingSubs[0].id)
+            .select();
+          console.log('[sync] Update result:', upd, 'Error:', updErr);
+        } else {
+          console.log('[sync] No matching subscriber found');
+          // Fallback: try matching by email only
+          const { data: byEmail } = await supabase
+            .from('subscribers')
+            .select('id, first_name, last_name, email')
+            .ilike('email', _origEmail)
+            .limit(5);
+          console.log('[sync] By email only:', byEmail);
         }
       } catch(_e) { console.warn('[sync] Subscriber sync failed:', _e.message); }
 
