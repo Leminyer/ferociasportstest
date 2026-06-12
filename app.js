@@ -5005,7 +5005,6 @@ window.selectLadderType = (type) => {
 
   const saveEditPlayer = async (e) => {
     e.preventDefault();
-    console.log('[saveEditPlayer] called');
     const id = parseInt(document.getElementById('edit-id').value, 10);
     const originalStatus = document.getElementById('edit-original-status').value;
     const newStatus = document.getElementById('edit-status').value;
@@ -5057,37 +5056,23 @@ window.selectLadderType = (type) => {
       const _origEmail  = (_origPlayer?.email      || '').trim();
 
       await api(`players?id=eq.${id}`, 'PATCH', body);
-      console.log('[saveEditPlayer] PATCH done, starting sync. origEmail:', _origEmail);
 
       // Sync subscriber record if exists — match by original name + email
       try {
-        console.log('[sync] Looking for subscriber:', { _origFirst, _origLast, _origEmail });
-        const { data: matchingSubs, error: subErr } = await supabase
+        const { data: matchingSubs } = await supabase
           .from('subscribers')
-          .select('id, first_name, last_name, email')
+          .select('id')
           .ilike('first_name', _origFirst)
           .ilike('last_name',  _origLast)
           .ilike('email',      _origEmail)
           .limit(1);
-        console.log('[sync] Query result:', matchingSubs, 'Error:', subErr);
         if (matchingSubs && matchingSubs.length) {
-          const { data: upd, error: updErr } = await supabase
+          await supabase
             .from('subscribers')
             .update({ first_name: body.first_name, last_name: body.last_name, email: body.email })
-            .eq('id', matchingSubs[0].id)
-            .select();
-          console.log('[sync] Update result:', upd, 'Error:', updErr);
-        } else {
-          console.log('[sync] No matching subscriber found');
-          // Fallback: try matching by email only
-          const { data: byEmail } = await supabase
-            .from('subscribers')
-            .select('id, first_name, last_name, email')
-            .ilike('email', _origEmail)
-            .limit(5);
-          console.log('[sync] By email only:', byEmail);
+            .eq('id', matchingSubs[0].id);
         }
-      } catch(_e) { console.warn('[sync] Subscriber sync failed:', _e.message); }
+      } catch(_e) {}
 
       // Record history if needed. We do this AFTER the player update so
       // we don't end up with an orphan history row if the update fails.
