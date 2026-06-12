@@ -4790,14 +4790,13 @@ window.selectLadderType = (type) => {
     document.getElementById('t-modal-title').textContent = 'Delete Match';
     document.getElementById('t-modal-body').innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0 20px;">
-        <div style="width:48px;height:48px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        <div style="width:52px;height:52px;border-radius:14px;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         </div>
         <div style="font-size:15px;font-weight:800;color:#0d1f4a;margin-bottom:6px;">Delete this match?</div>
         <div style="font-size:13px;font-weight:600;color:#6b7a99;line-height:1.6;">This will permanently remove the match and all its data. This action cannot be undone.</div>
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:10px;">
-        <button onclick="closeTModal()" style="padding:9px 20px;border:0.5px solid #e0e7f5;border-radius:99px;background:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:#0d1f4a;cursor:pointer;">Cancel</button>
+      <div style="display:flex;justify-content:flex-end;">
         <button onclick="mhConfirmDelete(${id})" style="padding:9px 22px;border:none;border-radius:99px;background:#e53935;color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Delete Match</button>
       </div>`;
     const xBtn = document.getElementById('t-modal-close-x');
