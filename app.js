@@ -4885,6 +4885,9 @@ window.selectLadderType = (type) => {
     // Build competition impact HTML outside template to avoid nested backtick parsing issues
     const winIds  = isWinA ? teamAIds : teamBIds;
     const loseIds = isWinA ? teamBIds : teamAIds;
+    console.log('[impact] winIds:', winIds, 'loseIds:', loseIds, 'allPlayers count:', allPlayers.length);
+    winIds.forEach(pid => console.log('[impact] win pid:', pid, typeof pid, '-> player:', allPlayers.find(x => Number(x.id)===Number(pid))));
+    loseIds.forEach(pid => console.log('[impact] lose pid:', pid, typeof pid, '-> player:', allPlayers.find(x => Number(x.id)===Number(pid))));
     const playerRow = (pid, isWin) => {
       const ini  = initials(pid);
       const name = esc(pName(pid) || '—');
