@@ -451,7 +451,11 @@
   const renderTable = () => {
     const { pm, wm, lm, pfm, pam } = calcPlayerPoints();
     const active = ladderPlayers.filter(p => p.ladder_status === 'active');
-    active.sort((a,b) => (pm[b.id]||0) - (pm[a.id]||0));
+    active.sort((a,b) =>
+      ((pm[b.id]||0)  - (pm[a.id]||0))  ||
+      ((wm[b.id]||0)  - (wm[a.id]||0))  ||
+      (((pfm[b.id]||0)-(pam[b.id]||0)) - ((pfm[a.id]||0)-(pam[a.id]||0)))
+    );
     active.forEach((p,i) => {
       p._rank   = i + 1;
       p._points = pm[p.id]  || 0;
@@ -537,7 +541,11 @@
   const renderStandings = () => {
     const { pm, wm, lm, pfm, pam } = calcPlayerPoints();
     const active = ladderPlayers.filter(p => p.ladder_status === 'active');
-    active.sort((a,b) => (pm[b.id]||0) - (pm[a.id]||0));
+    active.sort((a,b) =>
+      ((pm[b.id]||0)  - (pm[a.id]||0))  ||
+      ((wm[b.id]||0)  - (wm[a.id]||0))  ||
+      (((pfm[b.id]||0)-(pam[b.id]||0)) - ((pfm[a.id]||0)-(pam[a.id]||0)))
+    );
     active.forEach((p,i) => {
       p._rank   = i + 1;
       p._points = pm[p.id]  || 0;
