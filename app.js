@@ -1263,7 +1263,11 @@ window.selectLadderType = (type) => {
       });
       const ranked = [...ladderPlayers]
         .filter((p) => p.ladder_status === 'active')
-        .sort((a, b) => (pm[b.id] || 0) - (pm[a.id] || 0));
+        .sort((a, b) =>
+          ((pm[b.id] || 0) - (pm[a.id] || 0)) ||           // 1. Total points
+          ((wm[b.id] || 0) - (wm[a.id] || 0)) ||           // 2. Wins
+          (((pfm[b.id]||0)-(pam[b.id]||0)) - ((pfm[a.id]||0)-(pam[a.id]||0))) // 3. Diff
+        );
       ranked.forEach((p, i) => {
         p._rank   = i + 1;
         p._points = pm[p.id]  || 0;
