@@ -4335,6 +4335,29 @@ window.selectLadderType = (type) => {
     document.getElementById('ppm-status-pill').innerHTML = isActive ? '🟢 Active' : '⚪ Inactive';
     document.getElementById('ppm-footer-info').textContent = `Player ID #${p.id}${p.date_joined ? ' · Joined ' + fmtDate(p.date_joined) : ''}`;
 
+    // ── Copy Player DNA (portal) link ─────────────────────────────────────
+    const plBtn = document.getElementById('ppm-portal-link');
+    if (plBtn) {
+      if (p.portal_token) {
+        const base = window.location.origin + window.location.pathname.replace(/admin\.html$/, '');
+        const portalUrl = `${base}player-dna.html?t=${p.portal_token}`;
+        plBtn.style.display = '';
+        plBtn.onclick = () => {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(portalUrl).then(
+              () => toast('Player DNA link copied!'),
+              () => toast(portalUrl),
+            );
+          } else {
+            toast(portalUrl);
+          }
+        };
+      } else {
+        plBtn.style.display = 'none';
+        plBtn.onclick = null;
+      }
+    }
+
     // ── Fetch all data fresh ──────────────────────────────────────────────
     const rpc = async (fn, args) => {
       const { data, error } = await supabase.rpc(fn, args);
