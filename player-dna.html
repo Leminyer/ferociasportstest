@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Player DNA — Ferocia Sports</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="db.js"></script>
+<script src="assets.js"></script>
+<style>
+  :root{
+    --blue:#174CCC;--lime:#C6F221;--teal:#24BC96;--teal-light:#d4f5ed;
+    --orange:#F26024;--orange-light:#fde8d8;--blue-pale:#e8f0ff;
+    --dark:#080f2e;--white:#fff;--text:#0d1f4a;--muted:#6b7a99;
+    --border:#d6dff5;--bg:#f0f2f8;--radius:14px;--radius-sm:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Montserrat',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+  header{background:var(--dark);padding:0 28px;display:flex;align-items:center;height:68px;border-bottom:3px solid var(--lime);}
+  .logo{height:30px;width:auto;}
+
+  main{flex:1;width:100%;max-width:760px;margin:0 auto;padding:28px 20px 48px;}
+
+  .state{text-align:center;padding:80px 20px;color:var(--muted);font-size:14px;font-weight:600;}
+
+  /* ── IDENTITY HEADER ─────────────────────────────── */
+  .idcard{background:var(--white);border-radius:var(--radius);border:0.5px solid var(--border);
+    box-shadow:0 8px 40px rgba(23,76,204,.08);padding:26px;margin-bottom:20px;
+    display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+  .avatar{width:76px;height:76px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;}
+  .id-main{flex:1;min-width:200px;}
+  .id-name{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:1px;line-height:1;margin-bottom:8px;}
+  .id-meta{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;color:var(--muted);font-weight:600;}
+  .id-meta b{color:var(--text);font-weight:700;}
+  .pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 10px;border-radius:99px;}
+  .pill-active{background:var(--teal-light);color:#0f6e56;}
+  .pill-inactive{background:#eceef4;color:var(--muted);}
+  .pill-priv{background:var(--blue-pale);color:var(--blue);}
+
+  .section-title{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:26px 4px 12px;}
+
+  /* ── SNAPSHOT GRID ───────────────────────────────── */
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .stat{background:var(--white);border-radius:var(--radius-sm);border:0.5px solid var(--border);padding:16px 14px;text-align:center;}
+  .stat-num{font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;color:var(--blue);}
+  .stat-lbl{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-top:6px;}
+
+  /* ── ACTIVITY ────────────────────────────────────── */
+  .activity{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .act{background:var(--white);border-radius:var(--radius-sm);border:0.5px solid var(--border);padding:14px 16px;border-left:3px solid var(--lime);}
+  .act-lbl{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+  .act-val{font-size:14px;font-weight:700;color:var(--text);}
+  .act-sub{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;}
+
+  /* ── TABS + HISTORY ──────────────────────────────── */
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tab{flex:1;padding:10px;border:0.5px solid var(--border);background:var(--white);border-radius:99px;
+    font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);cursor:pointer;font-family:'Montserrat',sans-serif;transition:all .15s;}
+  .tab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+  .hrow{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;}
+  .hrow-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .hrow-name{font-size:15px;font-weight:800;color:var(--text);}
+  .hrow-sub{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px;}
+  .hrow-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .hrow-stat{text-align:center;}
+  .hrow-stat b{display:block;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue);line-height:1;}
+  .hrow-stat span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
+  .place{font-size:12px;font-weight:800;}
+  .btn-details{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--blue);
+    background:var(--blue-pale);border:none;border-radius:99px;padding:6px 14px;cursor:pointer;font-family:'Montserrat',sans-serif;}
+  .details{margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border);display:none;}
+  .details.open{display:block;}
+
+  /* ── RECENT MATCHES ──────────────────────────────── */
+  .match{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius-sm);
+    padding:12px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;}
+  .res{width:44px;height:44px;border-radius:10px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:'Bebas Neue',sans-serif;line-height:1;}
+  .res-w{background:var(--teal-light);color:#0f6e56;}
+  .res-l{background:var(--orange-light);color:#993c1d;}
+  .res-n{background:#eceef4;color:var(--muted);}
+  .res b{font-size:18px;}.res span{font-size:10px;font-weight:800;}
+  .match-info{flex:1;min-width:0;}
+  .match-vs{font-size:14px;font-weight:700;color:var(--text);}
+  .match-ctx{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px;}
+  .empty{color:var(--muted);font-size:13px;font-weight:600;text-align:center;padding:24px;}
+
+  footer{text-align:center;padding:28px 16px;border-top:3px solid var(--lime);background:var(--dark);margin-top:24px;}
+  .footer-tag{display:block;font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:rgba(156,227,255,.5);margin-bottom:10px;}
+  .footer-logo{height:26px;width:auto;}
+
+  @media(max-width:560px){
+    .grid{grid-template-columns:repeat(2,1fr);}
+    .activity{grid-template-columns:1fr;}
+    .id-name{font-size:28px;}
+  }
+</style>
+</head>
+<body>
+<header><img class="logo" data-asset="ferociaLogo" alt="Ferocia"></header>
+<main id="root"><div class="state" id="loading">Loading your profile…</div></main>
+<footer>
+  <span class="footer-tag">Ferocia Sports Center</span>
+  <img class="footer-logo" data-asset="ferociaLogo" alt="Ferocia Sports">
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var AV = ['#174CCC','#F26024','#24BC96','#9a6e00','#7B2FBE','#C04A0E'];
+  var params = new URLSearchParams(window.location.search);
+  var token = params.get('t');
+
+  function showState(msg) {
+    document.getElementById('root').innerHTML = '<div class="state">' + esc(msg) + '</div>';
+  }
+
+  if (!token || !/^[A-Za-z0-9_-]+$/.test(token)) {
+    showState('This profile link is invalid. Please check with the front desk for your personal link.');
+    return;
+  }
+
+  function initials(name) {
+    var parts = (name || '').trim().split(/\s+/);
+    var a = (parts[0] || '')[0] || '';
+    var b = (parts[1] || '')[0] || '';
+    return (a + b).toUpperCase();
+  }
+  function fmtShort(d) { return d ? fmtDate(d) : '—'; }
+  function placeLabel(p) {
+    if (p === '1st') return '🥇 1st';
+    if (p === '2nd') return '🥈 2nd';
+    if (p === '3rd') return '🥉 3rd';
+    return 'Participated';
+  }
+  function placeColor(p) {
+    if (p === '1st') return '#9a6e00';
+    if (p === '2nd') return '#6b7a99';
+    if (p === '3rd') return '#C04A0E';
+    return '#6b7a99';
+  }
+  function teamNames(arr) {
+    if (!arr || !arr.length) return 'Opponent';
+    return arr.join(' & ');
+  }
+
+  var HISTORY = [];
+
+  function statCard(num, lbl) {
+    return '<div class="stat"><div class="stat-num">' + num + '</div><div class="stat-lbl">' + lbl + '</div></div>';
+  }
+
+  function renderMatches(list) {
+    if (!list || !list.length) return '<div class="empty">No matches recorded yet.</div>';
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      var win = m.result === 'win', loss = m.result === 'loss';
+      var cls = win ? 'res-w' : loss ? 'res-l' : 'res-n';
+      var letter = win ? 'W' : loss ? 'L' : '–';
+      var score = (m.score_for != null && m.score_against != null)
+        ? (m.score_for + '\u2013' + m.score_against) : '—';
+      html += '<div class="match">'
+        + '<div class="res ' + cls + '"><b>' + letter + '</b><span>' + esc(score) + '</span></div>'
+        + '<div class="match-info">'
+        + '<div class="match-vs">vs. ' + esc(teamNames(m.opponent_names)) + '</div>'
+        + '<div class="match-ctx">' + esc(m.competition || 'Match') + ' \u00b7 ' + fmtShort(m.played_on) + '</div>'
+        + '</div></div>';
+    }
+    return html;
+  }
+
+  function detailsFor(kind, name, categoryId) {
+    var rows = HISTORY.filter(function (h) {
+      if (h.competition !== name) return false;
+      if (kind === 'tournament') return h.source === 'tournament_rr' || h.source === 'tournament_bracket';
+      return h.source === 'ladder_rotating';
+    });
+    return renderMatches(rows);
+  }
+
+  function render(d) {
+    var h = d.header, s = d.snapshot, a = d.current_activity;
+    var av = AV[(h.player_id || 0) % AV.length];
+    var statusPill = (h.status === 'active')
+      ? '<span class="pill pill-active">Active</span>'
+      : '<span class="pill pill-inactive">' + esc(h.status || 'Inactive') + '</span>';
+
+    var html = '';
+
+    // Identity header
+    html += '<div class="idcard">'
+      + '<div class="avatar" style="background:' + av + '">' + esc(initials(h.name)) + '</div>'
+      + '<div class="id-main">'
+      + '<div class="id-name">' + esc(h.name || 'Player') + '</div>'
+      + '<div class="id-meta">'
+      + '<span>' + statusPill + '</span>'
+      + '<span>FEROCIA ID <b>#' + esc(String(h.player_id)) + '</b></span>'
+      + '<span>Member since <b>' + fmtShort(h.date_joined) + '</b></span>'
+      + (h.skill_level ? '<span>Level <b>' + esc(h.skill_level) + '</b></span>' : '')
+      + (h.ranking != null ? '<span>Ranking <b>#' + esc(String(h.ranking)) + '</b></span>' : '')
+      + '<span class="pill pill-priv">' + esc(h.profile_visibility || 'limited') + ' profile</span>'
+      + '</div></div></div>';
+
+    // Snapshot
+    html += '<div class="section-title">Competition Snapshot</div><div class="grid">'
+      + statCard(s.matches_played, 'Matches')
+      + statCard(s.wins, 'Wins')
+      + statCard(s.losses, 'Losses')
+      + statCard(s.win_rate != null ? s.win_rate + '%' : '—', 'Win Rate')
+      + statCard(s.tournaments_played, 'Tournaments')
+      + statCard(s.ladder_seasons, 'Ladder Seasons')
+      + statCard(s.podium_finishes, 'Podiums')
+      + '</div>';
+
+    // Current activity
+    var ev = a.next_event;
+    html += '<div class="section-title">Current Activity</div><div class="activity">'
+      + '<div class="act"><div class="act-lbl">Current Ladder</div><div class="act-val">' + esc(a.current_ladder || 'None') + '</div>'
+      + (a.current_ladder_rank != null ? '<div class="act-sub">Ranked #' + esc(String(a.current_ladder_rank)) + '</div>' : '') + '</div>'
+      + '<div class="act"><div class="act-lbl">Next Event</div><div class="act-val">' + (ev ? esc(ev.title) : 'None scheduled') + '</div>'
+      + (ev ? '<div class="act-sub">' + fmtShort(ev.date) + '</div>' : '') + '</div>'
+      + '<div class="act"><div class="act-lbl">Last Played</div><div class="act-val">' + fmtShort(a.last_played) + '</div></div>'
+      + '<div class="act"><div class="act-lbl">Ladder Rank</div><div class="act-val">' + (a.current_ladder_rank != null ? '#' + esc(String(a.current_ladder_rank)) : '—') + '</div></div>'
+      + '</div>';
+
+    // Competition history with tabs
+    html += '<div class="section-title">Competition History</div>'
+      + '<div class="tabs"><button class="tab active" id="tab-t">Tournaments</button><button class="tab" id="tab-l">Ladders</button></div>'
+      + '<div id="pane-t"></div><div id="pane-l" style="display:none;"></div>';
+
+    // Recent matches
+    html += '<div class="section-title">Recent Matches</div><div id="recent"></div>';
+
+    document.getElementById('root').innerHTML = html;
+
+    // Panes
+    document.getElementById('pane-t').innerHTML = tournamentsPane(d.tournaments);
+    document.getElementById('pane-l').innerHTML = laddersPane(d.ladders);
+    document.getElementById('recent').innerHTML = renderMatches(d.recent_matches);
+
+    wireTabs();
+    wireDetails();
+  }
+
+  function tournamentsPane(list) {
+    if (!list || !list.length) return '<div class="empty">No tournaments played yet.</div>';
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i];
+      html += '<div class="hrow" data-kind="tournament" data-name="' + esc(t.name) + '">'
+        + '<div class="hrow-top">'
+        + '<div><div class="hrow-name">' + esc(t.name) + '</div>'
+        + '<div class="hrow-sub">' + esc(t.category || '') + ' \u00b7 ' + fmtShort(t.date) + '</div></div>'
+        + '<div class="hrow-meta">'
+        + '<span class="place" style="color:' + placeColor(t.placement) + '">' + placeLabel(t.placement) + '</span>'
+        + '<div class="hrow-stat"><b>' + t.wins + '\u2013' + t.losses + '</b><span>Record</span></div>'
+        + '<button class="btn-details">Details</button>'
+        + '</div></div><div class="details"></div></div>';
+    }
+    return html;
+  }
+
+  function laddersPane(list) {
+    if (!list || !list.length) return '<div class="empty">No ladder seasons yet.</div>';
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var l = list[i];
+      var range = fmtShort(l.start_date) + (l.end_date ? ' \u2013 ' + fmtShort(l.end_date) : '');
+      html += '<div class="hrow" data-kind="ladder" data-name="' + esc(l.name) + '">'
+        + '<div class="hrow-top">'
+        + '<div><div class="hrow-name">' + esc(l.name) + '</div>'
+        + '<div class="hrow-sub">' + esc(range) + '</div></div>'
+        + '<div class="hrow-meta">'
+        + '<div class="hrow-stat"><b>#' + (l.position != null ? l.position : '\u2013') + '</b><span>Position</span></div>'
+        + '<div class="hrow-stat"><b>' + l.wins + '\u2013' + l.losses + '</b><span>Record</span></div>'
+        + '<div class="hrow-stat"><b>' + l.points + '</b><span>Points</span></div>'
+        + '<button class="btn-details">Details</button>'
+        + '</div></div><div class="details"></div></div>';
+    }
+    return html;
+  }
+
+  function wireTabs() {
+    var tT = document.getElementById('tab-t'), tL = document.getElementById('tab-l');
+    var pT = document.getElementById('pane-t'), pL = document.getElementById('pane-l');
+    tT.addEventListener('click', function () {
+      tT.classList.add('active'); tL.classList.remove('active');
+      pT.style.display = ''; pL.style.display = 'none';
+    });
+    tL.addEventListener('click', function () {
+      tL.classList.add('active'); tT.classList.remove('active');
+      pL.style.display = ''; pT.style.display = 'none';
+    });
+  }
+
+  function wireDetails() {
+    var btns = document.querySelectorAll('.btn-details');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].addEventListener('click', function (e) {
+        var row = e.target.closest('.hrow');
+        var box = row.querySelector('.details');
+        if (box.classList.contains('open')) {
+          box.classList.remove('open'); e.target.textContent = 'Details'; return;
+        }
+        box.innerHTML = detailsFor(row.getAttribute('data-kind'), row.getAttribute('data-name'));
+        box.classList.add('open');
+        e.target.textContent = 'Hide';
+      });
+    }
+  }
+
+  (async function () {
+    try {
+      var portalRes = await supabase.rpc('get_player_portal', { p_token: token });
+      if (portalRes.error) throw new Error(portalRes.error.message);
+      if (!portalRes.data) { showState('Profile not found. Please check your personal link.'); return; }
+
+      var histRes = await supabase.rpc('get_player_history', { p_token: token });
+      HISTORY = (histRes && !histRes.error && histRes.data) ? histRes.data : [];
+
+      render(portalRes.data);
+    } catch (err) {
+      showState('We could not load this profile right now. Please try again in a moment.');
+      console.error('[Ferocia player portal]', err);
+    }
+  })();
+})();
+</script>
+</body>
+</html>
