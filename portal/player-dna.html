@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Player DNA — Ferocia Sports</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../db.js"></script>
+<script src="../assets.js"></script>
+<style>
+  :root{
+    --blue:#174CCC;--lime:#C6F221;--teal:#24BC96;--teal-light:#d4f5ed;
+    --orange:#F26024;--orange-light:#fde8d8;--blue-pale:#e8f0ff;
+    --dark:#080f2e;--nav:#0a1234;--white:#fff;--text:#0d1f4a;--muted:#6b7a99;
+    --border:#e2e8f5;--bg:#eef1f7;--radius:16px;--radius-sm:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Montserrat',sans-serif;background:var(--bg);color:var(--text);}
+  .app{display:flex;min-height:100vh;}
+
+  .side{width:210px;flex-shrink:0;background:var(--nav);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;}
+  .side-logo{height:26px;margin:6px 8px 22px;}
+  .nav{display:flex;flex-direction:column;gap:3px;flex:1;}
+  .nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:#9fb0d6;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:.12s;}
+  .nav a:hover{background:rgba(255,255,255,.05);color:#fff;}
+  .nav a.active{background:var(--blue);color:#fff;}
+  .nav a svg{width:18px;height:18px;flex-shrink:0;}
+  .side-bottom{border-top:1px solid rgba(255,255,255,.08);padding-top:12px;display:flex;flex-direction:column;gap:3px;}
+
+  .main{flex:1;min-width:0;padding:22px 26px 60px;max-width:1180px;}
+  .soon{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius);padding:70px 20px;text-align:center;color:var(--text);font-weight:800;}
+  .soon small{display:block;font-weight:600;margin-top:8px;color:var(--muted);}
+  .state{text-align:center;padding:100px 20px;color:var(--muted);font-weight:600;}
+
+  .hero{border-radius:var(--radius);padding:26px 28px;color:#fff;position:relative;overflow:hidden;margin-bottom:22px;
+    background:radial-gradient(120% 140% at 85% 20%, #2b62e6 0%, #14307f 45%, #0b1a48 100%);}
+  .hero::after{content:'';position:absolute;right:-40px;top:-30px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(198,242,33,.14),transparent 62%);}
+  .hero-row{display:flex;align-items:flex-start;gap:22px;flex-wrap:wrap;position:relative;z-index:1;}
+  .avatar-wrap{position:relative;flex-shrink:0;}
+  .avatar{width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:1px;box-shadow:0 6px 20px rgba(0,0,0,.25);}
+  .hero-id{flex:1;min-width:220px;}
+  .hero-name{font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:1px;line-height:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .hero-meta{font-size:12.5px;color:#c9d6f5;font-weight:600;margin-top:8px;}
+  .hero-meta b{color:#fff;}
+  .rating{margin-top:16px;display:inline-flex;align-items:center;gap:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:10px 16px;}
+  .rating svg{width:26px;height:26px;color:var(--lime);}
+  .rating-lbl{font-size:9px;font-weight:800;letter-spacing:1.5px;color:#9fb0d6;text-transform:uppercase;}
+  .rating-val{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:1;}
+  .hero-tr{position:absolute;top:22px;right:26px;z-index:2;display:flex;flex-direction:column;align-items:flex-end;gap:64px;}
+  .vis{display:flex;align-items:center;gap:8px;text-align:right;}
+  .vis svg{width:16px;height:16px;color:#9fb0d6;}
+  .vis-lbl{font-size:9px;font-weight:800;letter-spacing:1px;color:#9fb0d6;text-transform:uppercase;}
+  .vis-val{font-size:13px;font-weight:800;text-transform:capitalize;}
+
+  .sec-lbl{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:24px 2px 12px;}
+
+  .snap{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;}
+  .scard{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 12px;display:flex;align-items:center;gap:11px;}
+  .chip{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .chip svg{width:19px;height:19px;}
+  .scard-num{font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;}
+  .scard-lbl{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+
+  .cols{display:grid;grid-template-columns:1.35fr 1fr;gap:22px;align-items:start;}
+  .card{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius);padding:18px;}
+
+  .act-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .act{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 15px;}
+  .act.lime{border-left:3px solid var(--lime);}
+  .act.teal{border-left:3px solid var(--teal);}
+  .act-inner{display:flex;gap:11px;align-items:flex-start;}
+  .act-inner > svg{width:16px;height:16px;color:var(--muted);flex-shrink:0;margin-top:1px;}
+  .act-txt{flex:1;min-width:0;}
+  .act-lbl{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px;}
+  .act-val{font-size:15px;font-weight:800;color:var(--text);}
+  .act-sub{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px;}
+  .mini-pill{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:var(--teal-light);color:#0f6e56;margin-left:6px;}
+  .hero-pill{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 11px;border-radius:99px;background:var(--lime);color:#0d1f4a;}
+
+  .form-row{display:flex;gap:7px;flex-wrap:wrap;}
+  .fb{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:'Bebas Neue',sans-serif;}
+  .fb-w{background:var(--teal-light);color:#0f6e56;}
+  .fb-l{background:var(--orange-light);color:#993c1d;}
+  .streak-row{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:14px;border-top:0.5px solid var(--border);}
+  .streak-lbl{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+  .streak-val{font-size:14px;font-weight:800;display:inline-flex;align-items:center;gap:6px;}
+  .streak-val svg{width:16px;height:16px;}
+
+  .ach{display:flex;align-items:center;gap:16px;}
+  .ach-medal{width:52px;height:52px;border-radius:50%;background:#eef1f7;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ach-medal svg{width:26px;height:26px;color:#b9c3da;}
+  .ach h4{font-size:14px;font-weight:800;margin-bottom:2px;}
+  .ach p{font-size:12px;color:var(--muted);font-weight:600;}
+  .ach-link{font-size:12px;font-weight:800;color:var(--blue);text-decoration:none;cursor:pointer;display:inline-block;margin-top:7px;font-family:'Montserrat',sans-serif;}
+
+  .tabs{display:flex;gap:8px;margin-bottom:14px;background:#e6ebf6;padding:4px;border-radius:12px;}
+  .tab{flex:1;padding:10px;border:none;background:transparent;border-radius:9px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);cursor:pointer;font-family:'Montserrat',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;}
+  .tab svg{width:15px;height:15px;}
+  .tab.active{background:var(--blue);color:#fff;}
+  .hrow{border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;}
+  .hrow-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .hrow-name{font-size:14px;font-weight:800;}
+  .hrow-sub{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px;}
+  .hrow-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border);flex-wrap:wrap;}
+  .hrow-stats{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+  .hstat{text-align:center;}
+  .hstat b{display:block;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue);line-height:1;}
+  .hstat span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
+  .place{font-size:12px;font-weight:800;}
+  .btn-mini{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--blue);background:var(--blue-pale);border:none;border-radius:99px;padding:6px 14px;cursor:pointer;font-family:'Montserrat',sans-serif;}
+  .details{margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border);display:none;}
+  .details.open{display:block;}
+  .empty{text-align:center;padding:34px 20px;color:var(--muted);}
+  .empty svg{width:56px;height:56px;color:#d3dcee;margin-bottom:10px;}
+  .empty h4{font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px;}
+  .empty p{font-size:12px;font-weight:600;margin-bottom:14px;}
+  .btn-primary{background:var(--blue);color:#fff;border:none;border-radius:99px;padding:10px 22px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;font-family:'Montserrat',sans-serif;}
+
+  .qs-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:0.5px solid var(--border);}
+  .qs-row:last-child{border-bottom:none;}
+  .qs-left{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--text);font-family:'Montserrat',sans-serif;}
+  .qs-left svg{width:16px;height:16px;color:var(--muted);}
+  .qs-val{font-size:14px;font-weight:800;font-family:'Montserrat',sans-serif;}
+
+  .match{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:0.5px solid var(--border);}
+  .match:last-child{border-bottom:none;}
+  .res{width:40px;height:40px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1;}
+  .mscore{font-family:'Bebas Neue',sans-serif;font-size:18px;font-weight:400;margin-right:8px;}
+  .match-vs{font-size:13px;font-weight:700;}
+  .match-ctx{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:99;box-shadow:0 8px 30px rgba(0,0,0,.3);}
+
+  @media(max-width:900px){
+    .snap{grid-template-columns:repeat(4,1fr);}
+    .cols{grid-template-columns:1fr;}
+    .hero-tr{position:static;flex-direction:row;justify-content:space-between;gap:12px;margin-top:16px;width:100%;}
+  }
+  @media(max-width:720px){
+    .app{flex-direction:column;}
+    .side{width:100%;height:auto;position:static;flex-direction:row;align-items:center;overflow-x:auto;padding:12px;}
+    .side-logo{margin:0 14px 0 4px;}
+    .nav{flex-direction:row;gap:4px;}
+    .nav a span{display:none;}
+    .side-bottom{border-top:none;border-left:1px solid rgba(255,255,255,.08);padding:0 0 0 10px;margin-left:6px;flex-direction:row;}
+    .main{padding:18px 14px 50px;}
+    .snap{grid-template-columns:repeat(2,1fr);}
+    .act-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <img class="side-logo" data-asset="ferociaLogo" alt="Ferocia">
+    <nav class="nav" id="nav">
+      <a data-view="overview" class="active">SVG_HOME<span>Overview</span></a>
+      <a data-view="soon" data-title="Matches">SVG_MATCH<span>Matches</span></a>
+      <a data-view="tournaments">SVG_TROPHY<span>Tournaments</span></a>
+      <a data-view="ladders">SVG_LADDER<span>Ladders</span></a>
+      <a data-view="soon" data-title="Stats">SVG_STATS<span>Stats</span></a>
+      <a data-view="soon" data-title="Achievements">SVG_MEDAL<span>Achievements</span></a>
+      <a data-view="soon" data-title="Rankings">SVG_RANK<span>Rankings</span></a>
+      <a data-view="soon" data-title="Activity Feed">SVG_FEED<span>Activity Feed</span></a>
+    </nav>
+    <div class="side-bottom">
+      <a id="share"><span>Share Profile</span></a>
+      <a data-view="soon" data-title="Profile Settings"><span>Profile Settings</span></a>
+    </div>
+  </aside>
+  <main class="main" id="main"><div class="state" id="loading">Loading your profile…</div></main>
+</div>
+
+<script src="player-dna.js"></script>
+</body>
+</html>
+

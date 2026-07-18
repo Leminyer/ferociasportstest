@@ -4340,7 +4340,7 @@ window.selectLadderType = (type) => {
     if (plBtn) {
       if (p.portal_token) {
         const base = window.location.origin + window.location.pathname.replace(/admin\.html$/, '');
-        const portalUrl = `${base}player-dna.html?t=${p.portal_token}`;
+        const portalUrl = `${base}portal/player-dna.html?t=${p.portal_token}`;
         plBtn.style.display = 'inline-flex';
         plBtn.onclick = () => {
           if (navigator.clipboard && navigator.clipboard.writeText) {
