@@ -67,8 +67,9 @@
 
   function statCard(chip,icon,num,lbl){
     var c=CHIP[chip];
-    return '<div class="scard"><div class="chip" style="background:'+c[1]+';color:'+c[0]+'">'+icon+'</div>'
-      +'<div><div class="scard-num" style="color:'+c[0]+'">'+num+'</div><div class="scard-lbl">'+lbl+'</div></div></div>';
+    return '<div class="scard"><div class="scard-top"><div class="chip" style="background:'+c[1]+';color:'+c[0]+'">'+icon+'</div>'
+      +'<div class="scard-num" style="color:'+c[0]+'">'+num+'</div></div>'
+      +'<div class="scard-lbl">'+lbl+'</div></div>';
   }
 
   function renderMatches(list){
