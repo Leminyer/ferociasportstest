@@ -57,9 +57,9 @@
   .sec-lbl{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:24px 2px 12px;}
 
   .snap{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;}
-  .scard{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:16px 12px;}
-  .chip{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
-  .chip svg{width:16px;height:16px;}
+  .scard{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 12px;display:flex;align-items:center;gap:11px;}
+  .chip{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .chip svg{width:19px;height:19px;}
   .scard-num{font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;}
   .scard-lbl{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-top:4px;}
 
@@ -70,12 +70,14 @@
   .act{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 15px;}
   .act.lime{border-left:3px solid var(--lime);}
   .act.teal{border-left:3px solid var(--teal);}
-  .act-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-  .act-head svg{width:15px;height:15px;color:var(--muted);}
-  .act-lbl{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
+  .act-inner{display:flex;gap:11px;align-items:flex-start;}
+  .act-inner > svg{width:16px;height:16px;color:var(--muted);flex-shrink:0;margin-top:1px;}
+  .act-txt{flex:1;min-width:0;}
+  .act-lbl{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px;}
   .act-val{font-size:15px;font-weight:800;color:var(--text);}
   .act-sub{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px;}
   .mini-pill{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:var(--teal-light);color:#0f6e56;margin-left:6px;}
+  .hero-pill{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 11px;border-radius:99px;background:var(--lime);color:#0d1f4a;}
 
   .form-row{display:flex;gap:7px;flex-wrap:wrap;}
   .fb{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:'Bebas Neue',sans-serif;}
@@ -83,25 +85,28 @@
   .fb-l{background:var(--orange-light);color:#993c1d;}
   .streak-row{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:14px;border-top:0.5px solid var(--border);}
   .streak-lbl{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
-  .streak-val{font-size:14px;font-weight:800;}
+  .streak-val{font-size:14px;font-weight:800;display:inline-flex;align-items:center;gap:6px;}
+  .streak-val svg{width:16px;height:16px;}
 
   .ach{display:flex;align-items:center;gap:16px;}
   .ach-medal{width:52px;height:52px;border-radius:50%;background:#eef1f7;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .ach-medal svg{width:26px;height:26px;color:#b9c3da;}
   .ach h4{font-size:14px;font-weight:800;margin-bottom:2px;}
   .ach p{font-size:12px;color:var(--muted);font-weight:600;}
+  .ach-link{font-size:12px;font-weight:800;color:var(--blue);text-decoration:none;cursor:pointer;display:inline-block;margin-top:7px;font-family:'Montserrat',sans-serif;}
 
   .tabs{display:flex;gap:8px;margin-bottom:14px;background:#e6ebf6;padding:4px;border-radius:12px;}
   .tab{flex:1;padding:10px;border:none;background:transparent;border-radius:9px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);cursor:pointer;font-family:'Montserrat',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;}
   .tab svg{width:15px;height:15px;}
   .tab.active{background:var(--blue);color:#fff;}
   .hrow{border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;}
-  .hrow-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .hrow-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
   .hrow-name{font-size:14px;font-weight:800;}
   .hrow-sub{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px;}
-  .hrow-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .hrow-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border);flex-wrap:wrap;}
+  .hrow-stats{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
   .hstat{text-align:center;}
-  .hstat b{display:block;font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--blue);line-height:1;}
+  .hstat b{display:block;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue);line-height:1;}
   .hstat span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
   .place{font-size:12px;font-weight:800;}
   .btn-mini{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--blue);background:var(--blue-pale);border:none;border-radius:99px;padding:6px 14px;cursor:pointer;font-family:'Montserrat',sans-serif;}
@@ -115,14 +120,14 @@
 
   .qs-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:0.5px solid var(--border);}
   .qs-row:last-child{border-bottom:none;}
-  .qs-left{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--text);}
+  .qs-left{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--text);font-family:'Montserrat',sans-serif;}
   .qs-left svg{width:16px;height:16px;color:var(--muted);}
-  .qs-val{font-size:14px;font-weight:800;}
+  .qs-val{font-size:14px;font-weight:800;font-family:'Montserrat',sans-serif;}
 
   .match{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:0.5px solid var(--border);}
   .match:last-child{border-bottom:none;}
-  .res{width:42px;height:42px;border-radius:10px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;line-height:1;}
-  .res b{font-size:16px;}.res span{font-size:9px;font-weight:800;}
+  .res{width:40px;height:40px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1;}
+  .mscore{font-family:'Bebas Neue',sans-serif;font-size:18px;font-weight:400;margin-right:8px;}
   .match-vs{font-size:13px;font-weight:700;}
   .match-ctx{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;}
 
@@ -190,7 +195,9 @@
     lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>',
     edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg>',
     cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>',
-    clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+    clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>',
+    fire:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1.6 3.2 5 4.7 5 9a5 5 0 11-9.6-2c.1 1.5 1 2.4 1.9 2.8C8.9 8.7 9 5.6 12 2z"/></svg>'
   };
 
   var CHIP = {
@@ -237,7 +244,7 @@
   function statCard(chip,icon,num,lbl){
     var c=CHIP[chip];
     return '<div class="scard"><div class="chip" style="background:'+c[1]+';color:'+c[0]+'">'+icon+'</div>'
-      +'<div class="scard-num" style="color:'+c[0]+'">'+num+'</div><div class="scard-lbl">'+lbl+'</div></div>';
+      +'<div><div class="scard-num" style="color:'+c[0]+'">'+num+'</div><div class="scard-lbl">'+lbl+'</div></div></div>';
   }
 
   function renderMatches(list){
@@ -245,9 +252,10 @@
     var h='';
     for(var i=0;i<list.length;i++){
       var m=list[i], win=m.result==='win', loss=m.result==='loss', L=win?'W':loss?'L':'–';
-      var sc=(m.score_for!=null&&m.score_against!=null)?(m.score_for+'\u2013'+m.score_against):'—';
-      h+='<div class="match"><div class="res '+(win?'fb-w':'fb-l')+'"><b>'+L+'</b><span>'+esc2(sc)+'</span></div>'
-        +'<div><div class="match-vs">vs. '+esc2(names(m.opponent_names))+'</div>'
+      var sc=(m.score_for!=null&&m.score_against!=null)?(m.score_for+'\u2013'+m.score_against):'';
+      var scColor=win?'#0f6e56':loss?'#993c1d':'var(--muted)';
+      h+='<div class="match"><div class="res '+(win?'fb-w':'fb-l')+'">'+L+'</div>'
+        +'<div><div class="match-vs">'+(sc?'<span class="mscore" style="color:'+scColor+'">'+esc2(sc)+'</span>':'')+'vs. '+esc2(names(m.opponent_names))+'</div>'
         +'<div class="match-ctx">'+esc2(m.competition||'Match')+' \u00b7 '+fmtShort(m.played_on)+'</div></div></div>';
     }
     return h;
@@ -265,11 +273,14 @@
     if(!list||!list.length) return '<div class="empty">'+ICON.trophy+'<h4>No tournaments played yet.</h4><p>Join a tournament to start building your history!</p></div>';
     var h='';
     for(var i=0;i<list.length;i++){var t=list[i];
-      h+='<div class="hrow" data-kind="tournament" data-name="'+esc2(t.name)+'"><div class="hrow-top">'
-        +'<div><div class="hrow-name">'+esc2(t.name)+'</div><div class="hrow-sub">'+esc2(t.category||'')+' \u00b7 '+fmtShort(t.date)+'</div></div>'
-        +'<div class="hrow-meta"><span class="place" style="color:'+placeColor(t.placement)+'">'+placeLabel(t.placement)+'</span>'
-        +'<div class="hstat"><b>'+t.wins+'\u2013'+t.losses+'</b><span>Record</span></div>'
-        +'<button class="btn-mini">Details</button></div></div><div class="details"></div></div>';
+      h+='<div class="hrow" data-kind="tournament" data-name="'+esc2(t.name)+'">'
+        +'<div class="hrow-head"><div><div class="hrow-name">'+esc2(t.name)+'</div>'
+        +'<div class="hrow-sub">'+esc2(t.category||'')+' \u00b7 '+fmtShort(t.date)+'</div></div>'
+        +'<span class="place" style="color:'+placeColor(t.placement)+'">'+placeLabel(t.placement)+'</span></div>'
+        +'<div class="hrow-foot"><div class="hrow-stats">'
+        +'<div class="hstat"><b>'+t.wins+'\u2013'+t.losses+'</b><span>Record</span></div></div>'
+        +'<button class="btn-mini">Details</button></div>'
+        +'<div class="details"></div></div>';
     }
     return h;
   }
@@ -278,12 +289,15 @@
     var h='';
     for(var i=0;i<list.length;i++){var l=list[i];
       var range=fmtShort(l.start_date)+(l.end_date?' \u2013 '+fmtShort(l.end_date):'');
-      h+='<div class="hrow" data-kind="ladder" data-name="'+esc2(l.name)+'"><div class="hrow-top">'
-        +'<div><div class="hrow-name">'+esc2(l.name)+'</div><div class="hrow-sub">'+esc2(range)+'</div></div>'
-        +'<div class="hrow-meta"><div class="hstat"><b>#'+(l.position!=null?l.position:'\u2013')+'</b><span>Position</span></div>'
+      h+='<div class="hrow" data-kind="ladder" data-name="'+esc2(l.name)+'">'
+        +'<div class="hrow-head"><div><div class="hrow-name">'+esc2(l.name)+'</div>'
+        +'<div class="hrow-sub">'+esc2(range)+'</div></div></div>'
+        +'<div class="hrow-foot"><div class="hrow-stats">'
+        +'<div class="hstat"><b>#'+(l.position!=null?l.position:'\u2013')+'</b><span>Position</span></div>'
         +'<div class="hstat"><b>'+l.wins+'\u2013'+l.losses+'</b><span>Record</span></div>'
-        +'<div class="hstat"><b>'+l.points+'</b><span>Points</span></div>'
-        +'<button class="btn-mini">Details</button></div></div><div class="details"></div></div>';
+        +'<div class="hstat"><b>'+l.points+'</b><span>Points</span></div></div>'
+        +'<button class="btn-mini">Details</button></div>'
+        +'<div class="details"></div></div>';
     }
     return h;
   }
@@ -305,7 +319,7 @@
       +'<div class="vis">'+ICON.lock+'<div><div class="vis-lbl">Profile Visibility</div><div class="vis-val">'+esc2(h.profile_visibility||'limited')+' Profile</div></div></div>'
       +'</div><div class="hero-row">'
       +'<div class="avatar-wrap"><div class="avatar" style="background:'+av+'">'+esc2(initials(h.name))+'</div></div>'
-      +'<div class="hero-id"><div class="hero-name">'+esc2(h.name||'Player')+' <span class="mini-pill">'+esc2(h.status||'active')+'</span></div>'
+      +'<div class="hero-id"><div class="hero-name">'+esc2(h.name||'Player')+' <span class="hero-pill">'+esc2(h.status||'active')+'</span></div>'
       +'<div class="hero-meta">FEROCIA ID <b>#'+esc2(String(h.player_id))+'</b> &nbsp;&nbsp; Member since <b>'+fmtShort(h.date_joined)+'</b>'
       +(h.skill_level?' &nbsp;&nbsp; Level <b>'+esc2(h.skill_level)+'</b>':'')+'</div>'
       +'<div class="rating">'+ICON.shield+'<div><div class="rating-lbl">FEROCIA Ranking</div>'
@@ -315,7 +329,7 @@
     out+='<div class="sec-lbl">Competition Snapshot</div><div class="snap">'
       +statCard('green',ICON.match,s.matches_played,'Matches')
       +statCard('gold',ICON.trophy,s.wins,'Wins')
-      +statCard('red',ICON.match,s.losses,'Losses')
+      +statCard('red',ICON.down,s.losses,'Losses')
       +statCard('blue',ICON.stats,(s.win_rate!=null?s.win_rate+'%':'—'),'Win Rate')
       +statCard('purple',ICON.rank,s.tournaments_played,'Tournaments')
       +statCard('orange',ICON.ladder,s.ladder_seasons,'Ladder Seasons')
@@ -325,18 +339,18 @@
     var ev=a.next_event;
     out+='<div class="cols"><div>';
     out+='<div class="sec-lbl">Current Activity</div><div class="act-grid">'
-      +'<div class="act lime"><div class="act-head">'+ICON.ladder+'<span class="act-lbl">Current Ladder</span></div>'
+      +'<div class="act lime"><div class="act-inner">'+ICON.ladder+'<div class="act-txt"><span class="act-lbl">Current Ladder</span>'
       +'<div class="act-val">'+esc2(a.current_ladder||'None')+(a.current_ladder?'<span class="mini-pill">Active</span>':'')+'</div>'
-      +'<div class="act-sub">'+esc2(a.current_ladder?ladderType(a.current_ladder_type):'Not enrolled')+'</div></div>'
-      +'<div class="act"><div class="act-head">'+ICON.cal+'<span class="act-lbl">Next Event</span></div>'
+      +'<div class="act-sub">'+esc2(a.current_ladder?ladderType(a.current_ladder_type):'Not enrolled')+'</div></div></div></div>'
+      +'<div class="act"><div class="act-inner">'+ICON.cal+'<div class="act-txt"><span class="act-lbl">Next Event</span>'
       +'<div class="act-val">'+(ev?esc2(ev.title):'None scheduled')+'</div>'
-      +'<div class="act-sub">'+(ev?fmtShort(ev.date):'Check back soon!')+'</div></div>'
-      +'<div class="act teal"><div class="act-head">'+ICON.clock+'<span class="act-lbl">Last Played</span></div>'
+      +'<div class="act-sub">'+(ev?fmtShort(ev.date):'Check back soon!')+'</div></div></div></div>'
+      +'<div class="act teal"><div class="act-inner">'+ICON.clock+'<div class="act-txt"><span class="act-lbl">Last Played</span>'
       +'<div class="act-val">'+fmtShort(a.last_played)+'</div>'
-      +'<div class="act-sub">'+esc2(lastComp()||'—')+'</div></div>'
-      +'<div class="act"><div class="act-head">'+ICON.stats+'<span class="act-lbl">Ladder Rank</span></div>'
+      +'<div class="act-sub">'+esc2(lastComp()||'—')+'</div></div></div></div>'
+      +'<div class="act"><div class="act-inner">'+ICON.stats+'<div class="act-txt"><span class="act-lbl">Ladder Rank</span>'
       +'<div class="act-val">'+(a.current_ladder_rank!=null?('#'+a.current_ladder_rank):'\u2013')+'</div>'
-      +'<div class="act-sub">'+(a.current_ladder_rank!=null?'In current ladder':'Not enough data yet')+'</div></div>'
+      +'<div class="act-sub">'+(a.current_ladder_rank!=null?'In current ladder':'Not enough data yet')+'</div></div></div></div>'
       +'</div>';
     out+='<div class="sec-lbl">Competition History</div><div class="card">'
       +'<div class="tabs"><button class="tab active" id="tab-t">'+ICON.trophy+'Tournaments</button><button class="tab" id="tab-l">'+ICON.ladder+'Ladders</button></div>'
@@ -346,15 +360,16 @@
     var formHtml='';
     if(dv.form.length){ for(var i=0;i<dv.form.length;i++){ var w=dv.form[i].result==='win'; formHtml+='<div class="fb '+(w?'fb-w':'fb-l')+'">'+(w?'W':'L')+'</div>'; } }
     else formHtml='<div style="color:var(--muted);font-size:12px;font-weight:600;">No matches yet.</div>';
-    var streakTxt='—', streakColor='var(--muted)';
+    var streakInner='—', streakColor='var(--muted)';
     if(dv.streak_kind){ var word=dv.streak_count===1?(dv.streak_kind==='win'?'Win':'Loss'):(dv.streak_kind==='win'?'Wins':'Losses');
-      streakTxt=(dv.streak_kind==='win'?'🔥 ':'❄️ ')+dv.streak_count+' '+word; streakColor=dv.streak_kind==='win'?'#1e9e6a':'#d8543a'; }
+      streakColor=dv.streak_kind==='win'?'#1e9e6a':'#d8543a'; streakInner=ICON.fire+'<span>'+dv.streak_count+' '+word+'</span>'; }
     out+='<div class="sec-lbl">Recent Form (Last 10 Matches)</div><div class="card">'
       +'<div class="form-row">'+formHtml+'</div>'
-      +'<div class="streak-row"><span class="streak-lbl">Current Streak</span><span class="streak-val" style="color:'+streakColor+'">'+streakTxt+'</span></div></div>';
+      +'<div class="streak-row"><span class="streak-lbl">Current Streak</span><span class="streak-val" style="color:'+streakColor+'">'+streakInner+'</span></div></div>';
 
     out+='<div class="sec-lbl">Achievements</div><div class="card"><div class="ach"><div class="ach-medal">'+ICON.medal+'</div>'
-      +'<div><h4>No achievements yet</h4><p>Keep playing to unlock badges and achievements!</p></div></div></div>';
+      +'<div><h4>No achievements yet</h4><p>Keep playing to unlock badges and achievements!</p>'
+      +'<a class="ach-link" id="ach-link">View all achievements &rarr;</a></div></div></div>';
 
     out+='<div class="sec-lbl">Quick Stats</div><div class="card">'
       +qsRow(ICON.match,'Matches This Year',dv.matches_year)
@@ -370,6 +385,7 @@
     document.getElementById('pane-t').innerHTML=tournamentsPane(PORTAL.tournaments);
     document.getElementById('pane-l').innerHTML=laddersPane(PORTAL.ladders);
     wireTabs(); wireDetails();
+    var al=document.getElementById('ach-link'); if(al) al.addEventListener('click',function(){toast('Achievements are coming soon.');});
   }
 
   function wireTabs(){
