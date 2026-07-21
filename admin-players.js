@@ -76,10 +76,13 @@
             <span style="font-size:10px;font-weight:600;color:#6b7a99;display:block;">${stats.wins}W · ${stats.played - stats.wins}L</span>
           </td>
           <td class="players-td" style="text-align:center;">${indHTML}</td>
+          <td class="players-td" style="text-align:center;">
+            <span style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 10px;border-radius:99px;background:#f0f2f8;color:#6b7a99;">Free</span>
+          </td>
           <td class="players-td" style="text-align:center;">${d.statusHTML}</td>
           <td class="players-td" style="text-align:center;">
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
-              <button class="ppm-profile-btn" data-action="openPlayerProfile" data-pid="${p.id}" title="View profile">
+              <button class="ppm-profile-btn" data-action="showPage" data-page="player-profile" data-pid="${p.id}" title="View profile">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </button>
               <button class="sess-edit-btn" data-action="openEdit" data-pid="${p.id}" title="Edit player">${editSVG}</button>
@@ -87,7 +90,7 @@
           </td>
         </tr>
         <tr id="${expandId}" class="player-expand-row" style="display:none;">
-          <td colspan="6">
+          <td colspan="7">
             <div class="player-expand-panel">
               <div class="player-expand-field">
                 <div class="player-expand-label">Email</div>
@@ -137,7 +140,8 @@
             <th class="players-th sortable-th" data-sort="name" style="cursor:pointer;">Player ${sortArrow('name')}</th>
             <th class="players-th sortable-th" data-sort="played" style="text-align:center;cursor:pointer;">Games Played ${sortArrow('played')}</th>
             <th class="players-th sortable-th" data-sort="wr" style="text-align:center;cursor:pointer;">Win Rate ${sortArrow('wr')}</th>
-            <th class="players-th sortable-th" data-sort="ind" style="text-align:center;cursor:pointer;">Indicator ${sortArrow('ind')}</th>
+            <th class="players-th sortable-th" data-sort="ind" style="text-align:center;cursor:pointer;">Player Tags ${sortArrow('ind')}</th>
+            <th class="players-th" style="text-align:center;">Membership</th>
             <th class="players-th sortable-th" data-sort="status" style="text-align:center;cursor:pointer;">Status ${sortArrow('status')}</th>
             <th class="players-th" style="text-align:center;width:44px;"></th>
           </tr>
@@ -273,17 +277,23 @@
       // Stat cards
       const total   = players.length;
       const active  = players.filter(p => p.status === 'active').length;
-      const inactive= players.filter(p => p.status === 'inactive').length;
-      const male    = players.filter(p => p.gender === 'Male').length;
-      const female  = players.filter(p => p.gender === 'Female').length;
+      const inLadderCount     = players.filter(p => inLadder.has(p.id)).length;
+      const inTournamentCount = players.filter(p => inTournament.has(p.id)).length;
+      const now = new Date();
+      const newThisMonth = players.filter(p => {
+        if (!p.date_joined) return false;
+        const d = new Date(p.date_joined + 'T00:00:00');
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }).length;
       const setEl   = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
       setEl('players-total',    total);
       setEl('players-active',   active);
-      setEl('players-inactive', inactive);
-      setEl('players-male',     male);
-      setEl('players-female',   female);
-      setEl('players-male-pct',   total ? `${Math.round(male/total*100)}% of roster` : '');
-      setEl('players-female-pct', total ? `${Math.round(female/total*100)}% of roster` : '');
+      setEl('players-inactive', inLadderCount);
+      setEl('players-male',     inTournamentCount);
+      setEl('players-female',   newThisMonth);
+      setEl('players-ladder-pct',     total ? `${Math.round(inLadderCount/total*100)}% of roster` : '');
+      setEl('players-male-pct',       total ? `${Math.round(inTournamentCount/total*100)}% of roster` : '');
+      setEl('players-female-pct',     now.toLocaleDateString('en-US', { month: 'long' }));
       setEl('players-count',    `${total} player${total !== 1 ? 's' : ''}`);
 
       if (!players.length) {
@@ -2014,10 +2024,13 @@
   window.initAddPlayer          = initAddPlayer;           // called from the page router
   window.loadMatchHub           = loadMatchHub;            // called from the page router
   window.updateReasonVisibility = updateReasonVisibility;  // called from app.js's generic input listener
+  window.openEdit                = openEdit;               // called directly from admin-player-profile.js's "More" menu
 
   Object.assign(window.CLICK_HANDLERS, {
     openEdit:           (btn) => openEdit(parseInt(btn.dataset.pid, 10)),
-    openPlayerProfile:  (btn) => openPlayerProfile(parseInt(btn.dataset.pid, 10)),
+    // openPlayerProfile now registered by admin-player-profile.js (opens the
+    // new full-page profile instead of this file's old modal). The modal
+    // function above is left defined but unused for now.
     closeModal:         () => closeModal(),
   });
 })();
