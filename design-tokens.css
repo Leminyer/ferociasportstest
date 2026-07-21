@@ -72,10 +72,15 @@
   --dark:         #080f2e;
   --text:         var(--text-primary);
   --text-muted:   var(--text-secondary);
+  --muted:        var(--text-secondary); /* alias used by players.html/tournament-results.html/index.html/store.html/subscribe/confirm/unsubscribe */
   --border:       var(--border-color);
   --bg:           var(--neutral-bg);
   --radius:       var(--radius-medium);
   --radius-sm:    var(--radius-small);
+  --blue-dk:      #0d2f8a; /* darker blue variant used on index.html/store.html hero sections — not part of the spec's core palette, kept as-is */
+  --gold:         #FFD700; /* podium medal colors — decorative, not brand/semantic colors */
+  --silver:       #C0C0C0;
+  --bronze:       #CD7F32;
 }
 
 /* ============================================================
