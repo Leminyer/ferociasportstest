@@ -581,6 +581,46 @@
   // references anywhere in the codebase.
 
   let _mhTypeFilter = 'all';
+  let _mhFilter = 'all';
+  let _mhMatches = [];
+  const MH_TYPE_LABELS = { singles: 'Singles', mens: "Men's Doubles", womens: "Women's Doubles", mixed: 'Mixed Doubles' };
+
+  // Loads/refreshes the Match Hub page: fetches all friendly matches,
+  // computes the 5 summary cards, and renders the table (mhRenderTable
+  // reads from _mhMatches directly, so it doesn't need the data passed in).
+  const loadMatchHub = async () => {
+    const tableEl = document.getElementById('mh-table-body');
+    if (tableEl) tableEl.innerHTML = '<div class="loading">Loading matches...</div>';
+    try {
+      _mhMatches = await api('friendly_matches?select=*&order=match_date.desc');
+    } catch (e) {
+      if (tableEl) tableEl.innerHTML = `<div class="empty">Error loading matches: ${esc(e.message)}</div>`;
+      return;
+    }
+
+    const total = _mhMatches.length;
+    const now = new Date();
+    const thisMonth = _mhMatches.filter((m) => {
+      const d = new Date(m.match_date);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length;
+    const uniquePlayers = new Set();
+    _mhMatches.forEach((m) => {
+      [m.team_a_p1_id, m.team_a_p2_id, m.team_b_p1_id, m.team_b_p2_id].forEach((id) => { if (id) uniquePlayers.add(id); });
+    });
+    const pending = _mhMatches.filter((m) => m.status === 'pending').length;
+    const dnaPoints = _mhMatches.filter((m) => m.use_dna).length;
+
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('mh-total', total);
+    setEl('mh-month', thisMonth);
+    setEl('mh-month-lbl', now.toLocaleDateString('en-US', { month: 'long' }));
+    setEl('mh-players', uniquePlayers.size);
+    setEl('mh-pending', pending);
+    setEl('mh-dna', dnaPoints);
+
+    mhRenderTable();
+  };
 
   window.mhFilterDdl = () => {
     _mhFilter     = document.getElementById('mh-purpose-ddl')?.value || 'all';
@@ -1423,8 +1463,17 @@
   };
 
   const openEdit = async (id) => {
-    const p = AdminState.allPlayers.find((x) => x.id === id);
-    if (!p) return;
+    let p = AdminState.allPlayers.find((x) => x.id === id);
+    if (!p) {
+      // Not in the cached list yet (e.g. opened from a page that didn't
+      // load the full Players array first) — fetch it directly instead
+      // of silently doing nothing.
+      try {
+        const rows = await api(`players?id=eq.${id}&select=*`);
+        p = rows[0];
+      } catch (e) { /* fall through to the toast below */ }
+    }
+    if (!p) { toast('Could not load this player — try refreshing the page.', true); return; }
     document.getElementById('edit-id').value = p.id;
     document.getElementById('edit-original-status').value = p.status || 'active';
     document.getElementById('edit-first').value = p.first_name;
