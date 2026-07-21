@@ -24,7 +24,7 @@
   // ── Load and render teams page ──────────────────────────────────────────
   const loadFtcTeams = async () => {
     if (!AdminState.currentLadder) return;
-    // Set page title (Bebas Neue, same as RP ladder pages)
+    // Set page title (Inter, same as RP ladder pages)
     const teamsTitleEl = document.getElementById('ftc-teams-title');
     if (teamsTitleEl) {
       teamsTitleEl.textContent = AdminState.currentLadder.name || '';

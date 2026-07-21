@@ -163,7 +163,7 @@
           <tbody id="ftc-po-seed-body">${rows}</tbody>
         </table>
         <div style="display:flex;justify-content:flex-end;margin-top:14px;">
-          <button onclick="ftcGeneratePlayoffBracket()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;border:none;border-radius:99px;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+          <button onclick="ftcGeneratePlayoffBracket()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;border:none;border-radius:99px;background:#174CCC;color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Generate Bracket
           </button>
@@ -392,7 +392,7 @@
       <div style="display:flex;justify-content:center;margin-bottom:12px;">
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#174CCC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>
       </div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;color:#0d1f4a;margin-bottom:4px;">${esc(champTeam?.name||'Champion')}</div>
+      <div style="font-family:'Inter',sans-serif;font-size:36px;letter-spacing:1px;color:#0d1f4a;margin-bottom:4px;">${esc(champTeam?.name||'Champion')}</div>
       <div style="font-size:13px;font-weight:700;color:#174CCC;margin-bottom:2px;">${esc(AdminState.currentLadder?.name||'')} Champions</div>
       <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:20px;">Defeated ${esc(runnerUp?.name||'Runner-up')} ${champWins}–${runnerWins} in the Championship</div>
       <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
@@ -472,7 +472,7 @@
       return `<div style="display:flex;flex-direction:column;align-items:center;">
         <div style="display:flex;align-items:center;border:1.5px solid #e0e7f5;border-radius:8px;overflow:hidden;background:white;">
           <input id="${inputId}" type="number" min="0" max="99" value="${val!==null&&val!==undefined?val:''}" placeholder="--"
-            style="width:48px;height:36px;border:none;outline:none;text-align:center;font-family:'Montserrat',sans-serif;font-size:18px;font-weight:700;color:#0d1f4a;background:transparent;padding:0;"
+            style="width:48px;height:36px;border:none;outline:none;text-align:center;font-family:'Inter',sans-serif;font-size:18px;font-weight:700;color:#0d1f4a;background:transparent;padding:0;"
             oninput="ftcPsmScoreChange('${inputId}')">
           <div style="display:flex;flex-direction:column;border-left:1px solid #e0e7f5;">
             <button onclick="ftcPsmIncrement('${inputId}',1)" style="width:20px;height:18px;border:none;background:white;cursor:pointer;font-size:9px;color:#6b7a99;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #e0e7f5;">▲</button>
@@ -537,12 +537,12 @@
         <!-- Actions -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
           <button onclick="ftcPsmSaveScore('${m?.id||''}','${mt}',${sidNum})"
-            style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:none;border-radius:8px;background:#174CCC;color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:none;border-radius:8px;background:#174CCC;color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             Save Score
           </button>
           <button onclick="ftcPsmClearScore('${m?.id||''}','${mt}',${sidNum})"
-            style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:none;background:transparent;color:#6b7a99;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;cursor:pointer;">
+            style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:none;background:transparent;color:#6b7a99;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
             Clear
           </button>
@@ -598,11 +598,11 @@
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
         <button onclick="${need22?`ftcPsmSaveTiebreaker(${sidNum},${sched.team_a_id},${sched.team_b_id})`:'void(0)'}"
-          style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:none;border-radius:8px;background:${need22?'#174CCC':'#e0e7f5'};color:${need22?'white':'#b0bbd6'};font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:${need22?'pointer':'not-allowed'};white-space:nowrap;">
+          style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:none;border-radius:8px;background:${need22?'#174CCC':'#e0e7f5'};color:${need22?'white':'#b0bbd6'};font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:${need22?'pointer':'not-allowed'};white-space:nowrap;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           Save Score
         </button>
-        ${tbScored?`<button onclick="ftcPsmClearScore('${tbMatch.id}','tiebreaker',${sidNum})" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:none;background:transparent;color:#6b7a99;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;cursor:pointer;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Clear</button>`:''}
+        ${tbScored?`<button onclick="ftcPsmClearScore('${tbMatch.id}','tiebreaker',${sidNum})" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:none;background:transparent;color:#6b7a99;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Clear</button>`:''}
       </div>
     </div>`;
 
@@ -890,7 +890,7 @@
 
   const loadFtcSchedule = async () => {
     if (!AdminState.currentLadder) return;
-    // Set page title (Bebas Neue, same as RP ladder pages)
+    // Set page title (Inter, same as RP ladder pages)
     const schTitleEl = document.getElementById('ftc-schedule-title');
     if (schTitleEl) {
       schTitleEl.textContent = AdminState.currentLadder.name || '';
@@ -1320,7 +1320,7 @@
         <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;line-height:1.6;">
           ${totalWeeks} week${totalWeeks!==1?'s':''} scheduled. Click below to create the individual match lineups.
         </div>
-        <button onclick="ftcGenerateMatchesForSchedule()" style="padding:9px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;">
+        <button onclick="ftcGenerateMatchesForSchedule()" style="padding:9px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
           Create Match Lineups
         </button>
@@ -2069,7 +2069,7 @@
             <button id="ftc-me-toggle-${i}"
               data-mid="${matchId}" data-field="${s.field}" data-regular="${isSub ? ftcGetRegular(s.team==='A'?tA:tB, m.match_type, s.slot) : s.pid}" data-sub="${s.subId}" data-issub="${isSub}"
               onclick="ftcToggleSub(${i})"
-              style="padding:5px 12px;border-radius:99px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;border:none;background:${isSub ? '#174CCC' : '#e0e7f5'};color:${isSub ? 'white' : '#6b7a99'};">
+              style="padding:5px 12px;border-radius:99px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;cursor:pointer;border:none;background:${isSub ? '#174CCC' : '#e0e7f5'};color:${isSub ? 'white' : '#6b7a99'};">
               ${isSub ? 'Undo Sub' : 'Use Sub'}
             </button>
           </div>` : ''}
@@ -2123,7 +2123,7 @@
             <button id="ftc-me-toggle-${i}"
               data-mid="${matchId}" data-field="${s.field}" data-regular="${isSub ? ftcGetRegular(s.team==='A'?tA:tB, m.match_type, s.slot) : s.pid}" data-sub="${s.subId}" data-issub="${isSub}"
               onclick="ftcToggleSub(${i})"
-              style="padding:5px 12px;border-radius:99px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;border:none;background:${isSub ? '#174CCC' : '#e0e7f5'};color:${isSub ? 'white' : '#6b7a99'};">
+              style="padding:5px 12px;border-radius:99px;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;cursor:pointer;border:none;background:${isSub ? '#174CCC' : '#e0e7f5'};color:${isSub ? 'white' : '#6b7a99'};">
               ${isSub ? 'Undo Sub' : 'Use Sub'}
             </button>
           </div>` : ''}

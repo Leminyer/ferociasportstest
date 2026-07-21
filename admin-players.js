@@ -68,11 +68,11 @@
             </div>
           </td>
           <td class="players-td" style="text-align:center;">
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#0d1f4a;line-height:1;display:block;">${stats.played}</span>
+            <span style="font-family:'Inter',sans-serif;font-size:20px;color:#0d1f4a;line-height:1;display:block;">${stats.played}</span>
             <span style="font-size:10px;font-weight:600;color:#6b7a99;display:block;">games</span>
           </td>
           <td class="players-td" style="text-align:center;">
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${wrColor};line-height:1;display:block;">${wr !== null ? wr + '%' : '—'}</span>
+            <span style="font-family:'Inter',sans-serif;font-size:20px;color:${wrColor};line-height:1;display:block;">${wr !== null ? wr + '%' : '—'}</span>
             <span style="font-size:10px;font-weight:600;color:#6b7a99;display:block;">${stats.wins}W · ${stats.played - stats.wins}L</span>
           </td>
           <td class="players-td" style="text-align:center;">${indHTML}</td>
@@ -1121,7 +1121,7 @@
         <div style="font-size:13px;font-weight:600;color:#6b7a99;line-height:1.6;">This will permanently remove the match and all its data. This action cannot be undone.</div>
       </div>
       <div style="display:flex;justify-content:flex-end;">
-        <button onclick="mhConfirmDelete(${id})" style="padding:9px 22px;border:none;border-radius:99px;background:#e53935;color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Delete Match</button>
+        <button onclick="mhConfirmDelete(${id})" style="padding:9px 22px;border:none;border-radius:99px;background:#e53935;color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Delete Match</button>
       </div>`;
     const xBtn = document.getElementById('t-modal-close-x');
     if (xBtn) xBtn.style.display = 'flex';
@@ -1263,9 +1263,9 @@
         <!-- Score center -->
         <div style="text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 0;">
           <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;">
-            <span style="font-size:52px;font-weight:900;color:${isWinA?'#24BC96':'#0d1f4a'};line-height:1;font-family:'Bebas Neue',sans-serif;">${games.length?games[0][0]:'—'}</span>
+            <span style="font-size:52px;font-weight:900;color:${isWinA?'#24BC96':'#0d1f4a'};line-height:1;font-family:'Inter',sans-serif;">${games.length?games[0][0]:'—'}</span>
             <span style="font-size:24px;font-weight:800;color:#b0bbd6;">-</span>
-            <span style="font-size:52px;font-weight:900;color:${!isWinA?'#24BC96':'#0d1f4a'};line-height:1;font-family:'Bebas Neue',sans-serif;">${games.length?games[0][1]:'—'}</span>
+            <span style="font-size:52px;font-weight:900;color:${!isWinA?'#24BC96':'#0d1f4a'};line-height:1;font-family:'Inter',sans-serif;">${games.length?games[0][1]:'—'}</span>
           </div>
           <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
             <div style="height:1px;width:28px;background:#e0e7f5;"></div>

@@ -160,7 +160,7 @@ window.selectLadderType = (type) => {
       const role  = admin?.role || 'Admin';
       const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || 'A';
       el.innerHTML = `
-        <div style="width:32px;height:32px;border-radius:50%;background:#174CCC;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:'Montserrat',sans-serif;flex-shrink:0;">${esc(initials)}</div>
+        <div style="width:32px;height:32px;border-radius:50%;background:#174CCC;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:'Inter',sans-serif;flex-shrink:0;">${esc(initials)}</div>
         <div style="line-height:1.25;">
           <div style="font-size:12px;font-weight:700;color:white;">${esc(name)}</div>
           <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.55);">${esc(role)}</div>
