@@ -28,6 +28,11 @@
 
   const AdminState = window.AdminState;
 
+  // Per-court player lists (key: "date|time|court") — the incident
+  // report's player dropdown only shows who actually played that court,
+  // not the whole ladder roster.
+  let _sessIrCourtPlayers = {};
+
   /* ─── SESSIONS ─────────────────────────────────────────── */
 
   window.toggleNoShowPenalty = async (matchId, currentPts) => {
@@ -81,6 +86,15 @@
           '<div class="empty">No sessions recorded yet.</div>';
         return;
       }
+
+      // Incident Reports — fetched once for the whole ladder, then
+      // filtered per court below (avoids one RPC call per court).
+      let incidentsData = [];
+      try {
+        const res = await supabase.rpc('get_ladder_incidents', { p_ladder_id: AdminState.currentLadder.id });
+        incidentsData = res.data || [];
+      } catch (e) { /* best-effort — an incident-fetch failure shouldn't block the Sessions page */ }
+      const allLadderIncidents = incidentsData || [];
 
       // Group by date → time → courts (each court already carries deduped, paired games)
       const byDate = {};
@@ -264,15 +278,35 @@
             </div>`;
           }).join('');
 
-          html += `<div class="court-block">
-            <div class="court-block-hdr">
+          const courtIncidents = allLadderIncidents.filter((r) => r.session_date === s.session_date && r.court === `Court ${s.court_group}`);
+          const incidentsListHTML = window.renderIncidentReportsList ? window.renderIncidentReportsList(courtIncidents) : '';
+
+          // Players who actually played (or no-showed) this specific
+          // court — the Incident Report modal's player dropdown is
+          // scoped to just these, not the whole ladder roster.
+          const courtPlayerMap = {};
+          courtGames.forEach((g) => {
+            [...(g.team_a || []), ...(g.team_b || [])].forEach((row) => {
+              courtPlayerMap[row.player_id] = { id: row.player_id, first_name: row.first_name, last_name: row.last_name };
+            });
+          });
+          (s.no_shows || []).forEach((ns) => {
+            courtPlayerMap[ns.player_id] = { id: ns.player_id, first_name: ns.first_name, last_name: ns.last_name };
+          });
+          _sessIrCourtPlayers[`${s.session_date}|${s.session_time || ''}|${s.court_group}`] = Object.values(courtPlayerMap);
+
+          html += `<div class="court-block">            <div class="court-block-hdr">
               <span class="court-block-label">Court ${s.court_group}${courtPending ? ' <span style="font-size:9px;font-weight:800;color:var(--orange);background:var(--orange-light);padding:1px 6px;border-radius:99px;text-transform:uppercase;margin-left:6px;">Pending</span>' : ''}</span>
               <div style="display:flex;gap:6px;align-items:center;">
                 <button class="sess-edit-btn" data-action="editSession" data-matchids="${sessionMatchIds}" data-date="${esc(s.session_date)}" data-court="${s.court_group}" data-time="${esc(s.session_time || '')}" title="Edit session">${editSVG}</button>
                 <button class="sess-edit-btn" data-action="deleteSession" data-matchids="${sessionMatchIds}" data-date="${esc(s.session_date)}" data-court="${s.court_group}" data-time="${esc(s.session_time || '')}" title="Delete session" style="border-color:rgba(229,57,53,0.3);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+                <button class="sess-edit-btn" data-action="openIncidentReportForSession" data-date="${esc(s.session_date)}" data-time="${esc(s.session_time || '')}" data-court="${s.court_group}" title="Incident Report" style="border-color:rgba(242,96,36,0.3);color:var(--orange);">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </button>
               </div>
             </div>
-            ${noShowBannerHtml}`;
+            ${noShowBannerHtml}
+            ${incidentsListHTML}`;
 
           // Game rows — teams already paired by the RPC
           courtGames.forEach((g) => {
@@ -1410,10 +1444,29 @@
   window.autoCalcGame        = autoCalcGame;         // called from the generic input listener
   window.autoCalcExtraGame   = autoCalcExtraGame;    // called from the generic input listener
 
+  // Opens the shared Incident Report modal, pre-filled with this
+  // ladder's context and this specific court pre-selected.
+  const openIncidentReportForSession = (btn) => {
+    if (!AdminState.currentLadder) return;
+    const key = `${btn.dataset.date}|${btn.dataset.time || ''}|${btn.dataset.court}`;
+    window.openIncidentReportModal({
+      sourceType: 'ladder',
+      ladderId: AdminState.currentLadder.id,
+      ladderName: AdminState.currentLadder.name,
+      sessionDate: btn.dataset.date,
+      sessionTime: btn.dataset.time || null,
+      lockedCourt: `Court ${btn.dataset.court}`,
+      playerSelectMode: 'dropdown',
+      playerPool: _sessIrCourtPlayers[key] || [],
+      onSaved: () => loadSessions(),
+    });
+  };
+
   Object.assign(window.CLICK_HANDLERS, {
     toggleSessionGroup:   (btn) => toggleSessionGroup(btn),
     editSession:          (btn) => editSession(btn),
     deleteSession:        (btn) => deleteSession(btn),
+    openIncidentReportForSession: (btn) => openIncidentReportForSession(btn),
     editGame:              (btn) => editGame(btn),
     toggleEditGameVoid:    () => toggleEditGameVoid(),
     addCourtPlayerBtn:     (btn) => addCourtPlayer(parseInt(btn.dataset.pid, 10)),
