@@ -886,6 +886,32 @@
     }
   };
 
+  // Same pattern as ppLogLateCancellation, for the other cancellation
+  // type. Both live on the Reliability tab's Participation Metrics card.
+  const ppLogOnTimeCancellation = async () => {
+    if (!_ppCurrent) return;
+    if (!AdminState.currentAdminId) { toast('Could not identify the current admin — try refreshing the page.', true); return; }
+    const ok = await window.confirmModal({
+      title: 'Log on-time cancellation?',
+      message: `This will mark today as an on-time cancellation for ${_ppCurrent.p.first_name} ${_ppCurrent.p.last_name}. This action cannot be undone — are you sure?`,
+      okLabel: 'Log Cancellation',
+    });
+    if (!ok) return;
+    try {
+      await api('player_ontime_cancellations', 'POST', {
+        player_id: _ppCurrent.p.id,
+        ladder_id: _ppCurrent.activeLadder?.id || null,
+        admin_id: AdminState.currentAdminId,
+      });
+      window.logAuditAction(_ppCurrent.p.id, 'ontime_cancellation_logged', 'Logged an on-time cancellation');
+      toast('On-time cancellation logged.');
+      document.getElementById('pp-tab-reliability').removeAttribute('data-rendered');
+      renderReliability(_ppCurrent);
+    } catch (e) {
+      toast(`Error: ${e.message}`, true);
+    }
+  };
+
   // ── Player Tags ──────────────────────────────────────────────────────
   // Fixed catalog — administrators pick from this list, they can't create
   // custom tags (matches the spec). Colors are per-category, not per-tag.
@@ -1308,6 +1334,13 @@
       <div class="pp-2col pp-section-gap" style="align-items:start;">
         <div style="display:flex;flex-direction:column;gap:24px;">
           ${notesCardHTML(d.p.id)}
+          <div class="pp-perf-card">
+            <div class="pp-perf-title" style="display:flex;align-items:center;gap:8px;">
+              ${ppSVG('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>', 'var(--orange)', 15)} Incident Reports
+            </div>
+            <div id="pp-incidents-list"><div class="loading" style="padding:16px;">Loading incident reports...</div></div>
+            <div style="margin-top:10px;"><a class="pp-link" data-action="ppShowTab" data-pptab="history">View all incident reports →</a></div>
+          </div>
           ${attachmentsCardHTML()}
         </div>
         <div style="display:flex;flex-direction:column;gap:24px;">
@@ -1364,6 +1397,22 @@
     }
     document.getElementById('pp-file-input')?.addEventListener('change', (e) => ppHandleFileUpload(e.target));
 
+    // Incident Reports — read-only here (they can only be created from a
+    // Ladder Session or a Tournament, never from Player Profile).
+    const incidentsEl = document.getElementById('pp-incidents-list');
+    if (incidentsEl) {
+      try {
+        const { data } = await supabase.rpc('get_player_incidents', { p_player_id: d.p.id });
+        const incidents = data || [];
+        if (_ppCurrent && _ppCurrent.p.id === playerIdAtStart) {
+          const html = window.renderIncidentReportsList ? window.renderIncidentReportsList(incidents, { showPlayer: false }) : '';
+          incidentsEl.innerHTML = html || '<div class="pp-empty">No incident reports on file.</div>';
+        }
+      } catch (e) {
+        if (_ppCurrent && _ppCurrent.p.id === playerIdAtStart) incidentsEl.innerHTML = '<div class="pp-empty">Could not load incident reports.</div>';
+      }
+    }
+
     const lastUpdateEl = document.getElementById('pp-audit-lastupdate');
     if (lastUpdateEl) {
       try {
@@ -1378,6 +1427,622 @@
         if (_ppCurrent && _ppCurrent.p.id === playerIdAtStart) lastUpdateEl.textContent = 'Unavailable';
       }
     }
+  };
+
+  // ── Reliability tab ──────────────────────────────────────────────────
+  const RELIABILITY_STATUS_STYLE = {
+    'Excellent':      { color: 'var(--teal)', icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>' },
+    'Good':           { color: 'var(--blue)', icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' },
+    'Needs Attention':{ color: 'var(--orange)', icon: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+    'Limited Data':   { color: 'var(--text-muted)', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>' },
+  };
+  const IMPACT_STYLE = {
+    Positive: 'var(--teal)', Neutral: 'var(--text-muted)', Negative: 'var(--orange)', Excluded: '#b0bbd6',
+  };
+
+  const renderReliability = async (d) => {
+    const el = document.getElementById('pp-tab-reliability');
+    if (!el || el.dataset.rendered) return;
+    el.dataset.rendered = '1';
+    el.innerHTML = '<div class="loading" style="padding:40px;">Loading reliability data...</div>';
+    const playerIdAtStart = d.p.id;
+
+    let rel = null, activity = [];
+    try {
+      const [relRes, actRes] = await Promise.all([
+        supabase.rpc('get_player_reliability', { p_player_id: d.p.id }),
+        supabase.rpc('get_player_reliability_activity', { p_player_id: d.p.id }),
+      ]);
+      rel = relRes.data?.[0] || null;
+      activity = actRes.data || [];
+    } catch (e) { console.warn('[reliability] failed:', e.message); }
+    if (!_ppCurrent || _ppCurrent.p.id !== playerIdAtStart) return;
+
+    if (!rel) { el.innerHTML = '<div class="pp-empty">Could not load reliability data.</div>'; return; }
+
+    const statusStyle = RELIABILITY_STATUS_STYLE[rel.overall_label] || RELIABILITY_STATUS_STYLE['Limited Data'];
+
+    // ── Section 1: KPI cards ──────────────────────────────────────────
+    // Real trend, computed from the activity feed itself (not
+    // fabricated) — walk the chronological session events (Attended /
+    // No Show) oldest-to-newest, tracking the cumulative attendance
+    // rate at each point. Negative events (late cancellations, no
+    // shows) are marked at their actual dates. Reused for both the big
+    // Reliability Trend chart and the small Attendance Rate sparkline.
+    const sessionEvents = [...activity]
+      .filter((a) => a.activity === 'Attended Session' || a.activity === 'No Show')
+      .sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
+    // Rolling window (not a cumulative all-time average, which naturally
+    // flattens out as more sessions accumulate) — each point reflects
+    // attendance over the trailing WINDOW sessions, so real recent ups
+    // and downs actually show up as a wavy line, not a flat one.
+    const ROLLING_WINDOW = 8;
+    const trendPoints = sessionEvents.map((e, idx) => {
+      const windowStart = Math.max(0, idx - ROLLING_WINDOW + 1);
+      const window = sessionEvents.slice(windowStart, idx + 1);
+      const attendedInWindow = window.filter((w) => w.activity === 'Attended Session').length;
+      return { date: e.event_date, pct: Math.round((attendedInWindow / window.length) * 100) };
+    });
+    const negativeDates = new Set(activity.filter((a) => a.impact === 'Negative').map((a) => a.event_date));
+
+    // A line chart looks flat and uninformative for a player sitting at
+    // (or near) 100% — there's no variation to show. A status icon that
+    // changes with the value communicates the same thing at a glance,
+    // for any attendance level.
+    const attendanceStatusIcon = (pct) => {
+      if (pct === null) return ppSVG('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>', 'var(--text-muted)', 30);
+      if (pct >= 95) return ppSVG('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>', 'var(--teal)', 30);
+      if (pct >= 85) return ppSVG('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>', 'var(--blue)', 30);
+      return ppSVG('<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>', 'var(--orange)', 30);
+    };
+
+    const kpiHTML = `
+      <div class="pp-kpi-row pp-section-gap">
+        <div class="pp-kpi-card">
+          <div class="pp-kpi-lbl">Reliability Status</div>
+          <div style="display:flex;align-items:center;gap:14px;margin-top:8px;">
+            <span style="flex-shrink:0;">${ppSVG(statusStyle.icon, statusStyle.color, 44)}</span>
+            <div>
+              <div style="font-size:18px;font-weight:800;color:${statusStyle.color};line-height:1.15;">${esc(rel.overall_label)}</div>
+              <div class="pp-kpi-sub" style="margin-top:2px;">Based on ${rel.scheduled_sessions} recorded commitment${rel.scheduled_sessions !== 1 ? 's' : ''}.</div>
+            </div>
+          </div>
+        </div>
+        <div class="pp-kpi-card">
+          <div class="pp-kpi-lbl">Attendance Rate</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;">
+            <div>
+              <div class="pp-kpi-val" style="color:var(--teal);">${rel.attendance_pct !== null ? `${rel.attendance_pct}%` : '—'}</div>
+              <div class="pp-kpi-sub">${rel.sessions_attended} / ${rel.scheduled_sessions} Session${rel.scheduled_sessions !== 1 ? 's' : ''}</div>
+            </div>
+            <span style="flex-shrink:0;">${attendanceStatusIcon(rel.attendance_pct)}</span>
+          </div>
+        </div>
+        <div class="pp-kpi-card">
+          <div class="pp-kpi-lbl">Late Cancellations</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;">
+            <div>
+              <div class="pp-kpi-val" style="color:${rel.late_cancellations > 0 ? 'var(--orange)' : 'var(--text)'};">${rel.late_cancellations}</div>
+              <div style="margin-top:4px;"><a class="pp-link" style="font-size:10px;" data-action="ppShowTab" data-pptab="history">View details</a></div>
+            </div>
+            <span style="flex-shrink:0;">${ppSVG('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="16" cy="16" r="3"/><path d="M16 15v1.5l1 .5"/>', 'var(--orange)', 30)}</span>
+          </div>
+        </div>
+        <div class="pp-kpi-card">
+          <div class="pp-kpi-lbl">No Shows</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;">
+            <div>
+              <div class="pp-kpi-val" style="color:${rel.no_shows > 0 ? 'var(--danger)' : 'var(--text)'};">${rel.no_shows}</div>
+              <div style="margin-top:4px;"><a class="pp-link" style="font-size:10px;" data-action="ppShowTab" data-pptab="history">View details</a></div>
+            </div>
+            <span style="flex-shrink:0;">${ppSVG('<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 2.3.7"/><circle cx="18" cy="18" r="3"/><line x1="16.5" y1="16.5" x2="19.5" y2="19.5"/><line x1="19.5" y1="16.5" x2="16.5" y2="19.5"/>', 'var(--danger)', 30)}</span>
+          </div>
+        </div>
+      </div>`;
+
+    // ── Section 2: Participation Metrics ──────────────────────────────
+    const metricRow = (icon, color, lbl, val, extraBtn, valColor) => `
+      <div class="pp-perf-row">
+        <span class="pp-perf-lbl" style="display:flex;align-items:center;gap:8px;">${ppSVG(icon, color, 14)} ${lbl}${extraBtn || ''}</span>
+        <span class="${val === null ? 'pp-perf-val-empty' : 'pp-perf-val'}" style="${valColor && val !== null ? `color:${valColor};` : ''}">${val === null ? 'Not tracked yet' : val}</span>
+      </div>`;
+    const logOnTimeBtn = `<button type="button" data-action="ppLogOnTimeCancellation" title="Log an on-time cancellation for today" style="margin-left:6px;width:16px;height:16px;border-radius:50%;border:none;background:#f0f2f8;color:var(--text-muted);font-size:10px;font-weight:800;cursor:pointer;line-height:1;vertical-align:middle;">+</button>`;
+    const ICO = {
+      cal:      '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+      calCheck: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/>',
+      calX:     '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+      clock:    '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+      calClock: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="16" cy="16" r="3"/><path d="M16 15v1.5l1 .5"/>',
+      personX:  '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 2.3.7"/><circle cx="18" cy="18" r="3"/><line x1="16.5" y1="16.5" x2="19.5" y2="19.5"/><line x1="19.5" y1="16.5" x2="16.5" y2="19.5"/>',
+      flag:     '<path d="M4 22V4"/><path d="M4 4h14l-2 4 2 4H4"/>',
+      flagCheck:'<path d="M4 22V4"/><path d="M4 4h14l-2 4 2 4H4"/><polyline points="8 10 9 11 11 9"/>',
+      personMinus: '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 2.3.7"/><line x1="16" y1="18" x2="22" y2="18"/>',
+      check:    '<circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>',
+    };
+    const participationHTML = `
+      <div class="pp-perf-card">
+        <div class="pp-perf-title">Participation Metrics</div>
+        ${metricRow(ICO.cal, 'var(--blue)', 'Scheduled Sessions', rel.scheduled_sessions)}
+        ${metricRow(ICO.calCheck, 'var(--blue)', 'Sessions Attended', rel.sessions_attended)}
+        ${metricRow(ICO.calX, 'var(--blue)', 'Sessions Missed', rel.sessions_missed)}
+        ${metricRow(ICO.clock, 'var(--blue)', 'On-Time Cancellations', rel.on_time_cancellations, logOnTimeBtn)}
+        ${metricRow(ICO.calClock, 'var(--orange)', 'Late Cancellations', rel.late_cancellations, null, rel.late_cancellations > 0 ? 'var(--orange)' : null)}
+        ${metricRow(ICO.personX, 'var(--danger)', 'No Shows', rel.no_shows, null, rel.no_shows > 0 ? 'var(--danger)' : null)}
+        ${metricRow(ICO.flag, 'var(--blue)', 'Competitions Started', rel.competitions_started)}
+        ${metricRow(ICO.flagCheck, 'var(--blue)', 'Competitions Completed', rel.competitions_completed)}
+        ${metricRow(ICO.personMinus, 'var(--blue)', 'Withdrawals', rel.withdrawals)}
+        ${metricRow(ICO.check, 'var(--teal)', 'Competition Completion Rate', rel.competition_completion_rate !== null ? `${rel.competition_completion_rate}%` : null, null, 'var(--teal)')}
+      </div>`;
+
+    // ── Section 3: Reliability Trend — computed from real events ──────
+    let trendChartHTML;
+    if (trendPoints.length >= 2) {
+      const w = 500, h = 180, padL = 34, padB = 24, padT = 8;
+      const plotW = w - padL - 10, plotH = h - padT - padB;
+      const xStep = plotW / (trendPoints.length - 1);
+      // Dynamic Y-axis range — a fixed 0-100% scale makes real variation
+      // (e.g. dipping from 100% to 88%) look almost flat. Zooming to the
+      // actual data's range makes real ups and downs visible.
+      const rawMin = Math.min(...trendPoints.map((p) => p.pct));
+      const rawMax = Math.max(...trendPoints.map((p) => p.pct));
+      const rangePad = Math.max(5, (rawMax - rawMin) * 0.25);
+      const yMin = Math.max(0, Math.floor((rawMin - rangePad) / 5) * 5);
+      const yMax = Math.min(100, Math.ceil((rawMax + rangePad) / 5) * 5);
+      const yRange = (yMax - yMin) || 1;
+      const yFor = (pct) => padT + plotH - ((pct - yMin) / yRange) * plotH;
+      const linePts = trendPoints.map((p, i) => `${(padL + i * xStep).toFixed(1)},${yFor(p.pct).toFixed(1)}`).join(' ');
+      const tickCount = 4;
+      const ticks = Array.from({ length: tickCount + 1 }, (_, i) => Math.round(yMin + (yRange / tickCount) * i));
+      const gridLines = ticks.map((pct) => `
+        <line x1="${padL}" y1="${yFor(pct)}" x2="${w - 10}" y2="${yFor(pct)}" stroke="#f0f2f8" stroke-width="1"/>
+        <text x="${padL - 6}" y="${yFor(pct) + 3}" font-size="9" fill="#b0bbd6" text-anchor="end" font-family="Inter,sans-serif">${pct}%</text>`).join('');
+      const negMarkers = trendPoints.map((p, i) => negativeDates.has(p.date)
+        ? `<polygon points="${(padL + i * xStep).toFixed(1)},${h - padB + 14} ${(padL + i * xStep - 4).toFixed(1)},${h - padB + 20} ${(padL + i * xStep + 4).toFixed(1)},${h - padB + 20}" fill="var(--orange)"/>`
+        : '').join('');
+      // Show a handful of date labels along the x-axis, not every point
+      const labelEvery = Math.max(1, Math.ceil(trendPoints.length / 6));
+      const dateLabels = trendPoints.map((p, i) => (i % labelEvery === 0 || i === trendPoints.length - 1)
+        ? `<text x="${(padL + i * xStep).toFixed(1)}" y="${h - 4}" font-size="8" fill="#b0bbd6" text-anchor="middle" font-family="Inter,sans-serif">${fmtShort(p.date)}</text>`
+        : '').join('');
+      trendChartHTML = `
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+          <svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
+            ${gridLines}
+            <polyline points="${linePts}" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            ${trendPoints.map((p, i) => `<circle cx="${(padL + i * xStep).toFixed(1)}" cy="${yFor(p.pct).toFixed(1)}" r="2.5" fill="var(--teal)"/>`).join('')}
+            ${negMarkers}
+            ${dateLabels}
+          </svg>
+          <div style="display:flex;justify-content:center;gap:16px;margin-top:6px;">
+            <span style="font-size:10px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:5px;"><span style="width:14px;height:2px;background:var(--teal);display:inline-block;"></span> Attendance Rate</span>
+            <span style="font-size:10px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:5px;"><span style="color:var(--orange);">▲</span> Negative Events</span>
+          </div>
+        </div>`;
+    } else {
+      trendChartHTML = '<div class="pp-empty" style="flex:1;display:flex;align-items:center;justify-content:center;">Not enough recorded sessions yet for a trend.</div>';
+    }
+    const trendHTML = `
+      <div class="pp-perf-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span class="pp-perf-title" style="margin-bottom:0;">Reliability Trend</span>
+        </div>
+        ${trendChartHTML}
+      </div>`;
+
+    // ── Section 4: Reliability Breakdown — only Ladders has real data ──
+    const breakdownHTML = `
+      <div class="pp-perf-card">
+        <div class="pp-perf-title">Reliability Breakdown</div>
+        <table class="pp-timeline-table">
+          <thead><tr><th></th><th>Attendance</th><th>Late Canc.</th><th>No Shows</th><th>Comp. Rate</th></tr></thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:700;">Ladders</td>
+              <td style="color:var(--teal);font-weight:700;">${rel.attendance_pct !== null ? `${rel.attendance_pct}%` : '—'}</td>
+              <td style="color:${rel.late_cancellations > 0 ? 'var(--orange)' : 'var(--text)'};font-weight:700;">${rel.late_cancellations}</td>
+              <td style="color:${rel.no_shows > 0 ? 'var(--danger)' : 'var(--text)'};font-weight:700;">${rel.no_shows}</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-top:8px;">Only categories with available data are shown — Tournaments, Clinics, and Junior Programs don't have reliability data recorded yet.</div>
+      </div>`;
+
+    // ── Section 5: Reliability Activity ───────────────────────────────
+    const fmtWithYear = (d) => { if (!d) return ''; const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+    const activityRows = activity.slice(0, 7).map((a) => `
+      <tr>
+        <td>${fmtWithYear(a.event_date)}</td>
+        <td>${esc(a.activity)}</td>
+        <td>${esc(a.competition)}</td>
+        <td>${esc(a.status)}</td>
+        <td><span style="color:${IMPACT_STYLE[a.impact] || 'var(--text)'};font-weight:700;">${esc(a.impact)}</span></td>
+      </tr>`).join('');
+    const activityHTML = `
+      <div class="pp-perf-card">
+        <div class="pp-perf-title">Reliability Activity</div>
+        ${activity.length
+          ? `<table class="pp-timeline-table"><thead><tr style="background:#f4f5f8;"><th>Date</th><th>Activity</th><th>Competition</th><th>Status</th><th>Impact</th></tr></thead><tbody>${activityRows}</tbody></table>`
+          : '<div class="pp-empty">No reliability activity recorded yet.</div>'}
+        <div style="margin-top:10px;"><a class="pp-link" data-action="ppShowTab" data-pptab="history">View all activity →</a></div>
+      </div>`;
+
+    // ── Section 7: Excluded Events ────────────────────────────────────
+    const excluded = (activity || []).filter((a) => a.impact === 'Excluded');
+    const excludedHTML = `
+      <div class="pp-perf-card">
+        <div class="pp-perf-title">Excluded Events</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">Events excluded from reliability calculations.</div>
+        ${excluded.length
+          ? excluded.map((e) => `<div style="padding:8px 0;border-bottom:0.5px solid #f4f5f8;"><div style="font-size:12px;font-weight:700;color:var(--text);">${esc(e.activity)}</div><div style="font-size:10px;font-weight:600;color:var(--text-muted);">${esc(e.competition)} · ${fmtWithYear(e.event_date)}</div></div>`).join('')
+          : '<div class="pp-empty">No excluded events.</div>'}
+        <div style="margin-top:10px;"><a class="pp-link" data-action="ppShowTab" data-pptab="history">View all excluded events →</a></div>
+      </div>`;
+
+    // ── Rules footer ───────────────────────────────────────────────────
+    const rulesHTML = `
+      <div style="display:flex;align-items:flex-start;gap:10px;background:var(--primary-light);border-radius:12px;padding:16px 20px;">
+        ${ppSVG('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>', 'var(--blue)', 16)}
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);">Reliability Rules</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Reliability Status is automatically calculated by the system and can never be manually changed. Incident Reports never affect Reliability automatically. Winning or losing matches has no effect on Reliability.</div>
+        </div>
+      </div>`;
+
+    const commitmentNoteHTML = `
+      <div style="display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:16px 20px;margin-top:16px;">
+        ${ppSVG('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>', 'var(--text-muted)', 16)}
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);">Reliability measures commitment, not skill. Winning or losing matches does not affect reliability.</div>
+      </div>`;
+
+    el.innerHTML = `
+      ${kpiHTML}
+      <div class="pp-3col pp-section-gap" style="grid-template-columns:1fr 1.6fr 1fr;">
+        ${participationHTML}
+        ${trendHTML}
+        ${breakdownHTML}
+      </div>
+      <div class="pp-2col pp-section-gap" style="align-items:start;">
+        ${activityHTML}
+        ${excludedHTML}
+      </div>
+      ${rulesHTML}
+      ${commitmentNoteHTML}
+    `;
+  };
+
+  // ── History tab ──────────────────────────────────────────────────────
+  let _histAll = [];       // full fetched history for the current player
+  let _histCategory = 'all';
+  let _histRange = 'all';
+  let _histSearch = '';
+  let _histSort = 'desc';
+  let _histPage = 1;
+  const HIST_PAGE_SIZE = 7;
+
+  const HIST_CAT_ICON = {
+    competition: { icon: '<path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/>', color: 'var(--purple)', bg: '#f0e4fa' },
+    attendance:  { icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/>', color: 'var(--teal)', bg: '#d4f5ed' },
+    incident:    { icon: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>', color: 'var(--danger)', bg: '#fde3e3' },
+  };
+  const HIST_CATEGORY_LABEL = { all: 'All Activity', competition: 'Competition', attendance: 'Attendance', incident: 'Incidents' };
+  const HIST_CATEGORY_PILL_ICON = {
+    all: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+    competition: '<path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/>',
+    attendance: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    incident: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  };
+
+  const renderHistory = async (d) => {
+    const el = document.getElementById('pp-tab-history');
+    if (!el || el.dataset.rendered) return;
+    el.dataset.rendered = '1';
+    el.innerHTML = '<div class="loading" style="padding:40px;">Loading history...</div>';
+    const playerIdAtStart = d.p.id;
+
+    try {
+      const { data } = await supabase.rpc('get_player_history', { p_player_id: d.p.id });
+      _histAll = data || [];
+    } catch (e) {
+      console.warn('[history] failed:', e.message);
+      _histAll = [];
+    }
+    if (!_ppCurrent || _ppCurrent.p.id !== playerIdAtStart) return;
+    _histCategory = 'all'; _histRange = 'all'; _histSearch = ''; _histPage = 1; _histSort = 'desc';
+
+    el.innerHTML = `
+      <div id="hist-summary"></div>
+      <div style="background:white;border:0.5px solid var(--divider-color);border-radius:16px;box-shadow:var(--shadow-medium);margin-top:24px;padding:20px;">
+        <div id="hist-filterbar"></div>
+        <div class="pp-2col" style="align-items:start;grid-template-columns:1.6fr 1fr;margin-top:16px;">
+          <div style="border-right:0.5px solid var(--divider-color);padding-right:20px;">
+            <div id="hist-timeline"></div>
+            <div id="hist-pagination" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:12px;font-weight:600;color:var(--text-muted);"></div>
+          </div>
+          <div id="hist-detail"></div>
+        </div>
+      </div>`;
+
+    renderHistSummary(d);
+    renderHistFilterbar();
+    renderHistTimeline();
+    // Auto-show the most recent incident's detail on load — falls back
+    // to the existing "no incident reported yet" message only when this
+    // player genuinely has none.
+    const mostRecentIncident = [..._histAll]
+      .filter(e => e.category === 'incident')
+      .sort((a, b) => new Date(b.event_date) - new Date(a.event_date))[0] || null;
+    renderHistDetail(mostRecentIncident);
+  };
+
+  const renderHistSummary = (d) => {
+    const el = document.getElementById('hist-summary');
+    if (!el) return;
+    const sorted = [...(_histAll || [])].sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+    const firstComp = [..._histAll].filter(e => e.event_type === 'Joined Ladder' || e.event_type === 'Registered for Tournament')
+      .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))[0];
+    const mostRecent = sorted[0];
+    const card = (icon, color, label, val, sub, iconBorder, iconSize) => `
+      <div class="pp-kpi-card" style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;${iconBorder ? `border:2px solid ${iconBorder};` : ''}">${ppSVG(icon, color, iconSize || 26)}</div>
+        <div style="min-width:0;">
+          <div class="pp-kpi-lbl" style="margin:0;">${label}</div>
+          <div style="font-size:15px;font-weight:800;color:var(--text);margin-top:4px;line-height:1.25;">${val}</div>
+          ${sub ? `<div class="pp-kpi-sub" style="margin-top:2px;">${sub}</div>` : ''}
+        </div>
+      </div>`;
+    el.innerHTML = `<div class="pp-kpi-row">
+      ${card('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', 'var(--purple)', 'Member Since',
+        d.p.date_joined ? fmtDate(d.p.date_joined) : '—', memberSinceSub(d.p.date_joined), null, 32)}
+      ${card('<path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/>', 'var(--teal)', 'First Competition',
+        firstComp ? esc(firstComp.source_name) : 'No Competition Recorded', firstComp ? `Joined on ${fmtDate(firstComp.event_date)}` : '', null, 32)}
+      ${card('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', 'var(--blue)', 'Most Recent Activity',
+        mostRecent ? fmtDate(mostRecent.event_date) : '—', mostRecent ? esc(mostRecent.event_type) : '', null, 32)}
+      ${card('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>', 'var(--orange)', 'Total Recorded Events',
+        _histAll.length, 'All time activity', 'var(--orange)')}
+    </div>`;
+  };
+
+  const memberSinceSub = (dateStr) => {
+    if (!dateStr) return '';
+    const months = Math.floor((Date.now() - new Date(dateStr).getTime()) / (30.44 * 86400000));
+    const years = Math.floor(months / 12);
+    const remMonths = months % 12;
+    if (years > 0) return `${years} year${years !== 1 ? 's' : ''}${remMonths ? `, ${remMonths} month${remMonths !== 1 ? 's' : ''}` : ''}`;
+    return `${months} month${months !== 1 ? 's' : ''}`;
+  };
+
+  const renderHistFilterbar = () => {
+    const el = document.getElementById('hist-filterbar');
+    if (!el) return;
+    const pill = (cat) => `<button type="button" data-action="histSetCategory" data-cat="${cat}" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;border:1px solid ${_histCategory === cat ? 'var(--blue)' : 'var(--divider-color)'};background:${_histCategory === cat ? '#e8f0ff' : 'white'};color:${_histCategory === cat ? 'var(--blue)' : 'var(--text-muted)'};font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">${ppSVG(HIST_CATEGORY_PILL_ICON[cat], _histCategory === cat ? 'var(--blue)' : 'var(--text-muted)', 13)} ${HIST_CATEGORY_LABEL[cat]}</button>`;
+    const hasFilters = _histCategory !== 'all' || _histRange !== 'all' || _histSearch;
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:16px;border-bottom:0.5px solid var(--divider-color);">
+        ${['all','competition','attendance','incident'].map(pill).join('')}
+        <select id="hist-range-sel" style="margin-left:auto;padding:7px 12px;border:0.5px solid var(--divider-color);border-radius:8px;font-size:11px;font-weight:700;color:var(--text);font-family:'Inter',sans-serif;">
+          <option value="all" ${_histRange==='all'?'selected':''}>All Time</option>
+          <option value="30" ${_histRange==='30'?'selected':''}>Last 30 Days</option>
+          <option value="90" ${_histRange==='90'?'selected':''}>Last 90 Days</option>
+          <option value="year" ${_histRange==='year'?'selected':''}>This Year</option>
+        </select>
+        <input type="text" id="hist-search-inp" value="${esc(_histSearch)}" placeholder="Search history..." style="padding:7px 12px;border:0.5px solid var(--divider-color);border-radius:8px;font-size:11px;font-weight:600;color:var(--text);font-family:'Inter',sans-serif;width:160px;">
+        <select id="hist-sort-sel" style="padding:7px 12px;border:0.5px solid var(--divider-color);border-radius:8px;font-size:11px;font-weight:700;color:var(--text);font-family:'Inter',sans-serif;">
+          <option value="desc" ${_histSort==='desc'?'selected':''}>Newest First</option>
+          <option value="asc" ${_histSort==='asc'?'selected':''}>Oldest First</option>
+        </select>
+        ${hasFilters ? `<a href="#" data-action="histClearFilters" class="pp-link">Clear Filters</a>` : ''}
+      </div>`;
+    const rangeSel = document.getElementById('hist-range-sel');
+    if (rangeSel) rangeSel.addEventListener('change', () => { _histRange = rangeSel.value; _histPage = 1; renderHistTimeline(); renderHistFilterbar(); });
+    const searchInp = document.getElementById('hist-search-inp');
+    if (searchInp) searchInp.addEventListener('input', () => { _histSearch = searchInp.value; _histPage = 1; renderHistTimeline(); });
+    const sortSel = document.getElementById('hist-sort-sel');
+    if (sortSel) sortSel.addEventListener('change', () => { _histSort = sortSel.value; renderHistTimeline(); });
+  };
+
+  const histFilteredEvents = () => {
+    let events = [..._histAll];
+    if (_histCategory !== 'all') events = events.filter(e => e.category === _histCategory);
+    if (_histRange !== 'all') {
+      const now = Date.now();
+      const cutoffs = { '30': 30, '90': 90 };
+      if (_histRange === 'year') {
+        const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+        events = events.filter(e => new Date(e.event_date).getTime() >= yearStart);
+      } else {
+        const days = cutoffs[_histRange];
+        events = events.filter(e => (now - new Date(e.event_date).getTime()) / 86400000 <= days);
+      }
+    }
+    if (_histSearch.trim()) {
+      const q = _histSearch.trim().toLowerCase();
+      events = events.filter(e =>
+        (e.source_name || '').toLowerCase().includes(q) ||
+        (e.event_type || '').toLowerCase().includes(q) ||
+        (e.incident_reason || '').toLowerCase().includes(q) ||
+        (e.incident_description || '').toLowerCase().includes(q));
+    }
+    events.sort((a, b) => _histSort === 'desc' ? new Date(b.event_date) - new Date(a.event_date) : new Date(a.event_date) - new Date(b.event_date));
+    return events;
+  };
+
+  const renderHistTimeline = () => {
+    const timelineEl = document.getElementById('hist-timeline');
+    const pagEl = document.getElementById('hist-pagination');
+    if (!timelineEl) return;
+    const filtered = histFilteredEvents();
+
+    if (!filtered.length) {
+      const isFiltered = _histCategory !== 'all' || _histRange !== 'all' || _histSearch;
+      timelineEl.innerHTML = `<div class="pp-empty" style="padding:30px;text-align:center;">${isFiltered
+        ? `No Matching History<br><span style="font-weight:600;">No events match the selected search or filters.</span>`
+        : `No History Recorded<br><span style="font-weight:600;">This player does not have any recorded FEROCIA activity yet.</span>`}</div>`;
+      pagEl.innerHTML = '';
+      return;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / HIST_PAGE_SIZE));
+    _histPage = Math.min(_histPage, totalPages);
+    const pageItems = filtered.slice((_histPage - 1) * HIST_PAGE_SIZE, _histPage * HIST_PAGE_SIZE);
+
+    const byMonth = {};
+    pageItems.forEach((e, idx) => {
+      const key = new Date(e.event_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+      (byMonth[key] = byMonth[key] || []).push({ e, idx });
+    });
+
+    // Connecting line sits in its own column (between the date and the
+    // icon), not stacked under the date — and it's a solid line, not a
+    // series of small dots.
+    timelineEl.innerHTML = Object.keys(byMonth).map(month => `
+      <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--text-muted);margin:16px 0 8px;">${month}</div>
+      <div style="position:relative;">
+        ${byMonth[month].length > 1 ? `<div style="position:absolute;left:104px;top:20px;bottom:20px;width:2px;background:#e0e4ec;z-index:0;"></div>` : ''}
+        ${byMonth[month].map(({ e, idx }) => histEventRowHTML(e, idx)).join('')}
+      </div>
+    `).join('');
+
+    // Only Incident rows open the detail panel — the others already show
+    // everything relevant inline, and their own "View Ladder/Tournament"
+    // link handles navigation.
+    timelineEl.querySelectorAll('[data-hist-idx]').forEach(row => {
+      const idx = parseInt(row.dataset.histIdx, 10);
+      if (pageItems[idx].category !== 'incident') return;
+      row.addEventListener('click', (ev) => {
+        if (ev.target.closest('a')) return;
+        renderHistDetail(pageItems[idx]);
+        timelineEl.querySelectorAll('.hist-row').forEach(r => r.classList.remove('hist-row-selected'));
+        row.classList.add('hist-row-selected');
+      });
+    });
+
+    // Real page-number pagination (not just Previous/Next)
+    const from = (_histPage - 1) * HIST_PAGE_SIZE + 1;
+    const to = Math.min(_histPage * HIST_PAGE_SIZE, filtered.length);
+    const pageBtn = (p) => `<button type="button" data-action="histGoToPage" data-page="${p}" style="min-width:28px;padding:6px 8px;border:1px solid ${p === _histPage ? 'var(--blue)' : 'var(--divider-color)'};border-radius:8px;background:${p === _histPage ? 'var(--blue)' : 'white'};color:${p === _histPage ? 'white' : 'var(--text)'};font-size:11px;font-weight:700;cursor:pointer;">${p}</button>`;
+    let pageNums = [];
+    for (let p = 1; p <= totalPages; p++) {
+      if (p === 1 || p === totalPages || Math.abs(p - _histPage) <= 1) pageNums.push(p);
+      else if (pageNums[pageNums.length - 1] !== '…') pageNums.push('…');
+    }
+    pagEl.innerHTML = `
+      <span>Showing ${from}–${to} of ${filtered.length} events</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button type="button" data-action="histPrevPage" ${_histPage <= 1 ? 'disabled' : ''} style="padding:6px 12px;border:1px solid var(--divider-color);border-radius:8px;background:white;color:${_histPage <= 1 ? '#c5d0e8' : 'var(--text)'};font-size:11px;font-weight:700;cursor:${_histPage <= 1 ? 'default' : 'pointer'};">‹</button>
+        ${pageNums.map(p => p === '…' ? `<span style="padding:0 4px;color:var(--text-muted);">…</span>` : pageBtn(p)).join('')}
+        <button type="button" data-action="histNextPage" ${_histPage >= totalPages ? 'disabled' : ''} style="padding:6px 12px;border:1px solid var(--divider-color);border-radius:8px;background:white;color:${_histPage >= totalPages ? '#c5d0e8' : 'var(--text)'};font-size:11px;font-weight:700;cursor:${_histPage >= totalPages ? 'default' : 'pointer'};">›</button>
+      </div>`;
+  };
+
+  // Navigate to the real ladder/tournament — the old link just switched
+  // to Player Profile's own Overview tab, which wasn't the actual ladder.
+  const histGetLadder = async (ladderId) => {
+    // AdminState.allLadders isn't guaranteed to be loaded when navigating
+    // here from Player Profile (same class of gap as Match Hub's player
+    // list) — fetch directly if it's not already cached.
+    let ladder = AdminState.allLadders?.find(l => l.id === ladderId);
+    if (!ladder) {
+      try {
+        const rows = await api(`ladders?id=eq.${ladderId}&select=*`);
+        ladder = rows?.[0] || null;
+      } catch (_) { ladder = null; }
+    }
+    return ladder;
+  };
+
+  window.histViewLadder = async (ladderId) => {
+    const ladder = await histGetLadder(ladderId);
+    if (!ladder) { toast('Could not find that ladder.', true); return; }
+    AdminState.currentLadder = ladder;
+    if (window.loadLadderPlayers) await window.loadLadderPlayers();
+    window.showPage(ladder.ladder_type === 'ftc' ? 'ftc-standings' : 'ladder', document.getElementById(ladder.ladder_type === 'ftc' ? 'sb-ftc-standings' : 'sb-standings'));
+  };
+  window.histViewSession = async (ladderId) => {
+    const ladder = await histGetLadder(ladderId);
+    if (!ladder) { toast('Could not find that ladder.', true); return; }
+    AdminState.currentLadder = ladder;
+    if (window.loadLadderPlayers) await window.loadLadderPlayers();
+    window.showPage('sessions', document.getElementById('sb-sessions'));
+  };
+  window.histViewTournament = (tournamentId) => {
+    if (typeof openTournament === 'function') openTournament(tournamentId);
+    else toast('Could not open that tournament.', true);
+  };
+
+  const histEventRowHTML = (e, idx) => {
+    const catStyle = HIST_CAT_ICON[e.category] || HIST_CAT_ICON.competition;
+    const isAttendanceEvent = e.category === 'attendance';
+    const viewAction = isAttendanceEvent && e.source_type === 'ladder'
+      ? `<a href="#" class="pp-link" onclick="event.preventDefault();histViewSession(${e.source_id})" style="font-size:11px;">View Session →</a>`
+      : e.source_type === 'ladder' ? `<a href="#" class="pp-link" onclick="event.preventDefault();histViewLadder(${e.source_id})" style="font-size:11px;">View Ladder →</a>`
+      : e.source_type === 'tournament' ? `<a href="#" class="pp-link" onclick="event.preventDefault();histViewTournament(${e.source_id})" style="font-size:11px;">View Tournament →</a>`
+      : '';
+    // Attendance/Incident events show their own category as the badge;
+    // Competition events distinguish Ladder vs Tournament instead.
+    const sourceBadge = e.category === 'attendance' ? { label: 'ATTENDANCE', color: catStyle.color, bg: catStyle.bg }
+      : e.category === 'incident' ? { label: 'INCIDENT', color: catStyle.color, bg: catStyle.bg }
+      : e.source_type === 'ladder' ? { label: 'LADDER', color: 'var(--purple)', bg: '#f0e4fa' }
+      : e.source_type === 'tournament' ? { label: 'TOURNAMENT', color: 'var(--blue)', bg: '#e8f0ff' }
+      : { label: e.category.toUpperCase(), color: catStyle.color, bg: catStyle.bg };
+    return `<div class="hist-row" data-hist-idx="${idx}" style="display:flex;align-items:flex-start;gap:0;padding:10px 8px;border-radius:8px;${e.category === 'incident' ? 'cursor:pointer;' : ''}">
+      <div style="width:88px;flex-shrink:0;padding-top:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;">${fmtHistDate(e.event_date)}</div>
+        ${e.event_time ? `<div style="font-size:10px;font-weight:600;color:var(--text-muted);">${esc(e.event_time)}</div>` : ''}
+      </div>
+      <div style="width:16px;flex-shrink:0;display:flex;justify-content:center;padding-top:16px;position:relative;z-index:1;">
+        <div style="width:13px;height:13px;border-radius:50%;background:${catStyle.color};border:2px solid white;"></div>
+      </div>
+      <div style="width:34px;height:34px;border-radius:10px;background:${catStyle.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:8px;">${ppSVG(catStyle.icon, catStyle.color, 17)}</div>
+      <div style="flex:1;min-width:0;margin-left:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${esc(e.event_type)}</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:2px;">${esc(e.source_name)}</div>
+        ${e.detail ? `<div style="font-size:11px;font-weight:600;color:var(--text-muted);">${esc(e.detail)}</div>` : ''}
+        ${e.admin_name ? `<div style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:2px;">${esc(e.admin_name)}</div>` : ''}
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:${sourceBadge.color};background:${sourceBadge.bg};padding:3px 8px;border-radius:99px;">${sourceBadge.label}</span>
+        <div style="margin-top:4px;">${viewAction}</div>
+      </div>
+    </div>`;
+  };
+
+  // Date format WITH year — the plain fmtShort() (used elsewhere) omits
+  // it, but History needs the year visible since it will keep growing
+  // across multiple years.
+  const fmtHistDate = (d) => { if (!d) return ''; const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+
+  const renderHistDetail = (e) => {
+    const el = document.getElementById('hist-detail');
+    if (!el) return;
+    // The header is always the same — this panel is specifically for
+    // Incident Reports (the only clickable row type), not a generic
+    // "selected event" panel.
+    const header = `<div style="display:flex;align-items:center;gap:8px;background:#f4f5f8;padding:10px 12px;border-radius:8px;margin-bottom:12px;">
+      ${ppSVG(HIST_CAT_ICON.incident.icon, 'var(--orange)', 18)}
+      <div style="font-size:13px;font-weight:800;color:var(--text);">Incident Report Recorded</div>
+    </div>`;
+    if (!e) {
+      el.innerHTML = `<div class="pp-perf-card">
+        ${header}
+        <div class="pp-empty" style="padding:16px 0;text-align:center;">No incident reported yet.</div>
+      </div>`;
+      return;
+    }
+    el.innerHTML = `<div class="pp-perf-card">
+      ${header}
+      <div class="pp-perf-row"><span class="pp-perf-lbl">Date</span><span class="pp-perf-val">${fmtHistDate(e.event_date)}</span></div>
+      ${e.event_time ? `<div class="pp-perf-row"><span class="pp-perf-lbl">Time</span><span class="pp-perf-val">${esc(e.event_time)}</span></div>` : ''}
+      <div class="pp-perf-row"><span class="pp-perf-lbl">Source</span><span class="pp-perf-val">${esc(e.source_name)}</span></div>
+      <div class="pp-perf-row"><span class="pp-perf-lbl">Court</span><span class="pp-perf-val">${esc(e.incident_court || '—')}</span></div>
+      <div class="pp-perf-row"><span class="pp-perf-lbl">Reason</span><span class="pp-perf-val">${esc(e.incident_reason || '—')}</span></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:0.5px solid #f4f5f8;">
+        <div class="pp-perf-lbl" style="margin-bottom:4px;">Description</div>
+        <div style="font-size:12px;font-weight:600;color:var(--text);line-height:1.5;">${esc(e.incident_description || '—')}</div>
+      </div>
+      <div class="pp-perf-row" style="margin-top:10px;"><span class="pp-perf-lbl">Recorded By</span><span class="pp-perf-val">${esc(e.admin_name)}</span></div>
+      <div class="pp-perf-row"><span class="pp-perf-lbl">Recorded On</span><span class="pp-perf-val">${e.recorded_at ? new Date(e.recorded_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}</span></div>
+    </div>`;
   };
 
   const renderSoon = (tabId, label) => {
@@ -1400,7 +2065,9 @@
     if (target) target.style.display = '';
     if (tab === 'competition') { if (_ppCurrent) renderCompetition(_ppCurrent); return; }
     if (tab === 'adminnotes') { if (_ppCurrent) renderAdmin(_ppCurrent); return; }
-    const labels = { dna: 'DNA', reliability: 'Reliability', membership: 'Membership', history: 'History' };
+    if (tab === 'reliability') { if (_ppCurrent) renderReliability(_ppCurrent); return; }
+    if (tab === 'history') { if (_ppCurrent) renderHistory(_ppCurrent); return; }
+    const labels = { dna: 'DNA', membership: 'Membership' };
     if (labels[tab]) renderSoon(tab, labels[tab]);
   };
 
@@ -1613,6 +2280,12 @@
     ppToggleNoteForm: () => ppToggleNoteForm(),
     ppSaveNote: () => ppSaveNote(),
     ppLogLateCancellation: () => ppLogLateCancellation(),
+    ppLogOnTimeCancellation: () => ppLogOnTimeCancellation(),
+    histSetCategory: (btn) => { _histCategory = btn.dataset.cat; _histPage = 1; renderHistFilterbar(); renderHistTimeline(); },
+    histClearFilters: () => { _histCategory = 'all'; _histRange = 'all'; _histSearch = ''; _histPage = 1; renderHistFilterbar(); renderHistTimeline(); },
+    histPrevPage: () => { _histPage--; renderHistTimeline(); },
+    histNextPage: () => { _histPage++; renderHistTimeline(); },
+    histGoToPage: (btn) => { _histPage = parseInt(btn.dataset.page, 10); renderHistTimeline(); },
     ppToggleTagPicker: () => ppToggleTagPicker(),
     ppAddTag: (btn) => ppAddTag(btn),
     ppRemoveTag: (btn) => ppRemoveTag(btn),

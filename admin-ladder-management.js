@@ -21,54 +21,204 @@
   /* ─── LADDER MANAGEMENT PAGE ───────────────────────────── */
 
   // ── Ladder ops page state ─────────────────────────────────────────────
-  let _lopFilter = 'all';
+
+  const LIBRARY_DAYS = 30;
+  const isLibraryEligible = (l) => {
+    if (l.status !== 'completed' || !l.completed_at) return false;
+    const daysSince = (Date.now() - new Date(l.completed_at).getTime()) / 86400000;
+    return daysSince >= LIBRARY_DAYS;
+  };
+
+  // Shared across the active-ladders view and the Library — moved out of
+  // _renderLadderCards so both can reuse the exact same card layout.
+  const _weekProgress = (l) => {
+    if (!l.start_date || !l.end_date) return null;
+    const start = new Date(l.start_date + 'T00:00:00');
+    const end   = new Date(l.end_date   + 'T00:00:00');
+    const now   = new Date();
+    const total = Math.round((end - start) / 604800000);
+    const done  = Math.max(0, Math.round((now - start) / 604800000));
+    const pct   = Math.min(100, Math.round((done / (total || 1)) * 100));
+    return { done: Math.min(done, total), total: total || 1, pct };
+  };
+  const _nextSessionStr = (l) => {
+    if (!l.start_date) return null;
+    const d = new Date(l.start_date + 'T00:00:00');
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return `Next: ${days[d.getDay()]} session`;
+  };
+  const _calSVG  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+  const _clkSVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  const _plrsSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+  const _editSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+  const _closSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>`;
+  const _reopSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+  const _trshSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+  const _boltSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+  const _crwnSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a5e00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
+  const _trendSVG= `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
+  const _ovSVG   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+  const _plrSVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;
+  const _sessSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+  const _stndSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.56 13.9l-1.56 6.1 5-3 5 3-1.56-6.1"/></svg>`;
+
+  // The exact same rich card used for active ladders — with the same
+  // tabs/stats/intelligence section — reused for Library too. Only the
+  // Actions column differs: full management actions, or just "View
+  // Details" when readOnly is true.
+  const buildLadderCardHTML = (l, matchStats, playersByLadder, readOnly) => {
+    const isActive  = l.status === 'active';
+    const isClosed  = !isActive;
+    const stats     = matchStats[l.id] || { games: 0, sessions: new Set(), pts: {}, names: {} };
+    const players   = playersByLadder[l.id] ? playersByLadder[l.id].size : 0;
+    const sessions  = stats.sessions.size;
+    const games     = stats.games;
+    const prog      = _weekProgress(l);
+    const dateStr   = [
+      l.start_date ? fmtDate(l.start_date) : null,
+      l.end_date   ? fmtDate(l.end_date)   : null,
+    ].filter(Boolean).join(' → ');
+
+    const topPid = Object.keys(stats.pts).sort((a,b) => stats.pts[b] - stats.pts[a])[0];
+    const topPts = topPid ? stats.pts[topPid] : 0;
+
+    const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
+    const recentSessions = [...stats.sessions].filter(d => new Date(d) >= monthAgo).length;
+
+    const dis = readOnly ? '' : (isClosed ? 'disabled' : '');
+
+    const actionsHTML = readOnly
+      ? `<button type="button" data-action="viewLadderLibraryDetails" data-lid="${l.id}" style="width:100%;padding:9px 14px;border:1px solid var(--blue);border-radius:8px;background:white;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">${_ovSVG} View Details</button>`
+      : `
+        <button class="lop-btn" data-action="openLadderPlayers" data-lid="${l.id}" data-lname="${esc(l.name)}" ${dis}>${_plrsSVG} Manage Players</button>
+        <button class="lop-btn" data-action="openEditLadder" data-lid="${l.id}" ${dis}>${_editSVG} Edit Ladder</button>
+        <button class="lop-btn warn" data-action="toggleLadderStatus" data-lid="${l.id}" data-lstatus="${esc(l.status)}">${isActive ? _closSVG + ' Complete Ladder' : _reopSVG + ' Reopen Ladder'}</button>
+        <button class="lop-btn danger" data-action="deleteLadder" data-lid="${l.id}" data-lname="${esc(l.name)}">${_trshSVG} Delete</button>`;
+
+    return `<div class="lop-card" id="lop-card-${l.id}">
+      <!-- Tabs at top -->
+      <div class="lop-tabs">
+        <button class="lop-tab active" onclick="lopTab(event,'${l.id}','overview')">${_ovSVG} Overview</button>
+        ${readOnly ? '' : l.ladder_type === 'ftc' ? `
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-standings')">${_stndSVG} Standings</button>
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-teams')">${_plrSVG} Teams</button>
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-schedule')">${_sessSVG} Schedule</button>
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-playoffs')">${_stndSVG} Playoffs</button>
+        ` : l.ladder_type === 'rotating_partner' ? `
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','players')">${_plrSVG} Players</button>
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','sessions')">${_sessSVG} Sessions</button>
+          <button class="lop-tab" onclick="lopTab(event,'${l.id}','standings')">${_stndSVG} Standings</button>
+        ` : ''}
+      </div>
+      <!-- Card body -->
+      <div class="lop-body">
+        <!-- LEFT -->
+        <div class="lop-left">
+          <div class="lop-name">${esc(l.name)}</div>
+          <div style="margin-bottom:4px;">
+            ${l.ladder_type === 'ftc'
+              ? `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:rgba(198,242,33,0.15);color:#3B6D11;border:0.5px solid rgba(198,242,33,0.4);padding:2px 8px;border-radius:99px;">🏆 Ferocia Team Challenge</span>`
+              : `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:#e8f0ff;color:var(--blue);border:0.5px solid #c5d6f5;padding:2px 8px;border-radius:99px;">🔄 Rotating Partner</span>`
+            }
+          </div>
+          <div class="lop-status-row">
+            <span class="${isActive ? 'lop-active-pill' : 'lop-closed-pill'}">${isActive ? 'Season Active' : 'Completed'}</span>
+            ${isActive && l.start_date ? `<span class="lop-next">${_clkSVG} ${_nextSessionStr(l) || 'Active'}</span>` : ''}
+          </div>
+          ${dateStr ? `<div class="lop-dates">${_calSVG} ${esc(dateStr)}</div>` : ''}
+          <div class="lop-stats-row">
+            <div><div class="lop-stat-val">${players}</div><div class="lop-stat-lbl">Players</div></div>
+            <div><div class="lop-stat-val">${games}</div><div class="lop-stat-lbl">Games</div></div>
+            <div><div class="lop-stat-val">${sessions}</div><div class="lop-stat-lbl">Sessions</div></div>
+          </div>
+          <div style="margin-top:8px;">
+            <div class="lop-progress-lbl">
+              <span>Season Progress</span>
+              <span class="wk">${prog ? `Week ${prog.done} of ${prog.total}` : 'No dates set'}</span>
+            </div>
+            <div class="lop-bar"><div class="lop-fill" style="width:${prog ? prog.pct : 0}%;"></div></div>
+          </div>
+        </div>
+        <!-- CENTER: Intelligence -->
+        <div class="lop-center">
+          <div class="lop-intel-title">Competitive Intelligence</div>
+          <div class="lop-intel-item">
+            <div class="lop-intel-icon" style="background:var(--orange-light);">${_boltSVG}</div>
+            <div>
+              <div class="lop-intel-text">${recentSessions} session${recentSessions !== 1 ? 's' : ''} this month</div>
+              <div class="lop-intel-sub">${recentSessions > 0 ? 'Ladder is active' : 'No recent activity'}</div>
+            </div>
+          </div>
+          <div class="lop-intel-item">
+            <div class="lop-intel-icon" style="background:rgba(198,242,33,0.2);">${_crwnSVG}</div>
+            <div>
+              <div class="lop-intel-text">${topPts > 0 ? esc(stats.names[topPid] || 'Unknown') : 'No scores yet'}</div>
+              <div class="lop-intel-sub">${topPts > 0 ? `+${topPts} pts · Season leader` : 'Record first session'}</div>
+            </div>
+          </div>
+          <div class="lop-intel-item">
+            <div class="lop-intel-icon" style="background:#d4f5ed;">${_trendSVG}</div>
+            <div>
+              <div class="lop-intel-text">${players} player${players !== 1 ? 's' : ''} enrolled</div>
+              <div class="lop-intel-sub">${games} total games played</div>
+            </div>
+          </div>
+        </div>
+        <!-- RIGHT: Actions -->
+        <div class="lop-right">
+          <div class="lop-action-title">${readOnly ? 'Ladder Completed' : 'Actions'}</div>
+          ${actionsHTML}
+        </div>
+      </div>
+    </div>`;
+  };
+
+  // Fetches matches/ladder_players once for a given set of ladder ids,
+  // returning the same matchStats/playersByLadder shape buildLadderCardHTML
+  // expects. Shared by both the active view and the Library.
+  const _fetchLadderCardStats = async (ladderIds) => {
+    const matchStats = {}, playersByLadder = {};
+    if (!ladderIds.length) return { matchStats, playersByLadder };
+    const idList = ladderIds.join(',');
+    try {
+      const [matches, lp] = await Promise.all([
+        api(`matches?ladder_id=in.(${idList})&select=id,ladder_id,player_id,score_for,session_date,points_earned,court_group,game_number,players(first_name,last_name)&order=session_date.desc`).catch(() => []),
+        api(`ladder_players?ladder_id=in.(${idList})&select=ladder_id,player_id`).catch(() => []),
+      ]);
+      window.dedupeMatches(matches).forEach(m => {
+        if (!matchStats[m.ladder_id]) matchStats[m.ladder_id] = { games: 0, sessions: new Set(), pts: {}, names: {} };
+        const s = matchStats[m.ladder_id];
+        s.games++;
+        if (m.session_date) s.sessions.add(m.session_date);
+        if (m.score_for !== null && m.points_earned) s.pts[m.player_id] = (s.pts[m.player_id] || 0) + m.points_earned;
+        if (m.players && m.player_id) s.names[m.player_id] = `${m.players.first_name} ${m.players.last_name}`;
+      });
+      lp.forEach(row => {
+        playersByLadder[row.ladder_id] = (playersByLadder[row.ladder_id] || new Set()).add(row.player_id);
+      });
+    } catch (_) {}
+    return { matchStats, playersByLadder };
+  };
 
   const _renderLadderCards = async () => {
     const el = document.getElementById('ladders-list');
     if (!el) return;
 
-    let filtered = AdminState.allLadders.filter(l => {
-      if (_lopFilter === 'active') return l.status === 'active';
-      if (_lopFilter === 'closed') return l.status !== 'active';
-      return true;
-    });
+    // Main view: active + recently-completed ladders. Anything that's
+    // aged into the Library (completed 30+ days ago) is hidden here —
+    // it only shows in the Library tab now.
+    let filtered = AdminState.allLadders.filter(l => !isLibraryEligible(l));
 
     if (!filtered.length) {
       el.innerHTML = `<div class="empty" style="padding:20px;text-align:center;background:white;border-radius:10px;">No ladders found.</div>`;
       return;
     }
 
-    // Fetch matches + ladder_players for intelligence
-    let matchStats = {}, _cardLadderPlayers = [], pendingAll = [];
+    let pendingAll = [];
+    const { matchStats, playersByLadder } = await _fetchLadderCardStats(filtered.map(l => l.id));
     try {
-      const [matches, lp, pending] = await Promise.all([
-        api('matches?select=id,ladder_id,player_id,score_for,session_date,points_earned,court_group,game_number,players(first_name,last_name)&order=session_date.desc').catch(() => []),
-        api('ladder_players?select=ladder_id,player_id').catch(() => []),
-        api('matches?score_for=is.null&default_no_show=is.false&select=ladder_id').catch(() => []),
-      ]);
-      // Per-ladder stats
-      window.dedupeMatches(matches).forEach(m => {
-        if (!matchStats[m.ladder_id]) matchStats[m.ladder_id] = { games: 0, sessions: new Set(), pts: {}, names: {} };
-        const s = matchStats[m.ladder_id];
-        s.games++;
-        if (m.session_date) s.sessions.add(m.session_date);
-        if (m.score_for !== null && m.points_earned) {
-          s.pts[m.player_id] = (s.pts[m.player_id] || 0) + m.points_earned;
-        }
-        // Store player name
-        if (m.players && m.player_id) {
-          s.names[m.player_id] = `${m.players.first_name} ${m.players.last_name}`;
-        }
-      });
-      _cardLadderPlayers = lp;
-      pendingAll = pending;
-    } catch(_) {}
-
-    // Compute player counts per ladder
-    const playersByLadder = {};
-    _cardLadderPlayers.forEach(lp => {
-      playersByLadder[lp.ladder_id] = (playersByLadder[lp.ladder_id] || new Set()).add(lp.player_id);
-    });
+      pendingAll = await api('matches?score_for=is.null&default_no_show=is.false&select=ladder_id').catch(() => []);
+    } catch (_) {}
 
     // Compute pending per ladder
     const pendingByLadder = {};
@@ -76,147 +226,9 @@
       pendingByLadder[m.ladder_id] = (pendingByLadder[m.ladder_id] || 0) + 1;
     });
 
-    // Week progress helper
-    const weekProgress = (l) => {
-      if (!l.start_date || !l.end_date) return null;
-      const start = new Date(l.start_date + 'T00:00:00');
-      const end   = new Date(l.end_date   + 'T00:00:00');
-      const now   = new Date();
-      const total = Math.round((end - start) / 604800000);
-      const done  = Math.max(0, Math.round((now - start) / 604800000));
-      const pct   = Math.min(100, Math.round((done / (total || 1)) * 100));
-      return { done: Math.min(done, total), total: total || 1, pct };
-    };
-
-    // Next session day helper (based on end_date weekday as proxy)
-    const nextSessionStr = (l) => {
-      if (!l.start_date) return null;
-      const d = new Date(l.start_date + 'T00:00:00');
-      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      return `Next: ${days[d.getDay()]} session`;
-    };
-
-    // SVG icons
-    const calSVG  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-    const clkSVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
-    const plrsSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
-    const editSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-    const closSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>`;
-    const reopSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
-    const trshSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
-    const boltSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
-    const crwnSVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a5e00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg>`;
-    const trendSVG= `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
-    const ovSVG   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
-    const plrSVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;
-    const sessSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-    const stndSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.56 13.9l-1.56 6.1 5-3 5 3-1.56-6.1"/></svg>`;
-
-    el.innerHTML = filtered.map(l => {
-      const isActive  = l.status === 'active';
-      const isClosed  = !isActive;
-      const stats     = matchStats[l.id] || { games: 0, sessions: new Set(), pts: {} };
-      const players   = playersByLadder[l.id] ? playersByLadder[l.id].size : 0;
-      const sessions  = stats.sessions.size;
-      const games     = stats.games;
-      const prog      = weekProgress(l);
-      const dateStr   = [
-        l.start_date ? fmtDate(l.start_date) : null,
-        l.end_date   ? fmtDate(l.end_date)   : null,
-      ].filter(Boolean).join(' → ');
-
-      // Top scorer
-      const topPid = Object.keys(stats.pts).sort((a,b) => stats.pts[b] - stats.pts[a])[0];
-      const topPts = topPid ? stats.pts[topPid] : 0;
-
-      // Recent sessions (last 30 days)
-      const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
-      const recentSessions = [...stats.sessions].filter(d => new Date(d) >= monthAgo).length;
-
-      // Disabled attr for closed ladders
-      const dis = isClosed ? 'disabled' : '';
-
-      return `<div class="lop-card" id="lop-card-${l.id}">
-        <!-- Tabs at top -->
-        <div class="lop-tabs">
-          <button class="lop-tab active" onclick="lopTab(event,'${l.id}','overview')">${ovSVG} Overview</button>
-          ${l.ladder_type === 'ftc' ? `
-            <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-standings')">${stndSVG} Standings</button>
-            <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-teams')">${plrSVG} Teams</button>
-            <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-schedule')">${sessSVG} Schedule</button>
-            <button class="lop-tab" onclick="lopTab(event,'${l.id}','ftc-playoffs')">${stndSVG} Playoffs</button>
-          ` : l.ladder_type === 'rotating_partner' ? `
-            <button class="lop-tab" onclick="lopTab(event,'${l.id}','players')">${plrSVG} Players</button>
-            <button class="lop-tab" onclick="lopTab(event,'${l.id}','sessions')">${sessSVG} Sessions</button>
-            <button class="lop-tab" onclick="lopTab(event,'${l.id}','standings')">${stndSVG} Standings</button>
-          ` : ''}
-        </div>
-        <!-- Card body -->
-        <div class="lop-body">
-          <!-- LEFT -->
-          <div class="lop-left">
-            <div class="lop-name">${esc(l.name)}</div>
-            <div style="margin-bottom:4px;">
-              ${l.ladder_type === 'ftc'
-                ? `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:rgba(198,242,33,0.15);color:#3B6D11;border:0.5px solid rgba(198,242,33,0.4);padding:2px 8px;border-radius:99px;">🏆 Ferocia Team Challenge</span>`
-                : `<span style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:#e8f0ff;color:var(--blue);border:0.5px solid #c5d6f5;padding:2px 8px;border-radius:99px;">🔄 Rotating Partner</span>`
-              }
-            </div>
-            <div class="lop-status-row">
-              <span class="${isActive ? 'lop-active-pill' : 'lop-closed-pill'}">${isActive ? 'Season Active' : 'Closed'}</span>
-              ${isActive && l.start_date ? `<span class="lop-next">${clkSVG} ${nextSessionStr(l) || 'Active'}</span>` : ''}
-            </div>
-            ${dateStr ? `<div class="lop-dates">${calSVG} ${esc(dateStr)}</div>` : ''}
-            <div class="lop-stats-row">
-              <div><div class="lop-stat-val">${players}</div><div class="lop-stat-lbl">Players</div></div>
-              <div><div class="lop-stat-val">${games}</div><div class="lop-stat-lbl">Games</div></div>
-              <div><div class="lop-stat-val">${sessions}</div><div class="lop-stat-lbl">Sessions</div></div>
-            </div>
-            <div style="margin-top:8px;">
-              <div class="lop-progress-lbl">
-                <span>Season Progress</span>
-                <span class="wk">${prog ? `Week ${prog.done} of ${prog.total}` : 'No dates set'}</span>
-              </div>
-              <div class="lop-bar"><div class="lop-fill" style="width:${prog ? prog.pct : 0}%;"></div></div>
-            </div>
-          </div>
-          <!-- CENTER: Intelligence -->
-          <div class="lop-center">
-            <div class="lop-intel-title">Competitive Intelligence</div>
-            <div class="lop-intel-item">
-              <div class="lop-intel-icon" style="background:var(--orange-light);">${boltSVG}</div>
-              <div>
-                <div class="lop-intel-text">${recentSessions} session${recentSessions !== 1 ? 's' : ''} this month</div>
-                <div class="lop-intel-sub">${recentSessions > 0 ? 'Ladder is active' : 'No recent activity'}</div>
-              </div>
-            </div>
-            <div class="lop-intel-item">
-              <div class="lop-intel-icon" style="background:rgba(198,242,33,0.2);">${crwnSVG}</div>
-              <div>
-                <div class="lop-intel-text">${topPts > 0 ? esc(stats.names[topPid] || 'Unknown') : 'No scores yet'}</div>
-                <div class="lop-intel-sub">${topPts > 0 ? `+${topPts} pts · Season leader` : 'Record first session'}</div>
-              </div>
-            </div>
-            <div class="lop-intel-item">
-              <div class="lop-intel-icon" style="background:#d4f5ed;">${trendSVG}</div>
-              <div>
-                <div class="lop-intel-text">${players} player${players !== 1 ? 's' : ''} enrolled</div>
-                <div class="lop-intel-sub">${games} total games played</div>
-              </div>
-            </div>
-          </div>
-          <!-- RIGHT: Actions — disabled when closed -->
-          <div class="lop-right">
-            <div class="lop-action-title">Actions</div>
-            <button class="lop-btn" data-action="openLadderPlayers" data-lid="${l.id}" data-lname="${esc(l.name)}" ${dis}>${plrsSVG} Manage Players</button>
-            <button class="lop-btn" data-action="openEditLadder" data-lid="${l.id}" ${dis}>${editSVG} Edit Ladder</button>
-            <button class="lop-btn warn" data-action="toggleLadderStatus" data-lid="${l.id}" data-lstatus="${esc(l.status)}">${isActive ? closSVG + ' Close Ladder' : reopSVG + ' Reopen Ladder'}</button>
-            <button class="lop-btn danger" data-action="deleteLadder" data-lid="${l.id}" data-lname="${esc(l.name)}">${trshSVG} Delete</button>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+    el.innerHTML = filtered.map(l => buildLadderCardHTML(l, matchStats, playersByLadder, false)).join('');
   };
+
 
   // Quick access tab handler
   window.lopTab = async (e, ladderId, tab) => {
@@ -259,6 +271,16 @@
   };
 
   const loadLaddersPage = async () => {
+    // Always reset to the main "Ladders" tab on page entry — otherwise
+    // navigating away (e.g. Library's "View Details" → Standings) and
+    // back leaves the page stuck showing Library.
+    document.getElementById('lop-tab-active')?.classList.add('pp-tab-on');
+    document.getElementById('lop-tab-library')?.classList.remove('pp-tab-on');
+    const activeContent = document.getElementById('lop-tab-content-active');
+    const libraryContent = document.getElementById('lop-tab-content-library');
+    if (activeContent) activeContent.style.display = '';
+    if (libraryContent) libraryContent.style.display = 'none';
+
     try {
       const [ladders, _llpRows, pending] = await Promise.all([
         api('ladders?select=*&order=id.desc'),
@@ -267,9 +289,12 @@
       ]);
       AdminState.allLadders = ladders;
 
-      // Stat cards
-      const active  = ladders.filter(l => l.status === 'active').length;
-      const closed  = ladders.filter(l => l.status !== 'active').length;
+      // Stat cards — "Completed Ladders" is every ladder with
+      // status='completed', regardless of how long ago (no date
+      // filtering here, per the founder — that's only for the
+      // Library visibility rule, not this count).
+      const active    = ladders.filter(l => l.status === 'active').length;
+      const completed = ladders.filter(l => l.status === 'completed').length;
       // Unique players in active ladders
       const activeLadderIds = new Set(ladders.filter(l => l.status === 'active').map(l => l.id));
       const activePlayers   = new Set(_llpRows.filter(lp => activeLadderIds.has(lp.ladder_id)).map(lp => lp.player_id)).size;
@@ -277,7 +302,7 @@
 
       const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
       setEl('lop-active',  active);
-      setEl('lop-closed',  closed);
+      setEl('lop-closed',  completed);
       setEl('lop-players', activePlayers);
       setEl('lop-pending', pendingCount || '—');
 
@@ -285,16 +310,6 @@
       document.getElementById('ladders-list').innerHTML =
         `<div class="empty">Error: ${esc(e.message)}</div>`;
       return;
-    }
-
-    // Wire filter dropdown
-    const filterSel = document.getElementById('ladder-status-filter');
-    if (filterSel && !filterSel._wired) {
-      filterSel._wired = true;
-      filterSel.addEventListener('change', () => {
-        _lopFilter = filterSel.value;
-        _renderLadderCards();
-      });
     }
 
     await _renderLadderCards();
@@ -324,10 +339,11 @@
   };
 
   const toggleLadderStatus = async (id, current) => {
-    const newStatus = current === 'active' ? 'closed' : 'active';
+    const newStatus = current === 'active' ? 'completed' : 'active';
+    const body = { status: newStatus, completed_at: newStatus === 'completed' ? new Date().toISOString() : null };
     try {
-      await api(`ladders?id=eq.${id}`, 'PATCH', { status: newStatus });
-      toast(`Ladder ${newStatus === 'closed' ? 'closed' : 'reopened'}!`);
+      await api(`ladders?id=eq.${id}`, 'PATCH', body);
+      toast(`Ladder ${newStatus === 'completed' ? 'marked completed' : 'reopened'}!`);
       await window.loadLadderSelector();
       loadLaddersPage();
     } catch (e) {
@@ -451,6 +467,15 @@
     const activePlayers = AdminState.allPlayers.filter((p) => p.status !== 'inactive');
     const subCount     = enrolled.filter(r => r.status === 'sub').length;
 
+    // Bulk-fetch which of these players have negative notes (warning/
+    // incident/suspension) — one call for the whole list, not one per
+    // row, so we can show a warning icon proactively next to the name.
+    let flaggedIds = new Set();
+    try {
+      const { data } = await supabase.rpc('get_players_note_alerts', { p_player_ids: activePlayers.map((p) => p.id) });
+      flaggedIds = new Set((data || []).filter((r) => r.has_any_flag).map((r) => r.player_id));
+    } catch (e) { console.warn('[note alerts] bulk fetch failed:', e.message); }
+
     const listEl = document.getElementById('lp-enrolled');
     listEl.dataset.enrolledIds = enrolledIds.join(',');
 
@@ -488,6 +513,9 @@
         </div>` : '';
 
       const gender = (p.gender || '').toLowerCase(); // 'male' or 'female'
+      const flagIcon = flaggedIds.has(p.id)
+        ? `<span title="This player has warning/incident/suspension notes on file" style="display:inline-flex;margin-left:6px;flex-shrink:0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>`
+        : '';
       return `<div class="lp-player-row-new ${isEnrolled ? 'lp-selected' : ''}"
           data-name="${esc(fullName.toLowerCase())}" data-pid="${p.id}" data-gender="${esc(gender)}"
           onclick="lpRowClick(event,${p.id})">
@@ -495,7 +523,7 @@
           ${isEnrolled ? checkSVG : ''}
         </div>
         <div class="lp-av" style="background:${avColor};">${esc(initials)}</div>
-        <div class="lp-pname ${isEnrolled ? '' : 'lp-unenrolled'}">${esc(fullName)}</div>
+        <div class="lp-pname ${isEnrolled ? '' : 'lp-unenrolled'}" style="display:flex;align-items:center;flex:1;">${esc(fullName)}${flagIcon}</div>
         ${segToggle}
       </div>`;
     }).join('');
@@ -542,7 +570,7 @@
           if (alert.suspension_count > 0) parts.push(`${alert.suspension_count} suspension${alert.suspension_count > 1 ? 's' : ''}`);
           if (alert.incident_count > 0) parts.push(`${alert.incident_count} incident${alert.incident_count > 1 ? 's' : ''}`);
           if (alert.warning_count > 0) parts.push(`${alert.warning_count} warning${alert.warning_count > 1 ? 's' : ''}`);
-          toast(`⚠️ ${name} has ${parts.join(', ')} on file — check their Admin tab before proceeding.`, true);
+          toast(`⚠️ ${name} has ${parts.join(', ')} on file — check their Admin tab before proceeding.`, true, 8000);
         }
       } catch (err) { /* best-effort — never block enrollment over a notes-check failure */ }
     }
@@ -692,6 +720,102 @@
   document.getElementById('create-ladder-form')?.addEventListener('submit', createLadder);
   document.querySelector('#edit-ladder-modal form')?.addEventListener('submit', saveEditLadder);
 
+  // ── Ladder Library ───────────────────────────────────────────────────
+  // Read-only historical view — ladders completed 30+ days ago. Reuses
+  // AdminState.allLadders (already fetched by loadLaddersPage) rather
+  // than a separate query.
+  let _lopLibPage = 1;
+  const LIB_PAGE_SIZE = 20;
+
+  const lopShowTab = (btn) => {
+    const tab = btn.dataset.loptab;
+    document.getElementById('lop-tab-active').classList.toggle('pp-tab-on', tab === 'active');
+    document.getElementById('lop-tab-library').classList.toggle('pp-tab-on', tab === 'library');
+    document.getElementById('lop-tab-content-active').style.display = tab === 'active' ? '' : 'none';
+    document.getElementById('lop-tab-content-library').style.display = tab === 'library' ? '' : 'none';
+    if (tab === 'library') renderLadderLibrary();
+  };
+
+  const renderLadderLibrary = async () => {
+    const libLadders = (AdminState.allLadders || []).filter(isLibraryEligible);
+
+    // Year filter options (derived from start_date, the season's year)
+    const yearSel = document.getElementById('lop-lib-year');
+    if (yearSel && yearSel.options.length <= 1) {
+      const years = [...new Set(libLadders.map((l) => (l.start_date || l.completed_at || '').slice(0, 4)).filter(Boolean))].sort().reverse();
+      years.forEach((y) => { const opt = document.createElement('option'); opt.value = y; opt.textContent = y; yearSel.appendChild(opt); });
+      yearSel.addEventListener('change', () => { _lopLibPage = 1; renderLadderLibrary(); });
+    }
+    const searchEl = document.getElementById('lop-lib-search');
+    if (searchEl && !searchEl._wired) {
+      searchEl._wired = true;
+      searchEl.addEventListener('input', () => { _lopLibPage = 1; renderLadderLibrary(); });
+    }
+
+    const query = (searchEl?.value || '').trim().toLowerCase();
+    const yearFilter = yearSel?.value || 'all';
+    let filtered = libLadders.filter((l) => {
+      if (query && !l.name.toLowerCase().includes(query)) return false;
+      if (yearFilter !== 'all' && (l.start_date || l.completed_at || '').slice(0, 4) !== yearFilter) return false;
+      return true;
+    });
+    filtered.sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
+
+    const listEl = document.getElementById('lop-library-list');
+    const pagEl = document.getElementById('lop-library-pagination');
+    if (!filtered.length) {
+      listEl.innerHTML = '<div class="empty" style="padding:20px;text-align:center;background:white;border-radius:10px;">No completed ladders found.</div>';
+      pagEl.innerHTML = '';
+      return;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / LIB_PAGE_SIZE));
+    _lopLibPage = Math.min(_lopLibPage, totalPages);
+    const pageItems = filtered.slice((_lopLibPage - 1) * LIB_PAGE_SIZE, _lopLibPage * LIB_PAGE_SIZE);
+
+    listEl.innerHTML = '<div class="loading">Loading...</div>';
+    // Only fetch stats for the ladders actually shown on this page —
+    // no need to pull data for all 187 library ladders at once.
+    const { matchStats, playersByLadder } = await _fetchLadderCardStats(pageItems.map((l) => l.id));
+
+    // Group the current page by year
+    const byYear = {};
+    pageItems.forEach((l) => {
+      const y = (l.start_date || l.completed_at || '').slice(0, 4) || 'Unknown';
+      (byYear[y] = byYear[y] || []).push(l);
+    });
+    listEl.innerHTML = Object.keys(byYear).sort().reverse().map((y) => `
+      <div style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin:16px 0 8px;">${y}</div>
+      ${byYear[y].map((l) => buildLadderCardHTML(l, matchStats, playersByLadder, true)).join('')}
+    `).join('');
+
+    const from = (_lopLibPage - 1) * LIB_PAGE_SIZE + 1;
+    const to = Math.min(_lopLibPage * LIB_PAGE_SIZE, filtered.length);
+    pagEl.innerHTML = `
+      <span>Showing ${from}–${to} of ${filtered.length}</span>
+      <div style="display:flex;gap:8px;">
+        <button type="button" data-action="lopLibPrevPage" ${_lopLibPage <= 1 ? 'disabled' : ''} style="padding:6px 14px;border:1px solid var(--divider-color);border-radius:99px;background:white;color:${_lopLibPage <= 1 ? '#c5d0e8' : 'var(--text)'};font-size:11px;font-weight:700;cursor:${_lopLibPage <= 1 ? 'default' : 'pointer'};">Previous</button>
+        <button type="button" data-action="lopLibNextPage" ${_lopLibPage >= totalPages ? 'disabled' : ''} style="padding:6px 14px;border:1px solid var(--divider-color);border-radius:99px;background:white;color:${_lopLibPage >= totalPages ? '#c5d0e8' : 'var(--text)'};font-size:11px;font-weight:700;cursor:${_lopLibPage >= totalPages ? 'default' : 'pointer'};">Next</button>
+      </div>`;
+  };
+
+  // View Details = the same read-only Standings view used everywhere
+  // else — it has no edit/player-management/session actions on it, so
+  // it satisfies "read-only" without needing a separate screen.
+  const viewLadderLibraryDetails = async (btn) => {
+    const id = parseInt(btn.dataset.lid, 10);
+    const ladder = AdminState.allLadders.find((l) => l.id === id);
+    if (!ladder) return;
+    AdminState.currentLadder = ladder;
+    if (window.loadLadderPlayers) await window.loadLadderPlayers();
+    if (ladder.ladder_type === 'ftc') {
+      window.showPage('ftc-standings', document.getElementById('sb-ftc-standings'));
+    } else {
+      window.showPage('ladder', document.getElementById('sb-standings'));
+    }
+  };
+
+
   // ── Expose / register with the shared infrastructure ──────────────────
   window.loadLaddersPage = loadLaddersPage; // called from the page router
   window.lpChangeStatus  = lpChangeStatus;  // legacy stub, called from app.js's generic click listener
@@ -705,5 +829,9 @@
     lpToggleAll:          (btn) => lpToggleAll(btn),
     lpSaveChanges:        () => lpSaveChanges(),
     closeLpModal:         () => closeLpModal(),
+    lopShowTab:           (btn) => lopShowTab(btn),
+    viewLadderLibraryDetails: (btn) => viewLadderLibraryDetails(btn),
+    lopLibPrevPage:       () => { _lopLibPage--; renderLadderLibrary(); },
+    lopLibNextPage:       () => { _lopLibPage++; renderLadderLibrary(); },
   });
 })();
