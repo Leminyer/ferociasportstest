@@ -146,6 +146,12 @@
       const ROW_H_SUM   = 6;          // player name row height
       const COURT_GAP   = 5;          // vertical gap between courts
 
+      /* Summary page type size. Same idea as TEXT on the court pages:
+         multiplies FONT SIZES ONLY, never COURT_HDR_H or ROW_H_SUM, so
+         the grid keeps its exact dimensions and still fits on one page.
+         A 6mm row held 8pt (~2.8mm); at 1.35 it holds ~10.8pt (~3.8mm). */
+      const SUM_TEXT = 1.35;
+
       // Split courts into two halves: left column first half, right column second half
       // This ensures reading top-to-bottom left then right gives sequential court order
       const half = Math.ceil(courtNums.length / 2);
@@ -170,7 +176,7 @@
         doc.setFillColor(...BLUE);
         doc.rect(startX, startY, COL_W, COURT_HDR_H, 'F');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
+        doc.setFontSize(8.5 * SUM_TEXT);
         doc.setTextColor(...WHITE);
         doc.text(`Court ${courtNum} · ${window.fmtTime12(time)}`, startX + COL_W / 2, startY + 5, { align: 'center' });
 
@@ -185,7 +191,7 @@
             doc.rect(startX, ry, COL_W, ROW_H_SUM, 'F');
           }
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8);
+          doc.setFontSize(8 * SUM_TEXT);
           doc.setTextColor(...DARK);
           doc.text(name, startX + 3, ry + 4.2);
           ry += ROW_H_SUM;
@@ -196,7 +202,7 @@
           doc.setFillColor(255, 245, 240);
           doc.rect(startX, ry, COL_W, ROW_H_SUM, 'F');
           doc.setFont('helvetica', 'italic');
-          doc.setFontSize(8);
+          doc.setFontSize(8 * SUM_TEXT);
           doc.setTextColor(...ORANGE);
           doc.text(`${noShowName} (No show)`, startX + 3, ry + 4.2);
           ry += ROW_H_SUM;
@@ -368,6 +374,32 @@
         // Scale: shrink if content is taller than available space, keep 1.0 if it fits
         const scale = Math.min(1.0, AVAILABLE_H / estimatedH);
 
+        /* ── BODY TEXT SIZE ──────────────────────────────────────────
+           Players could not read the printed roster, so the body type is
+           enlarged by this factor.
+
+           It multiplies FONT SIZES ONLY — never LINE_H, VS_H or SEP_H.
+           That distinction is what makes this safe: estimatedH above is
+           derived from the line heights, so leaving those alone means the
+           measured height, the scale factor and the one-court-per-page
+           guarantee are all unchanged. Only the glyphs get bigger.
+
+           There is room for it: a 7mm line held 8.5pt type (~3.0mm),
+           leaving ~4mm of leading. At 1.35 the names are ~11pt (~3.9mm)
+           in that same 7mm line — still comfortable.
+
+           Width is not a constraint either: the name column is 88.6mm,
+           which fits about 41 characters at 11pt, and every name is drawn
+           with maxWidth so jsPDF handles anything longer.
+
+           To tune after seeing it printed, change this one number. */
+        const TEXT = 1.5;
+
+        /* "Sits out" is the smallest thing on the page (6.5pt base) and the
+           one people complained about most, so it gets an extra nudge on
+           top of TEXT rather than staying the runt of the layout. */
+        const SITS_OUT_TEXT = 1.25;
+
         // Scaled measurements — all drawing uses these
         const LINE_H  = LINE_H_BASE  * scale;
         const VS_H    = VS_H_BASE    * scale;
@@ -380,7 +412,7 @@
         const rightW = PW - MR - rightX;
 
         // ── RIGHT COLUMN: PLAYERS LIST ────────────────────────────
-        doc.setFontSize(8.5 * scale);
+        doc.setFontSize(8.5 * TEXT * scale);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...MUTED);
         doc.text('PLAYERS', rightX, y);
@@ -393,7 +425,7 @@
             doc.rect(rightX - 1, ry - 4 * scale, rightW + 1, 7 * scale, 'F');
           }
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8 * scale);
+          doc.setFontSize(8 * TEXT * scale);
           doc.setTextColor(...DARK);
           doc.text(`${i + 1}.`, rightX, ry);
           doc.setFont('helvetica', 'normal');
@@ -405,7 +437,7 @@
         });
 
         // ── LEFT COLUMN: GAMES ────────────────────────────────────
-        doc.setFontSize(8.5 * scale);
+        doc.setFontSize(8.5 * TEXT * scale);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...MUTED);
         doc.text('GAMES', ML, y);
@@ -454,7 +486,7 @@
 
           // Game number
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5 * scale);
+          doc.setFontSize(7.5 * TEXT * scale);
           doc.setTextColor(...MUTED);
           doc.text(`${gn}`, ML, gy + 4 * scale);
 
@@ -470,7 +502,7 @@
           let ly = gy;
           teamANames.forEach((name) => {
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8.5 * scale);
+            doc.setFontSize(8.5 * TEXT * scale);
             doc.setTextColor(...DARK);
             doc.text(name, ML + 5, ly + 5 * scale, { maxWidth: NAME_COL_W - 6 });
             ly += LINE_H;
@@ -478,7 +510,7 @@
 
           // Vs
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7 * scale);
+          doc.setFontSize(7 * TEXT * scale);
           doc.setTextColor(...MUTED);
           doc.text('Vs', ML + 5, ly + 4 * scale);
           ly += VS_H;
@@ -486,7 +518,7 @@
           // Team B names
           teamBNames.forEach((name) => {
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8.5 * scale);
+            doc.setFontSize(8.5 * TEXT * scale);
             doc.setTextColor(...DARK);
             doc.text(name, ML + 5, ly + 5 * scale, { maxWidth: NAME_COL_W - 6 });
             ly += LINE_H;
@@ -495,7 +527,7 @@
           // Sits out
           if (sittingOut.length) {
             doc.setFont('helvetica', 'italic');
-            doc.setFontSize(6.5 * scale);
+            doc.setFontSize(6.5 * TEXT * SITS_OUT_TEXT * scale);
             doc.setTextColor(...ORANGE);
             doc.text(`Sits out: ${sittingOut.join(', ')}`, ML + 5, ly + 4 * scale);
           }
@@ -519,7 +551,7 @@
             const BOX_H = tA.length * LINE_H + VS_H + tB.length * LINE_H;
 
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.5 * scale);
+            doc.setFontSize(7.5 * TEXT * scale);
             doc.setTextColor(...MUTED);
             doc.text('4', ML, gy + 4 * scale);
 
@@ -532,15 +564,15 @@
 
             let ly = gy;
             tA.forEach((name) => {
-              doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5 * scale); doc.setTextColor(...DARK);
+              doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5 * TEXT * scale); doc.setTextColor(...DARK);
               doc.text(name, ML + 5, ly + 5 * scale, { maxWidth: NAME_COL_W - 6 });
               ly += LINE_H;
             });
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(7 * scale); doc.setTextColor(...MUTED);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(7 * TEXT * scale); doc.setTextColor(...MUTED);
             doc.text('Vs', ML + 5, ly + 4 * scale);
             ly += VS_H;
             tB.forEach((name) => {
-              doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5 * scale); doc.setTextColor(...DARK);
+              doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5 * TEXT * scale); doc.setTextColor(...DARK);
               doc.text(name, ML + 5, ly + 5 * scale, { maxWidth: NAME_COL_W - 6 });
               ly += LINE_H;
             });
@@ -551,7 +583,7 @@
             const BOX_H = LINE_H * 2 + VS_H + LINE_H * 2;
 
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.5 * scale);
+            doc.setFontSize(7.5 * TEXT * scale);
             doc.setTextColor(...MUTED);
             doc.text('4', ML, gy + 4 * scale);
 
@@ -567,20 +599,20 @@
             doc.setLineWidth(0.3);
             let ly = gy;
             [1, 2].forEach((n) => {
-              doc.setFont('helvetica', 'normal'); doc.setFontSize(7 * scale); doc.setTextColor(...MUTED);
+              doc.setFont('helvetica', 'normal'); doc.setFontSize(7 * TEXT * scale); doc.setTextColor(...MUTED);
               doc.text(`${n}.`, ML + 2, ly + 5 * scale);
               doc.line(ML + 8, ly + 5.5 * scale, BOX_X - 3, ly + 5.5 * scale);
               ly += LINE_H;
             });
 
             // Vs
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(7 * scale); doc.setTextColor(...MUTED);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(7 * TEXT * scale); doc.setTextColor(...MUTED);
             doc.text('Vs', ML + 5, ly + 4 * scale);
             ly += VS_H;
 
             // Blank name lines — Team B
             [3, 4].forEach((n) => {
-              doc.setFont('helvetica', 'normal'); doc.setFontSize(7 * scale); doc.setTextColor(...MUTED);
+              doc.setFont('helvetica', 'normal'); doc.setFontSize(7 * TEXT * scale); doc.setTextColor(...MUTED);
               doc.text(`${n}.`, ML + 2, ly + 5 * scale);
               doc.line(ML + 8, ly + 5.5 * scale, BOX_X - 3, ly + 5.5 * scale);
               ly += LINE_H;
@@ -590,7 +622,7 @@
 
             // Note — bold, larger, blue — clearly visible, no emoji (jsPDF Helvetica doesn't support them)
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8.5 * scale);
+            doc.setFontSize(8.5 * TEXT * scale);
             doc.setTextColor(...BLUE);
             doc.text(
               '*** 4th MATCH: determined by the combination of players with the CLOSEST score after games 1, 2 & 3. ***',

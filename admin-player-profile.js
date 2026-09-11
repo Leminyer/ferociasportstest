@@ -48,6 +48,7 @@
     `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
   const ICONS = {
     gender:   '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    star:     '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
     ladder:   '<rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="16 3 12 7 8 3"/>',
     pin:      '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
@@ -211,7 +212,8 @@
               ${p.gender ? `<span class="pp-meta">${ppSVG(ICONS.gender)} ${esc(p.gender)}</span>` : ''}
               ${p.date_joined ? `<span class="pp-meta">${ppSVG(ICONS.calendar)} Joined ${fmtDate(p.date_joined)}</span>` : ''}
               <span class="pp-meta">${ppSVG(ICONS.ladder)} ${d.myLadders.length} Ladder${d.myLadders.length !== 1 ? 's' : ''}</span>
-              <span class="pp-meta">${ppSVG(ICONS.pin)} ${p.location ? esc(p.location) : '—'}</span>
+              <span class="pp-meta">${ppSVG(ICONS.pin)} ${
+                FerociaLocation.formatLocation(p.city, p.state) || '—'}</span>
             </div>
           </div>
         </div>
@@ -224,8 +226,7 @@
               <div id="pp-more-menu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:white;border:0.5px solid var(--divider-color);border-radius:10px;box-shadow:0 8px 24px rgba(8,15,46,.12);min-width:210px;z-index:60;overflow:hidden;">
                 <button data-action="ppEditPlayer" style="width:100%;text-align:left;padding:10px 14px;font-size:12px;font-weight:700;color:var(--text);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;">${ppSVG(ICONS.edit, 'var(--text-muted)')} Edit Player</button>
                 <button data-action="ppViewHistory" style="width:100%;text-align:left;padding:10px 14px;font-size:12px;font-weight:700;color:var(--text);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;">${ppSVG(ICONS.history, 'var(--text-muted)')} Status History</button>
-                ${p.portal_token ? `<button data-action="ppCopyDnaLink" style="width:100%;text-align:left;padding:10px 14px;font-size:12px;font-weight:700;color:var(--text);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;border-top:0.5px solid #f4f5f8;">${ppSVG(ICONS.link, 'var(--text-muted)')} Copy Player DNA Link</button>` : ''}
-                ${(p.email && !p.email_verified) ? `<button data-action="ppResendEmailVerification" style="width:100%;text-align:left;padding:10px 14px;font-size:12px;font-weight:700;color:var(--text);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;border-top:0.5px solid #f4f5f8;">${ppSVG(ICONS.mail, 'var(--text-muted)')} Resend Email Verification</button>` : ''}
+                ${p.email && !p.email_verified ? `<button data-action="ppResendEmailVerification" style="width:100%;text-align:left;padding:10px 14px;font-size:12px;font-weight:700;color:var(--text);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;border-top:0.5px solid #f4f5f8;">${ppSVG(ICONS.mail, 'var(--text-muted)')} Resend Email Verification</button>` : ''}
                 ${(p.phone && !p.phone_verified) ? `<button data-action="ppResendSmsVerification" style="width:100%;text-align:left;padding:10px 14px;font-size:12px;font-weight:700;color:var(--text);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;${(p.email && !p.email_verified) ? '' : 'border-top:0.5px solid #f4f5f8;'}">${ppSVG(ICONS.phone, 'var(--text-muted)')} Resend SMS Verification</button>` : ''}
                 <button data-action="ppResetPlayerDna" style="width:100%;text-align:left;padding:10px 14px;font-size:12px;font-weight:700;color:var(--orange);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;border-top:0.5px solid #f4f5f8;">${ppSVG('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>', 'var(--orange)')} Reset Player DNA</button>
               </div>
@@ -405,10 +406,19 @@
     const age = ageFromDOB(p.date_of_birth);
     const quickInfoHTML = `
       <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.mail)} Email</div><div class="pp-quick-val">${p.email ? esc(p.email) : '—'} ${p.email ? `<span class="${p.email_verified ? 'pp-pill-verified' : 'pp-pill-unverified'}">${p.email_verified ? 'Verified' : 'Unverified'}</span>` : ''}</div></div>
-      <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.phone)} Phone</div><div class="pp-quick-val">${p.phone ? esc(p.phone) : '—'} ${p.phone ? `<span class="${p.phone_verified ? 'pp-pill-verified' : 'pp-pill-unverified'}">${p.phone_verified ? 'Verified' : 'Unverified'}</span>` : ''}</div></div>
+      <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.phone)} Phone</div><div class="pp-quick-val">${p.phone ? esc(FerociaPhone.format(p.country_code, p.phone)) : '—'} ${p.phone ? `<span class="${p.phone_verified ? 'pp-pill-verified' : 'pp-pill-unverified'}">${p.phone_verified ? 'Verified' : 'Unverified'}</span>` : ''}</div></div>
       <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.skill)} Skill Level</div><div class="pp-quick-val">${p.skill_level ? esc(p.skill_level) : '—'}</div></div>
-      <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.calendar)} Date of Birth</div><div class="pp-quick-val">${p.date_of_birth ? `${fmtDate(p.date_of_birth)}${age !== null ? ` (${age})` : ''}` : '—'}</div></div>
-      <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.pin)} Location</div><div class="pp-quick-val">${p.location ? esc(p.location) : '—'}</div></div>`;
+      <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.star)} Coach Rating</div><div class="pp-quick-val">${
+        p.coach_rating !== null && p.coach_rating !== undefined
+          ? Number(p.coach_rating).toFixed(3)
+          : '—'
+      }</div></div>
+      <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.calendar)} Date of Birth</div><div class="pp-quick-val">${p.date_of_birth ? `${fmtDate(p.date_of_birth, { month:'2-digit', day:'2-digit', year:'numeric' })}${age !== null ? ` (${age} ${age === 1 ? 'year' : 'years'})` : ''}` : '—'}</div></div>
+      <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.pin)} Location</div><div class="pp-quick-val">${
+        // players.location is empty on all 289 rows; city + state are the
+        // real source. The column is left in place for now so removing it
+        // is a separate, deliberate step.
+        esc(FerociaLocation.formatLocation(p.city, p.state)) || '—'}</div></div>`;
 
     el.innerHTML = `
       <div class="pp-grid">
@@ -2154,16 +2164,6 @@
     document.getElementById('edit-id').value = _ppCurrent.p.id;
     window.openPlayerHistory();
   };
-  const ppCopyDnaLink = () => {
-    if (!_ppCurrent?.p?.portal_token) return;
-    const base = window.location.origin + window.location.pathname.replace(/admin\.html$/, '');
-    const url  = `${base}portal/player-dna.html?t=${_ppCurrent.p.portal_token}`;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(url).then(() => toast('Player DNA link copied!'), () => toast(url));
-    } else {
-      toast(url);
-    }
-  };
   // Opens a simple subject+message modal and sends a single email to the
   // current player — same underlying send mechanism as Notify Players
   // (sendOneEmail), just scoped to one recipient instead of a ladder roster.
@@ -2195,12 +2195,19 @@
 
     try {
       emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
-      const ok = await window.sendOneEmail(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.LADDER_NOTIFY, {
+      // MESSAGE, not LADDER_NOTIFY: this is a plain note to one player, and
+      // the ladder template ends with a "View Leaderboard" button that has
+      // nothing to do with it.
+      const ok = await window.sendOneEmail(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.MESSAGE, {
         player_name: `${p.first_name} ${p.last_name}`,
         player_email: p.email,
-        email_title: 'Ferocia Sports Center',
+        // The subject, not a fixed string: {{email_title}} is the big heading
+        // in the blue header, so "Rained out — session cancelled" reads far
+        // better there than "Ferocia Sports Center" on every single email.
+        email_title: subject,
         subject, message,
-        leaderboard_url: window.location.origin + window.location.pathname.replace('admin.html', '') + 'players.html',
+        // leaderboard_url removed with the template switch — the new one
+        // has no leaderboard button, so the variable had nothing to fill.
       });
       if (ok) {
         window.logAuditAction(p.id, 'email_sent', `Sent email: ${subject}`);
@@ -2271,7 +2278,6 @@
     ppToggleMore:   () => ppToggleMore(),
     ppEditPlayer:   () => ppEditPlayer(),
     ppViewHistory:  () => ppViewHistory(),
-    ppCopyDnaLink:  () => ppCopyDnaLink(),
     ppResendEmailVerification: () => ppResendEmailVerification(),
     ppResendSmsVerification:   () => ppResendSmsVerification(),
     ppResetPlayerDna:          () => ppResetPlayerDna(),

@@ -19,12 +19,12 @@
   <meta name="twitter:image"      content="https://ferociasports.com/og-preview.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="design-tokens.css">
+<link rel="stylesheet" href="design-tokens.css?v=20260826g">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script src="config.js"></script>
-<script src="db.js"></script>
-<script src="assets.js"></script>
+<script src="config.js?v=20260826g"></script>
+<script src="db.js?v=20260826g"></script>
+<script src="assets.js?v=20260826g"></script>
 <style>
 :root {
   /* Dark-theme override — this page uses a dark hero background with
@@ -165,6 +165,11 @@ header{
   background:#0d1a4a;border:1px solid rgba(255,255,255,.08);
   border-radius:16px;overflow:hidden;cursor:pointer;
   transition:transform .2s,box-shadow .2s,border-color .2s;
+  /* Column flex so the body can stretch and push the Register button to
+     the bottom edge. Cards in a grid row already share a height (the
+     default align-items:stretch), but without this the button floated
+     right under whatever text each card happened to have. */
+  display:flex;flex-direction:column;
 }
 .ecard:hover{
   transform:translateY(-4px);
@@ -177,7 +182,22 @@ header{
   background:linear-gradient(135deg,#1a3fc4,var(--blue));
   display:flex;align-items:center;justify-content:center;font-size:56px;
 }
-.ecard-body{padding:18px 20px 22px;}
+.ecard-body{padding:18px 20px 22px;flex:1 1 auto;display:flex;flex-direction:column;}
+/* Time under the date, dimmer so the date still leads. */
+.ecard-time{
+  font-family:'Inter',sans-serif;font-size:12px;font-weight:600;
+  color:rgba(255,255,255,.62);margin-top:4px;
+}
+/* margin-top:auto eats the leftover space, pinning the button to the bottom. */
+.ecard-reg{
+  display:block;margin-top:auto;padding-top:14px;
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:800;
+  letter-spacing:1.5px;text-transform:uppercase;text-align:center;text-decoration:none;
+}
+.ecard-reg span{
+  display:block;background:var(--lime);color:var(--dark);
+  border-radius:99px;padding:10px 18px;
+}
 .ecard-date{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal);margin-bottom:8px;}
 .ecard-title{font-size:16px;font-weight:800;line-height:1.3;margin-bottom:6px;}
 .ecard-desc{font-size:12px;font-weight:500;color:rgba(255,255,255,.5);line-height:1.6;}
@@ -399,7 +419,34 @@ footer{
   // ── Load upcoming events ──────────────────────────────────
   const today = new Date().toISOString().split('T')[0];
   let events = [];
-  try { events = await api(`events?event_date=gte.${today}&select=*&order=event_date.asc`); } catch(_) {}
+  /* WHICH EVENTS ARE STILL SHOWN
+     event_date means different things per type: for a tournament it is the
+     day it happens, for a ladder or clinic it is the day it STARTED. So a
+     plain "event_date >= today" made every clinic vanish the day after it
+     began, even though it runs every week.
+
+       · tournament / other  → hidden once their date has passed
+       · ladder              → shown until end_date (or forever if unset,
+                               so an older ladder never silently disappears)
+       · clinic / private    → always shown; they recur with no end
+
+     Order by date, then time. nullslast matters twice: PostgREST puts
+     nulls FIRST by default, which would push an event with no time ahead
+     of one starting at 8am the same day. */
+  try {
+    events = await api(`events?or=(event_date.gte.${today},and(event_type.eq.ladder,or(end_date.gte.${today},end_date.is.null)),event_type.in.(clinic,private_session))&select=*&order=event_date.asc,event_time.asc.nullslast`);
+  } catch(_) {}
+
+  /* Recurring events last. A clinic that started in July would otherwise
+     sort above a tournament in October, burying the thing that actually
+     happens next under something that happens every week. */
+  const RECURRING = ['clinic', 'private_session'];
+  events.sort((a, b) => {
+    const ra = RECURRING.includes(a.event_type) ? 1 : 0;
+    const rb = RECURRING.includes(b.event_type) ? 1 : 0;
+    if (ra !== rb) return ra - rb;
+    return String(a.event_date).localeCompare(String(b.event_date));
+  });
 
   const grid = document.getElementById('events-grid');
   if (!events.length) {
@@ -414,19 +461,30 @@ footer{
       const img = ev.flyer_url
         ? `<img class="ecard-img" src="${esc(ev.flyer_url)}" alt="${esc(ev.title)}" loading="lazy">`
         : `<div class="ecard-placeholder">🏓</div>`;
+      // "09:00:00" from Postgres → "9:00 AM".
+      const fmtTime = (t) => {
+        if (!t) return '';
+        const [hStr, mStr] = String(t).split(':');
+        let h = parseInt(hStr, 10);
+        if (isNaN(h)) return '';
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        return `${h}:${(mStr || '00').slice(0, 2)} ${ampm}`;
+      };
+      const timeLabel = (ev.event_time && ev.end_time)
+        ? `${fmtTime(ev.event_time)} – ${fmtTime(ev.end_time)}`
+        : fmtTime(ev.event_time || ev.end_time);
+
       const regBtn = ev.registration_url
         ? `<a href="${esc(ev.registration_url)}" target="_blank" rel="noopener"
-              onclick="event.stopPropagation();"
-              style="display:block;margin-top:14px;font-family:'Inter',sans-serif;
-                     font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
-                     background:var(--lime);color:var(--dark);border-radius:99px;
-                     padding:10px 18px;text-align:center;text-decoration:none;">
-             Register Now
+              onclick="event.stopPropagation();" class="ecard-reg">
+             <span>Register Now</span>
            </a>` : '';
       return `<div class="ecard" data-flyer="${esc(ev.flyer_url||'')}" data-reg="${esc(ev.registration_url||'')}" onclick="openFlyer(this)">
         ${img}
         <div class="ecard-body">
           <div class="ecard-date">📅 ${dateLabel}</div>
+          ${timeLabel ? `<div class="ecard-time">🕘 ${timeLabel}</div>` : ''}
           <div class="ecard-title">${esc(ev.title)}</div>
           ${ev.description?`<div class="ecard-desc">${esc(ev.description)}</div>`:''}
           ${regBtn}
