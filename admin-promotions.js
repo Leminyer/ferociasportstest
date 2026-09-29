@@ -4,9 +4,29 @@
    Load order: admin-state.js -> admin-email-utils.js ->
                admin-promotions.js -> app.js
 
-   Extracted from app.js's PROMOTIONS section. Uses the shared
-   sendOneEmail()/AdminState.emailInFlight from admin-email-utils.js,
-   same as Tournament Notify and Email Notifications.
+   Extracted from app.js's PROMOTIONS section.
+
+   ── EL ENVÍO PASA POR EL SERVIDOR ─────────────────────────────────
+   Este módulo ya NO usa EmailJS. Manda con sendEmailServer() de
+   admin-email-utils.js, que llama a la Edge Function `send-email`.
+   Sigue usando AdminState.emailInFlight, igual que antes.
+
+   Lo que eso significa aquí:
+     · Una sola petición para toda la campaña, no una por persona.
+     · El mensaje se manda CRUDO: quien sustituye el nombre de cada
+       persona es la plantilla del servidor, no este archivo.
+     · La campaña queda registrada en `communications` y cada
+       destinatario en `communication_recipients`. De ahí sale también
+       la tarjeta "Last Campaign".
+
+   Hay UN solo camino de envío, a propósito: el botón Launch. La casilla
+   "Send only to me" no es un camino aparte — es el mismo envío con la
+   lista reducida a una dirección, para poder ensayarlo. Antes había
+   además un botón de prueba que iba por otro lado y no dejaba
+   registro; se quitó porque dos caminos que parecen lo mismo y no lo
+   son es como se cuela un fallo sin que nadie lo vea.
+
+   Tournament Notify y Email Notifications siguen con EmailJS por ahora.
 
    _subsShown is local module state (how many subscriber rows are
    currently shown) — the status-filter and search inputs need to reset
@@ -32,15 +52,127 @@
   /* Keys of everyone who is already a player, so each subscriber row can
      show the right icon without a lookup per row. Built once per load. */
   let _playerIndex   = new Map();
+  /* La ficha completa de esos mismos jugadores, para los datos que se
+     MUESTRAN aquí pero cuya verdad vive en la tabla de players.
+
+     Por qué existe este segundo mapa en vez de ampliar _playerIndex:
+     _playerIndex guarda sólo el id y de él dependen el iconito de
+     convertir y el aviso de duplicado, que funcionan. Cambiarle la
+     forma obligaría a tocar esos tres sitios. Los dos mapas se
+     construyen del mismo array, en la misma vuelta: no hay una segunda
+     consulta ni coste real. */
+  let _playerByKey   = new Map();
   let _subsShown     = 25;
+  /* 'month' | 'all' — qué periodo muestra el resumen por origen. No
+     afecta a la tabla: el resumen responde "¿de dónde vino la gente?",
+     la tabla responde "¿quién es?". Son dos preguntas distintas. */
+  let _summaryPeriod = 'month';
+  /* ─── ORIGEN DEL SUSCRIPTOR ────────────────────────────────
+     Los nombres visibles, los colores y las tres funciones que los
+     pintan viven en source-labels.js, porque la ficha del jugador
+     necesita exactamente lo mismo y admin.html la carga ANTES que este
+     archivo. Tenerlo duplicado habría hecho que renombrar una etiqueta
+     en un sitio dejara el otro desactualizado sin avisar. */
+  const FS = window.FerociaSource;
+  if (!FS) console.error('[Ferocia] source-labels.js must load before admin-promotions.js');
+
+  const SOURCE_NONE       = FS.NONE_KEY;     // '__none'
+  const SOURCE_NONE_LABEL = FS.NONE_LABEL;   // 'Not recorded'
+  const sourceMeta      = FS.meta;
+  const sourceMetaOrRaw = FS.metaOrRaw;
+  const sourcePill      = FS.pill;
+  const heardLabel      = FS.heardLabel;
+
+  /* ─── RESUMEN POR ORIGEN ───────────────────────────────────
+     La pregunta que justifica toda esta función: ¿de dónde está
+     saliendo la gente nueva?
+
+     Cuenta sobre la lista COMPLETA, no sobre lo que la tabla tenga
+     filtrado. Un resumen que cambiara con el filtro no sería un
+     resumen, sería un eco de lo que ya estás viendo.
+
+     Los suscriptores sin origen se cuentan aparte y NO entran en los
+     porcentajes: meter 429 filas de las que no se sabe nada dentro del
+     cálculo haría que cualquier canal real pareciera insignificante. */
+  const _renderSourceSummary = () => {
+    const cont = document.getElementById('sub-source-summary');
+    if (!cont) return;
+
+    const desde = (() => {
+      if (_summaryPeriod !== 'month') return null;
+      const n = new Date();
+      return new Date(n.getFullYear(), n.getMonth(), 1).toISOString();
+    })();
+
+    const enPeriodo = _allSubs.filter(s =>
+      !desde || (s.subscribed_at && s.subscribed_at >= desde));
+
+    const cuenta = new Map();
+    let sinOrigen = 0;
+    enPeriodo.forEach(s => {
+      // Sólo cuenta como "no rastreado" el que de verdad no tiene dato.
+      // Un origen que este archivo no reconozca igual se cuenta: el
+      // dato existe y esconderlo daría un total que no cuadra.
+      if (!s.source) { sinOrigen++; return; }
+      cuenta.set(s.source, (cuenta.get(s.source) || 0) + 1);
+    });
+
+    const conOrigen = enPeriodo.length - sinOrigen;
+    const filas = [...cuenta.entries()].sort((a, b) => b[1] - a[1]);
+
+    const toggle = (val, txt) => `
+      <button type="button" data-action="setSourcePeriod" data-period="${val}"
+        style="font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:5px 12px;border-radius:99px;cursor:pointer;font-family:'Inter',sans-serif;
+               border:0.5px solid ${_summaryPeriod === val ? 'transparent' : 'var(--divider-color)'};
+               background:${_summaryPeriod === val ? 'var(--blue)' : 'white'};
+               color:${_summaryPeriod === val ? 'white' : 'var(--text-muted)'};">${txt}</button>`;
+
+    const cuerpo = filas.length
+      ? filas.map(([src, n]) => {
+          const m = sourceMetaOrRaw(src);
+          const pct = conOrigen ? Math.round((n / conOrigen) * 100) : 0;
+          /* Cada tarjeta filtra la tabla al pulsarla: ver "12 de
+             Instagram" y querer saber quiénes son es el paso siguiente
+             natural, y así no hay que ir al menú de filtros. */
+          return `
+            <button type="button" data-action="filterBySource" data-source="${esc(src)}"
+              title="Show these subscribers in the table"
+              style="flex:0 0 auto;min-width:104px;text-align:left;padding:10px 13px;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;border:0.5px solid var(--divider-color);background:white;">
+              <div style="font-size:19px;font-weight:800;color:${m.fg};line-height:1;">${n}</div>
+              <div style="font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--text);margin-top:5px;">${esc(m.label)}</div>
+              <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;">${pct}% of tracked</div>
+            </button>`;
+        }).join('')
+      : `<div style="font-size:12px;font-weight:600;color:var(--text-muted);padding:4px 0;">
+           ${_summaryPeriod === 'month'
+             ? 'Nobody has subscribed yet this month.'
+             : 'No subscriber has a recorded source yet.'}
+           Once people arrive through a tagged link, the breakdown appears here.
+         </div>`;
+
+    cont.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text);">Where they came from</div>
+        <div style="display:flex;gap:6px;">${toggle('month', 'This month')}${toggle('all', 'All time')}</div>
+        <div style="flex:1;"></div>
+        ${sinOrigen ? `<div title="${esc(FS.NONE_HINT)}" style="font-size:10px;font-weight:600;color:var(--text-muted);">${sinOrigen} not recorded &mdash; excluded from the percentages</div>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${cuerpo}</div>`;
+  };
 
   const _renderSubsTable = () => {
     const search = (document.getElementById('sub-search')?.value || '').toLowerCase().trim();
     const filter = document.getElementById('sub-status-filter')?.value || 'all';
+    const srcFil = document.getElementById('sub-source-filter')?.value || 'all';
     const filtered = _allSubs.filter(s => {
       const nameMatch = `${s.first_name} ${s.last_name} ${s.email} ${s.phone || ''} ${FerociaPhone.searchable(s.country_code, s.phone)}`.toLowerCase().includes(search);
       const statusMatch = filter === 'all' || s.status === filter;
-      return nameMatch && statusMatch;
+      /* Los tres filtros se combinan (Y, no O): buscar "maria", estado
+         Active y origen Instagram devuelve las Marías activas que
+         llegaron por Instagram, no la suma de las tres listas. */
+      const srcMatch = srcFil === 'all'
+        || (srcFil === SOURCE_NONE ? !s.source : s.source === srcFil);
+      return nameMatch && statusMatch && srcMatch;
     });
     const slice   = filtered.slice(0, _subsShown);
     const total   = filtered.length;
@@ -64,6 +196,7 @@
             <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text);padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Email</th>
             <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text);padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Phone</th>
             <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text);padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Skill</th>
+            <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text);padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Source</th>
             <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text);padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Status</th>
             <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text);padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;">Joined</th>
             <th style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text);padding:10px 16px;text-align:left;border-bottom:0.5px solid #e0e7f5;background:#fafbff;text-align:right;">Actions</th>
@@ -80,8 +213,27 @@
                 </div>
               </td>
               <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:var(--text-muted);">${esc(s.email || '—')}</td>
-              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:var(--text-muted);">${s.phone ? esc(FerociaPhone.format(s.country_code, s.phone)) : '—'}</td>
-              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:var(--text-muted);text-transform:capitalize;">${esc(s.skill_level || '—')}</td>
+              ${/* Misma regla que el modal, y aqui tambien sin la marca:
+                    la tabla se lee de un vistazo, el modal es el que
+                    explica de donde sale cada dato. */''}
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:var(--text-muted);">${(() => {
+                const t = _fldTel(_playerByKey.get(_personKey(s)), s);
+                return t.phone ? esc(FerociaPhone.format(t.country_code, t.phone)) : '—';
+              })()}</td>
+              ${/* Misma regla que el modal: si ya es jugador, manda su
+                    ficha. Aquí SIN la marca "from player" a propósito —
+                    la tabla ya va apretada y una etiqueta por fila la
+                    volvería ilegible. El modal es donde se explica. */''}
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:var(--text-muted);text-transform:capitalize;">${esc(_fld(_playerByKey.get(_personKey(s)), s, 'skill_level').v || '—')}</td>
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;white-space:nowrap;">
+                ${sourcePill(s.source)}
+                ${/* La campaña va debajo y en pequeño: dice CUÁL anuncio,
+                      no de qué canal. Sólo aparece si la hay, para no
+                      dejar una línea vacía en cada fila antigua. */''}
+                ${s.source_campaign
+                  ? `<div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-top:3px;">${esc(s.source_campaign)}</div>`
+                  : ''}
+              </td>
               <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;">
                 <span style="font-size:9px;font-weight:800;padding:3px 9px;border-radius:99px;letter-spacing:.5px;text-transform:uppercase;${pillCSS(s.status)}">${esc(s.status || '—')}</span>
               </td>
@@ -133,6 +285,67 @@
   const _personKey = (r) =>
     `${(r.email || '').trim().toLowerCase()}|${_norm(r.first_name)}|${_norm(r.last_name)}`;
 
+  /* ─── DE DÓNDE SALE CADA DATO ─────────────────────────────────
+     Hay gente que está en las dos tablas: se suscribió por la web y
+     además es jugador. Para esas personas, los datos personales se
+     editan en la ficha del jugador — es lo que el admin hace todos los
+     días — y la fila del suscriptor se queda con los huecos del día en
+     que se apuntó, cuando el formulario ni pedía la mitad de los campos.
+
+     La decisión (aprobada): NO se copia el dato de una tabla a la otra.
+     Se muestra el del jugador, que es el único que se mantiene al día.
+     Copiarlo crearía dos versiones del mismo dato, y en la primera
+     corrección se contradirían sin que nada avisara.
+
+     Lo que NO se toca, a propósito: self_rating y todo el bloque de
+     origen. Esos son una FOTO del momento en que la persona se apuntó
+     — lo que ella creía que jugaba, por dónde llegó — y su valor está
+     justamente en que no cambian.
+     ──────────────────────────────────────────────────────────── */
+
+  const _vacio = (v) => v === null || v === undefined || String(v).trim() === '';
+
+  /* Devuelve el valor a mostrar y si vino de la ficha del jugador.
+
+     Regla, campo por campo:
+       1. Ya es jugador Y su ficha tiene ese dato → el de la ficha.
+       2. Si no → el del suscriptor, como hasta ahora.
+
+     El punto 2 no es un detalle: hay fichas de jugador a las que les
+     falta algún campo que el suscriptor SÍ tenía. Sin ese respaldo,
+     este cambio esconderia un dato que hoy se ve — peor que el problema
+     que viene a arreglar. Así nunca se muestra menos que antes. */
+  const _fld = (p, s, field) => {
+    const pv = p ? p[field] : null;
+    return _vacio(pv) ? { v: s[field], dePlayer: false }
+                      : { v: pv,       dePlayer: true  };
+  };
+
+  /* La ubicación son dos columnas pero un solo dato: si se mezclaran
+     (ciudad del jugador, estado del suscriptor) podría salir un
+     "Miami, FL" que no existe en ninguna de las dos fichas. Manda la
+     ciudad: quien la tenga, aporta las dos. */
+  const _fldUbic = (p, s) =>
+    (p && !_vacio(p.city)) ? { city: p.city, state: p.state, dePlayer: true  }
+                           : { city: s.city, state: s.state, dePlayer: false };
+
+  /* El telefono va con su prefijo de pais y por la misma razon que la
+     ubicacion viajan juntos: un numero de la ficha del jugador con el
+     prefijo del suscriptor seria un telefono que no existe. Manda el
+     numero: quien lo tenga, aporta los dos. */
+  const _fldTel = (p, s) =>
+    (p && !_vacio(p.phone))
+      ? { phone: p.phone, country_code: p.country_code, dePlayer: true  }
+      : { phone: s.phone, country_code: s.country_code, dePlayer: false };
+
+  /* La marca que explica de dónde salió el dato. Va en teal, el mismo
+     color del iconito de "Already a player", para que se lea como la
+     misma idea y no como un aviso de error. */
+  const _marcaPlayer = () =>
+    '<span style="font-size:9px;font-weight:800;letter-spacing:.3px;'
+    + 'text-transform:uppercase;color:var(--teal);margin-left:6px;'
+    + 'white-space:nowrap;">from player</span>';
+
   /* Icons for the actions column.
 
      Three states, decided per row:
@@ -182,6 +395,22 @@
   const svSection = (title) => `
     <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin:18px 0 4px;">${title}</div>`;
 
+  /* Three decimals, same convention as coach_rating on the player card.
+     Returns '' for null/undefined/'' so svRow falls back to its dash —
+     but NOT for 0, which is a real answer the subscriber gave and must
+     stay visually different from "did not answer". */
+  const svRating = (v) =>
+    (v === null || v === undefined || v === '') ? '' : Number(v).toFixed(3);
+
+  /* Una fila del bloque Personal: el valor ya formateado y, si salió de
+     la ficha del jugador, la marca que lo dice. Sin valor devuelve ''
+     para que svRow ponga su guion de siempre. */
+  const svPersonal = (campo, fmt) => {
+    if (_vacio(campo.v)) return '';
+    const txt = fmt(campo.v);
+    return campo.dePlayer ? `${txt}${_marcaPlayer()}` : txt;
+  };
+
   const subAge = (iso) => {
     if (!iso) return null;
     const b = new Date(iso + 'T00:00:00');
@@ -205,20 +434,62 @@
     const s = _allSubs.find(x => String(x.id) === String(subId));
     if (!s) { toast('Subscriber not found. Refresh the page.', true); return; }
 
+    /* Su ficha de jugador, si la tiene. undefined para quien sólo está
+       en la lista de correo, y entonces _fld devuelve el dato del
+       suscriptor y todo se ve exactamente igual que antes. */
+    const p = _playerByKey.get(_personKey(s));
+    const ubic = _fldUbic(p, s);
+    const tel  = _fldTel(p, s);
+
     document.getElementById('sv-name').textContent = `${s.first_name} ${s.last_name}`;
     document.getElementById('sv-body').innerHTML =
         svSection('Contact')
       + svRow('Email', esc(s.email))
-      + svRow('Phone', s.phone ? esc(FerociaPhone.format(s.country_code, s.phone)) : '')
+      + svRow('Phone', (() => {
+          if (_vacio(tel.phone)) return '';
+          const txt = esc(FerociaPhone.format(tel.country_code, tel.phone));
+          return tel.dePlayer ? `${txt}${_marcaPlayer()}` : txt;
+        })())
       + svSection('Personal')
-      + svRow('Gender', esc(s.gender))
-      + svRow('Date of Birth', esc(subDob(s.date_of_birth)))
-      + svRow('Location', esc(FerociaLocation.formatLocation(s.city, s.state)))
+      + svRow('Gender', svPersonal(_fld(p, s, 'gender'), esc))
+      + svRow('Date of Birth', svPersonal(_fld(p, s, 'date_of_birth'),
+          (v) => esc(subDob(v))))
+      + svRow('Location', (() => {
+          const txt = FerociaLocation.formatLocation(ubic.city, ubic.state);
+          if (!txt) return '';
+          return ubic.dePlayer ? `${esc(txt)}${_marcaPlayer()}` : esc(txt);
+        })())
       // The public form stores this lower-cased; the table capitalises it
       // with CSS, so this does the same for consistency.
-      + svRow('Skill Level', s.skill_level
-          ? esc(s.skill_level.charAt(0).toUpperCase() + s.skill_level.slice(1))
+      + svRow('Skill Level', svPersonal(_fld(p, s, 'skill_level'),
+          (v) => esc(String(v).charAt(0).toUpperCase() + String(v).slice(1))))
+      // The rating the subscriber gave themselves on the public form.
+      // Deliberately NOT the coach rating — the wording says so, so nobody
+      // mistakes it for an evaluated number.
+      + svRow('Self-Rating', svRating(s.self_rating)
+          ? `${esc(svRating(s.self_rating))}<span style="font-size:10px;font-weight:700;color:var(--text-muted);margin-left:6px;">self-reported</span>`
           : '')
+      /* Dos cosas distintas, separadas a propósito:
+           · Source       → lo que se MIDIÓ (la etiqueta del enlace)
+           · Heard about  → lo que la persona DIJO
+         Pueden no coincidir. Alguien puede llegar por un anuncio de
+         Instagram y contestar "me lo dijo un amigo" — y las dos cosas
+         son ciertas: el amigo se lo contó, el anuncio se lo recordó.
+         Por eso no se mezclan en una sola fila. */
+      + svSection('Where they came from')
+      + svRow('Source', s.source
+          ? sourcePill(s.source)
+          : `<span style="color:var(--text-muted);font-weight:600;">${SOURCE_NONE_LABEL}</span>`)
+      + svRow('Campaign', esc(s.source_campaign))
+      + svRow('They said', (() => {
+          if (!s.heard_about) return '';
+          const txt = esc(heardLabel(s.heard_about));
+          // El texto libre sólo existe con "Other", y es justo el que
+          // enseña lo que a la lista de opciones le falta.
+          return s.heard_about_other
+            ? `${txt}<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:3px;font-style:italic;">&ldquo;${esc(s.heard_about_other)}&rdquo;</div>`
+            : txt;
+        })())
       + svSection('Subscription')
       + svRow('Status', esc(s.status))
       + svRow('Subscribed', fmtDate(s.subscribed_at))
@@ -283,7 +554,25 @@
           <option value="Advanced Intermediate">Advanced Intermediate</option>
           <option value="Advanced">Advanced</option>
         </select></div>
-        <div>${lbl('Coach Rating', true)}<input type="number" id="sc-rating" min="1" max="8" step="0.001" placeholder="3.500" style="${inp}"></div>
+        ${/* El self-rating se muestra JUNTO al campo del coach, no en otra
+              pantalla: es en este momento, mientras decide el número,
+              cuando al entrenador le sirve saber cómo se ve la persona a
+              sí misma.
+
+              Es una referencia, NO un valor por defecto: la casilla sigue
+              vacía. Rellenarla con el self-rating invitaría a aceptarlo
+              sin pensar, y entonces el coach_rating dejaría de ser una
+              evaluación para pasar a ser una copia. */''}
+        <div>${lbl('Coach Rating', true)}<input type="number" id="sc-rating" min="1" max="8" step="0.001" placeholder="3.500" style="${inp}">
+          ${s.self_rating !== null && s.self_rating !== undefined
+            ? `<div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:5px;line-height:1.4;">
+                 They rated themselves
+                 <span style="font-weight:800;color:var(--text);">${esc(FS.rating(s.self_rating))}</span>
+               </div>`
+            : `<div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:5px;line-height:1.4;">
+                 They did not rate themselves
+               </div>`}
+        </div>
         <div>${lbl('Player Status', true)}<select id="sc-status" style="${inp}">
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
@@ -391,6 +680,27 @@
         status:        document.getElementById('sc-status').value,
         // The date they became a player, not the date they subscribed.
         date_joined:   todayISO(),
+
+        /* La historia de cómo llegó esta persona, que hasta ahora se
+           quedaba en el suscriptor. Se copia tal cual, sin tocarla:
+           son datos de un momento concreto y ya están validados por la
+           base, así que volver a "limpiarlos" aquí sólo podría
+           estropearlos.
+
+           ⚠️  self_rating NO pisa a coach_rating. Conviven:
+                 · self_rating  → lo que la persona cree que juega
+                 · coach_rating → lo que el entrenador acaba de evaluar
+               La diferencia entre ambos es justamente lo interesante.
+
+           `?? null` en vez de `|| null` a propósito: un self_rating de
+           0 es una respuesta real, y `||` lo convertiría en null,
+           borrando el dato de quien se calificó con cero. */
+        self_rating:       s.self_rating ?? null,
+        source:            s.source            || null,
+        source_campaign:   s.source_campaign   || null,
+        source_detail:     s.source_detail     || null,
+        heard_about:       s.heard_about       || null,
+        heard_about_other: s.heard_about_other || null,
       });
 
       /* Push the completed details back onto the subscriber row.
@@ -441,12 +751,25 @@
     // rather than per row: 419 subscribers would mean 419 lookups.
     // Non-fatal — if it fails the convert icon simply shows for everyone and
     // the modal catches the duplicate before creating anything.
+    /* Las columnas de más (phone, country_code, gender, date_of_birth,
+       city, state, skill_level) son para los datos que se muestran en
+       el modal y en las columnas Phone y Skill. No es una consulta
+       nueva: es la misma de antes pidiendo más campos. */
     try {
-      const players = await api('players?select=id,first_name,last_name,email');
-      _playerIndex = new Map(players.map(p => [_personKey(p), p.id]));
+      const players = await api(
+        'players?select=id,first_name,last_name,email,phone,country_code,'
+        + 'gender,date_of_birth,city,state,skill_level');
+      _playerIndex = new Map();
+      _playerByKey = new Map();
+      players.forEach(p => {
+        const k = _personKey(p);
+        _playerIndex.set(k, p.id);
+        _playerByKey.set(k, p);
+      });
     } catch (err) {
       console.warn('[promotions] could not load players for the convert icon:', err.message);
       _playerIndex = new Map();
+      _playerByKey = new Map();
     }
 
     // Stat cards
@@ -505,6 +828,7 @@
       });
     }
 
+    _renderSourceSummary();
     _renderSubsTable();
   };
 
@@ -544,11 +868,33 @@
     const modal = document.getElementById('promo-modal');
     if (!modal) return;
 
+    /* Lo que escribe el usuario: asunto, mensaje y texto de vista previa,
+       con sus contadores.
+
+       Está en una función porque se limpia en DOS momentos: al abrir el
+       modal y al cambiar de tipo de campaña. Tenerlo escrito dos veces
+       haría que añadir un campo mañana se arreglara en un sitio y se
+       olvidara en el otro — que es justo el fallo que acaba de aparecer. */
+    const limpiarComposer = () => {
+      const ed = document.getElementById('promo-message');
+      if (ed) ed.innerHTML = '';
+      const sj = document.getElementById('promo-subject');
+      if (sj) sj.value = '';
+      const pv = document.getElementById('promo-preview-text');
+      if (pv) pv.value = '';
+      // Los contadores también: si no, el campo queda vacío pero debajo
+      // sigue diciendo "412 / 2000", que es peor que no tener contador.
+      const c1 = document.getElementById('promo-char-count');
+      if (c1) c1.textContent = '0 / 2000';
+      const c2 = document.getElementById('promo-char-count2');
+      if (c2) c2.textContent = '0 / 2000';
+      const cp = document.getElementById('promo-preview-count');
+      if (cp) cp.textContent = '0 / 140';
+    };
+
     // Reset composer
     const editor = document.getElementById('promo-message');
-    if (editor) editor.innerHTML = '';
-    const subjectEl = document.getElementById('promo-subject');
-    if (subjectEl) subjectEl.value = '';
+    limpiarComposer();
 
     // Reset type pills to Tournament
     document.querySelectorAll('.promo-type-pill').forEach(p => p.classList.remove('active'));
@@ -565,6 +911,10 @@
     if (flyerInp) flyerInp.value = '';
     const otherFlyerInp = document.getElementById('promo-other-flyer-url');
     if (otherFlyerInp) otherFlyerInp.value = '';
+    // La etiqueta de cabecera también se reinicia al abrir: si no, el
+    // segundo correo del día saldría con la etiqueta del primero.
+    const headerInp = document.getElementById('promo-header-label');
+    if (headerInp) headerInp.value = ETIQUETA_POR_TIPO.Tournament;
 
     // Wire type pill clicks — show/hide event selector or flyer URL field
     const updateCampaignTypeUI = (type) => {
@@ -581,11 +931,33 @@
         pill.classList.add('active');
         if (typeInput) typeInput.value = pill.dataset.type;
         if (selTypeEl) selTypeEl.textContent = pill.dataset.type;
+        /* La etiqueta de la cabecera sigue al tipo de campaña, para no
+           tener que escribirla. Se sobrescribe siempre a propósito: si
+           se respetara lo que ya hubiera escrito, cambiar de Tournament
+           a Ladder dejaría la cabecera diciendo TOURNAMENT. Quien
+           quiera una etiqueta propia la escribe DESPUÉS de elegir el
+           tipo, que es el orden natural del formulario. */
+        const lblInp = document.getElementById('promo-header-label');
+        if (lblInp) lblInp.value = ETIQUETA_POR_TIPO[pill.dataset.type] || 'ANNOUNCEMENT';
+        /* Cambiar de tipo de campaña es empezar otra campaña distinta,
+           así que el asunto, el mensaje y el texto de vista previa del
+           anterior no deben quedarse. Antes se arrastraban, y era fácil
+           mandar un torneo con el asunto de una promoción. */
+        limpiarComposer();
         updateCampaignTypeUI(pill.dataset.type);
       };
     });
     // Trigger for initial state (Tournament selected by default)
     updateCampaignTypeUI('Tournament');
+
+    // Contador del texto de vista previa
+    const prevInp = document.getElementById('promo-preview-text');
+    if (prevInp) {
+      prevInp.oninput = () => {
+        const el = document.getElementById('promo-preview-count');
+        if (el) el.textContent = `${prevInp.value.length} / 140`;
+      };
+    }
 
     // Wire character counter
     if (editor) {
@@ -630,11 +1002,56 @@
       if (picker) picker.style.display = 'none';
     };
 
+    /* Cada vez que se abre el modal: casilla de ensayo desmarcada y
+       clave de campaña nueva.
+
+       Lo primero, porque una casilla que se queda marcada de la vez
+       anterior es la forma más fácil de creer que has lanzado a 450
+       personas cuando solo te lo mandaste a ti.
+
+       Lo segundo, porque abrir el modal es lo que distingue "reenviar
+       esta campaña a propósito" de "he hecho doble clic". */
+    const chkSolo = document.getElementById('promo-only-me');
+    if (chkSolo) chkSolo.checked = false;
+    actualizarEtiquetaLanzar();
+
+    /* ⚠️  OJO: la clave NO se renueva aquí si ya hay una pendiente.
+
+       Mi primera versión ponía una nueva cada vez que se abría el
+       modal, y eso abría un agujero grave:
+
+         1. Lanzas a 450. Salen los primeros 100.
+         2. El servidor revienta a mitad y devuelve error.
+         3. Cierras el modal, lo vuelves a abrir y lanzas otra vez.
+         4. Clave nueva → campaña NUEVA → esos 100 reciben una
+            SEGUNDA copia.
+
+       El envío fallido deja su clave puesta, así que reintentar
+       —hayas cerrado el modal o no— retoma la MISMA campaña y el
+       servidor se salta a quien ya recibió.
+
+       La clave se borra sola cuando una campaña termina bien. Por eso
+       reenviar una campaña a propósito sigue funcionando: después de
+       un envío correcto no queda ninguna, y aquí se pone una nueva. */
+    if (!_promoNonce) _promoNonce = _nuevoNonce();
+
     // Load audience + last campaign in parallel
     try {
-      const [subs, campaigns] = await Promise.all([
+      const [subs, campanas] = await Promise.all([
         api('subscribers?status=eq.active&select=id'),
-        api('campaigns?select=*&order=sent_at.desc&limit=1').catch(() => []),
+        /* La última campaña sale de `communications`, que es donde la
+           escribe ahora el servidor.
+
+           Tres detalles que no son opcionales:
+           · kind=eq.promo — `communications` guarda TODOS los correos
+             del club. Sin este filtro, un aviso de ladder aparecería
+             aquí como "última campaña".
+           · status=in.(sent,partial) — una campaña que falló del todo
+             no es la última que se envió.
+           · se piden 5 y no 1, para poder descartar los ensayos
+             "solo a mí" sin filtrar por dentro del JSON. */
+        api('communications?kind=eq.promo&status=in.(sent,partial)'
+            + '&select=sent_at,meta&order=sent_at.desc&limit=5').catch(() => []),
       ]);
 
       const count = subs.length;
@@ -644,9 +1061,10 @@
       const recipEl = document.getElementById('promo-recipient-count');
       if (recipEl) recipEl.innerHTML = `<span style="font-weight:800;color:var(--teal);">${count} active subscriber${count !== 1 ? 's' : ''}</span> will receive this campaign.`;
 
-      const last = campaigns?.[0] || null;
+      const last = (campanas || []).find(
+        (c) => c.sent_at && !(c.meta && c.meta.solo_admin)) || null;
       setEl('promo-last-sent', last ? _relTimePromo(last.sent_at) : 'No campaigns yet');
-      setEl('promo-last-type', last ? last.campaign_type || 'General' : '');
+      setEl('promo-last-type', last ? (last.meta && last.meta.campaign_type) || 'General' : '');
 
     } catch (e) {
       const recipEl = document.getElementById('promo-recipient-count');
@@ -692,158 +1110,385 @@
     }
   };
 
-  const sendTestPromoEmail = async () => {
-    if (window.AdminState.emailInFlight) { toast('Please wait for the current send to finish.', true); return; }
+  /* ─── LOS DATOS QUE VIAJAN A LA PLANTILLA ──────────────────
+     Un solo sitio los construye, y un solo camino los usa. Antes había
+     dos caminos que armaban la misma lista por separado, y eso permitía
+     que una prueba saliera perfecta y el envío de verdad llevara algo
+     distinto sin que nadie lo notara.
 
-    const subject = document.getElementById('promo-subject').value.trim();
-    const editor  = document.getElementById('promo-message');
-    const message = editor ? editor.innerText.trim() : '';
-    const campaignType = document.getElementById('promo-campaign-type')?.value || 'Other';
+     ⚠️  Las claves tienen que coincidir EXACTAMENTE con las que lee la
+         plantilla del servidor (send-email/templates.ts, renderPromo).
+         Una clave que no existe allí se ignora en silencio: no da
+         error, simplemente no aparece en el correo. */
 
-    // Resolve flyer URL same as real send
-    let promoFlyerUrl = '';
-    if (campaignType === 'Tournament' || campaignType === 'Ladder') {
-      const sel = document.getElementById('promo-event-select');
-      if (!sel || !sel.value) { toast('Please select an event first.', true); return; }
-      promoFlyerUrl = document.getElementById('promo-event-flyer-url')?.value || '';
-    } else if (campaignType === 'Other') {
-      promoFlyerUrl = document.getElementById('promo-other-flyer-url')?.value.trim() || '';
-    }
+  /* Cuando no hay flyer se manda un espaciador transparente de 600x1.
 
-    if (!subject || !message) {
-      toast('Please fill in the subject and message before sending a test.', true);
-      return;
-    }
+     Antes se mandaba un GIF de 1x1 incrustado en el propio correo, y
+     eso fallaba por dos motivos:
+       · la plantilla lo estiraba al 100% de ancho y, al ser cuadrado,
+         crecía también a 600 de ALTO: un hueco vacío enorme en medio
+         del correo (medido: 1245px de alto contra 646px sin él);
+       · Gmail elimina las imágenes incrustadas en formato data:, así
+         que además aparecía rota.
+     Un archivo de 600x1 ya tiene la proporción correcta y ocupa 1px. */
+  const SPACER_FLYER =
+    'https://yyocceadorckkfbgnbqk.supabase.co/storage/v1/object/public/'
+    + 'newsletter-images/logo/spacer-600x1.png';
 
-    const testBtn = document.getElementById('promo-test-btn');
-    const origHTML = testBtn.innerHTML;
-    testBtn.disabled = true;
-    testBtn.innerHTML = 'Sending test...';
-
-    try {
-      emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
-      const ok = await window.sendOneEmail(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.PROMO, {
-        player_name:     'Ferocia Admin',
-        player_email:    CFG.ADMIN_EMAIL,
-        subject:         `[TEST] ${subject}`,
-        message:         message,
-        unsubscribe_url: '#',
-        flyer_url:       promoFlyerUrl || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
-      });
-      if (ok) {
-        toast(`✅ Test email sent to ${CFG.ADMIN_EMAIL}`);
-      } else {
-        toast('Test email failed. Check your EmailJS config.', true);
-      }
-    } catch (err) {
-      toast(`Error: ${err.message}`, true);
-    } finally {
-      testBtn.disabled = false;
-      testBtn.innerHTML = origHTML;
-    }
+  /* La etiqueta de la cabecera, arriba a la derecha. Sale del tipo de
+     campaña que ya se elige arriba, así que no hay que escribirla dos
+     veces — pero se puede cambiar a mano para un caso suelto. */
+  const ETIQUETA_POR_TIPO = {
+    Tournament: 'TOURNAMENT',
+    Ladder:     'LADDER',
+    Other:      'ANNOUNCEMENT',
   };
 
-  const sendPromoEmail = async (e) => {
-    e.preventDefault();
-    const subject = document.getElementById('promo-subject').value.trim();
+  const etiquetaCabecera = (campaignType) => {
+    const escrita = (document.getElementById('promo-header-label')?.value || '').trim();
+    const v = escrita || ETIQUETA_POR_TIPO[campaignType] || 'ANNOUNCEMENT';
+    // Mayúsculas y sin acentos: la cabecera es una etiqueta corta, y así
+    // se ve igual la escriba quien la escriba.
+    return v.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().slice(0, 24);
+  };
+
+  /* Los marcadores fuera.
+
+     Antes el texto de vista previa se calculaba DESPUÉS de sustituir
+     {first_name} por el nombre real, porque la sustitución la hacía el
+     navegador persona a persona. Ahora la hace el servidor, así que
+     aquí el mensaje todavía los lleva puestos — y un asunto de bandeja
+     que dijera "Hi {first_name}, come play" quedaría fatal.
+
+     Se quitan y se recoloca la puntuación: "Hi {first_name}, come
+     play" → "Hi, come play". Si no te gusta cómo queda, el campo
+     "Preview text" del formulario manda sobre esto. */
+  const sinMarcadores = (t) => String(t || '')
+    .replace(/\{\s*first_name\s*\}/gi, '')
+    .replace(/\{\{\s*player_name\s*\}\}/gi, '')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  /* El texto que se lee en la bandeja de entrada, antes de abrir.
+     Si no se escribe uno, se saca del principio del mensaje: cualquier
+     cosa es mejor que dejar que el programa de correo muestre "Hi Ana,",
+     que es lo que hacía hasta ahora. */
+  const textoVistaPrevia = (mensaje) => {
+    const escrito = (document.getElementById('promo-preview-text')?.value || '').trim();
+    if (escrito) return escrito.slice(0, 140);
+    const limpio = sinMarcadores(mensaje);
+    if (limpio.length <= 140) return limpio;
+    // Corta en la última palabra entera, no a mitad de una.
+    return limpio.slice(0, 140).replace(/\s+\S*$/, '') + '…';
+  };
+
+  /* ─── UN SOLO SITIO QUE LEE EL FORMULARIO ──────────────────
+     La prueba y el envío real leían los mismos cuatro campos con el
+     mismo código copiado dos veces, validación incluida. Eso es
+     exactamente la trampa que avisa el comentario de arriba, un nivel
+     más abajo: una prueba podía resolver el flyer de una manera y el
+     envío de verdad de otra, y nadie se enteraría hasta que el correo
+     saliera mal a 450 personas.
+
+     Devuelve null si falta algo, y ya ha avisado con un toast. */
+  const leerFormulario = () => {
+    const subject = (document.getElementById('promo-subject')?.value || '').trim();
     const editor  = document.getElementById('promo-message');
     const message = editor ? editor.innerText.trim() : '';
     const campaignType = document.getElementById('promo-campaign-type')?.value || 'Other';
 
-    // Resolve flyer URL: from event selector or from Other flyer URL input
-    let promoFlyerUrl = '';
+    let flyerUrl = '';
     if (campaignType === 'Tournament' || campaignType === 'Ladder') {
       const sel = document.getElementById('promo-event-select');
-      if (sel && sel.value) {
-        promoFlyerUrl = document.getElementById('promo-event-flyer-url')?.value || '';
-      } else {
-        toast('Please select an event.', true); return;
-      }
+      if (!sel || !sel.value) { toast('Please select an event.', true); return null; }
+      flyerUrl = document.getElementById('promo-event-flyer-url')?.value || '';
     } else if (campaignType === 'Other') {
-      promoFlyerUrl = document.getElementById('promo-other-flyer-url')?.value.trim() || '';
+      flyerUrl = (document.getElementById('promo-other-flyer-url')?.value || '').trim();
     }
 
     if (!subject || !message) {
       toast('Please fill in the subject and message.', true);
-      return;
+      return null;
     }
+    return { subject, message, campaignType, flyerUrl };
+  };
 
-    let subs = [];
+  /* Lo que vale para TODA la campaña, no para una persona.
+
+     Vive en `communications.meta`, una sola vez por campaña, y de ahí
+     la lee el servidor para pintar los 450 correos. Lo que cambia por
+     persona (su nombre, su enlace de baja) va aparte, en cada
+     destinatario.
+
+     ⚠️  Las claves tienen que coincidir EXACTAMENTE con las que usa la
+         plantilla del servidor (templates.ts, renderPromo). Una clave
+         que no existe allí se ignora en silencio: no da error,
+         simplemente no aparece en el correo. */
+  const metaPromo = ({ campaignType, message, flyerUrl }) => ({
+    /* Cuando no hay flyer va el espaciador, NO una cadena vacía. La
+       plantilla omite la fila de la imagen si la URL está vacía, y eso
+       cambiaría el alto del correo respecto a como sale hoy. Esta
+       etapa mueve el envío; no cambia cómo se ven los correos. */
+    flyer_url:     flyerUrl || SPACER_FLYER,
+    email_type:    etiquetaCabecera(campaignType),
+    preview_text:  textoVistaPrevia(message),
+    /* Para la tarjeta "Last Campaign". `communications.kind` es 'promo'
+       en todas las campañas, así que el tipo (Tournament / Ladder /
+       Other) no cabe ahí: va aquí, que es la columna que existe justo
+       para lo que cambia según el caso. */
+    campaign_type: campaignType,
+  });
+
+  /* ─── CONTRA EL ENVÍO DUPLICADO ────────────────────────────
+     El servidor rechaza una campaña repetida si llega con la misma
+     idempotency_key. La clave se compone de dos trozos, y cada uno
+     resuelve un caso distinto:
+
+       · el NONCE, que se renueva al abrir el modal
+       · el HASH del contenido
+
+     Doble clic en Launch      → mismo nonce, mismo hash → misma clave
+                                 → el segundo no manda nada. ✔
+     Editas el texto y reenvías→ mismo nonce, OTRO hash → clave nueva
+       sin cerrar el modal        → campaña nueva con el texto nuevo. ✔
+                                 (con una clave sola por contenido, el
+                                 servidor habría retomado la campaña
+                                 vieja y mandado el texto ANTERIOR)
+     Cierras y reabres el modal→ nonce nuevo → campaña nueva, aunque el
+                                 texto sea idéntico: un reenvío a
+                                 propósito tiene que poder hacerse. ✔ */
+  let _promoNonce = null;
+
+  const _nuevoNonce = () =>
+    Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+  const _hashCorto = async (txt) => {
     try {
-      subs = await api('subscribers?status=eq.active&select=*');
-    } catch (err) {
-      toast(`Error: ${err.message}`, true);
-      return;
+      if (!window.crypto || !window.crypto.subtle) return null;
+      const buf = await window.crypto.subtle.digest(
+        'SHA-256', new TextEncoder().encode(txt));
+      return [...new Uint8Array(buf)].slice(0, 8)
+        .map((b) => b.toString(16).padStart(2, '0')).join('');
+    } catch (_) {
+      /* Sin crypto.subtle no hay clave. Se manda sin ella: el envío
+         funciona igual y el botón deshabilitado sigue cubriendo el
+         doble clic. Es peor, pero no es un motivo para no enviar. */
+      return null;
     }
-    if (!subs.length) {
-      toast('No active subscribers to send to.', true);
+  };
+
+  /* La clave es SOLO para el envío a la lista.
+
+     El ensayo va sin clave, y no es un descuido. Protegerlo de
+     duplicados no aporta nada —es un correo a tu propia dirección— y
+     en cambio costaba algo real: dos ensayos seguidos del mismo texto
+     habrían compartido clave, y el segundo no te habría llegado. Te
+     quedarías mirando la bandeja sin entender por qué. El botón
+     deshabilitado ya cubre el doble clic. */
+  const claveCampana = async (datos) => {
+    if (!_promoNonce) _promoNonce = _nuevoNonce();
+    const h = await _hashCorto([
+      datos.subject, datos.message, datos.campaignType, datos.flyerUrl,
+    ].join('\u0000'));
+    return h ? `promo-${_promoNonce}-${h}` : null;
+  };
+
+  /* ─── LA ETIQUETA DEL BOTÓN SIGUE A LA CASILLA ─────────────
+     Un botón que dice "Launch Campaign" mientras la casilla de ensayo
+     está marcada es una trampa: dice una cosa y hace otra. Con la
+     casilla puesta, el botón lo dice.
+
+     Se guarda el HTML original una sola vez y se sustituye solo el
+     texto, para no perder el icono.
+
+     ⚠️  El texto "Launch Campaign" tiene que coincidir con el de
+         admin.html. Si allí cambia, aquí hay que cambiarlo también. */
+  let _lanzarHTMLOriginal = null;
+
+  const actualizarEtiquetaLanzar = () => {
+    const btn = document.getElementById('promo-send-btn');
+    if (!btn) return;
+    if (_lanzarHTMLOriginal === null) _lanzarHTMLOriginal = btn.innerHTML;
+    const solo = !!document.getElementById('promo-only-me')?.checked;
+    btn.innerHTML = solo
+      ? _lanzarHTMLOriginal.replace('Launch Campaign', 'Launch — only to me')
+      : _lanzarHTMLOriginal;
+  };
+
+  /* El nombre para el saludo del correo.
+
+     `[a, b].filter(Boolean).join(' ')` y no `${a} ${b}`: un suscriptor
+     sin apellido salía saludado como "Hi Ana null," porque la
+     interpolación convierte el null en texto. Con la lista filtrada
+     queda "Hi Ana,". */
+  const nombreDe = (s) =>
+    [s.first_name, s.last_name].filter(Boolean).join(' ').trim() || 'Player';
+
+  /* Una línea que resuma lo que devolvió el servidor.
+
+     Se mira campo por campo porque cada uno significa algo distinto y
+     mezclarlos sería mentir:
+       sent        salieron en esta ejecución
+       already_sent ya habían salido antes (un reintento)
+       failed      rebotaron o Resend los rechazó
+       unconfirmed salieron, pero no se pudo escribir su fila: se
+                   recuperan solos en el siguiente intento
+       invalid_addresses descartados antes de empezar por no ser un
+                   correo válido — nunca se intentaron */
+  const resumenEnvio = (d) => {
+    const partes = [];
+    if (d.sent)         partes.push(`${d.sent} sent`);
+    if (d.already_sent) partes.push(`${d.already_sent} already sent earlier`);
+    if (d.failed)       partes.push(`${d.failed} failed`);
+    if (d.unconfirmed)  partes.push(`${d.unconfirmed} unconfirmed (will retry)`);
+    if (d.invalid_addresses) partes.push(`${d.invalid_addresses} invalid address${d.invalid_addresses === 1 ? '' : 'es'}`);
+    return partes.length ? partes.join(', ') : 'nothing to send';
+  };
+
+  const sendPromoEmail = async (e) => {
+    e.preventDefault();
+
+    if (window.AdminState.emailInFlight) {
+      toast('Please wait for the current send to finish.', true);
       return;
     }
 
-    const sendBtn = document.getElementById('promo-send-btn');
+    const datos = leerFormulario();
+    if (!datos) return;
+
+    /* ¿Ensayo o de verdad? La casilla se desmarca sola cada vez que se
+       abre el modal, así que un ensayo de ayer no puede convertirse en
+       el lanzamiento de hoy sin querer. */
+    const soloAdmin = !!document.getElementById('promo-only-me')?.checked;
+
+    const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
+
+    /* Tu copia. Va siempre, y va AL FINAL igual que antes.
+
+       Si tu dirección está además en la lista de suscriptores, el
+       servidor se queda con la PRIMERA aparición — la del suscriptor,
+       con su enlace de baja real — y descarta esta. Antes recibías dos
+       copias en ese caso. */
+    const copiaAdmin = {
+      email: CFG.ADMIN_EMAIL,
+      name:  'Ferocia Admin',
+      vars:  { unsubscribe_url: `${baseUrl}unsubscribe.html` },
+    };
+
+    let recipients;
+    if (soloAdmin) {
+      recipients = [copiaAdmin];
+    } else {
+      let subs = [];
+      try {
+        subs = await api('subscribers?status=eq.active&select=*');
+      } catch (err) {
+        toast(`Error: ${err.message}`, true);
+        return;
+      }
+      if (!subs.length) {
+        toast('No active subscribers to send to.', true);
+        return;
+      }
+      recipients = [
+        ...subs.map((s) => ({
+          email: s.email,
+          name:  nombreDe(s),
+          subscriber_id: s.id,
+          /* Cada enlace de baja lleva el token de SU dueño. Esto es lo
+             único que cambia por persona, y por eso viaja en `vars`:
+             el servidor lo guarda con su fila y así puede pintar el
+             correo de cualquiera sin volver a preguntar al navegador. */
+          vars: {
+            unsubscribe_url: s.unsubscribe_token
+              ? `${baseUrl}unsubscribe.html?t=${s.unsubscribe_token}`
+              : `${baseUrl}unsubscribe.html`,
+          },
+        })),
+        copiaAdmin,
+      ];
+    }
+
+    const sendBtn  = document.getElementById('promo-send-btn');
+    const origHTML = sendBtn.innerHTML;
     sendBtn.disabled = true;
-    sendBtn.innerHTML = 'Sending...';
+    /* Ya no hay contador "127/450": el envío es UNA petición, no 450.
+       Lo que se puede decir con verdad es a cuánta gente va. */
+    sendBtn.innerHTML = soloAdmin
+      ? 'Sending rehearsal to you...'
+      : `Sending to ${recipients.length} people...`;
     window.AdminState.emailInFlight = true;
 
-    emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
-    const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
-    let sent = 0;
-    const failedRecipients = [];
-
-    // Admin copy always last
-    const allPromoRecipients = [
-      ...subs,
-      { first_name: 'Ferocia', last_name: 'Admin', email: CFG.ADMIN_EMAIL, unsubscribe_token: null },
-    ];
-
-    for (const sub of allPromoRecipients) {
-      const unsubUrl = sub.unsubscribe_token
-        ? `${baseUrl}unsubscribe.html?t=${sub.unsubscribe_token}`
-        : `${baseUrl}unsubscribe.html`;
-      // Replace {first_name} with real name
-      const personalizedMsg = message.replace(/\{first_name\}/g, sub.first_name || 'Player');
-      const ok = await window.sendOneEmail(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.PROMO, {
-        player_name:     `${sub.first_name} ${sub.last_name}`,
-        player_email:    sub.email,
-        subject,
-        message:         personalizedMsg,
-        unsubscribe_url: unsubUrl,
-        flyer_url:       promoFlyerUrl || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    let r;
+    try {
+      r = await window.sendEmailServer({
+        kind:     'promo',
+        template: 'promo',
+        subject:  datos.subject,
+        /* El mensaje CRUDO, con los {first_name} sin tocar. La
+           sustitución la hace el servidor por persona. Guardar aquí el
+           texto ya personalizado dejaría en la base de datos el correo
+           de una sola persona en vez de la campaña. */
+        body: datos.message,
+        meta: {
+          ...metaPromo(datos),
+          /* Marca el ensayo para que no cuente como "Last Campaign". */
+          ...(soloAdmin ? { solo_admin: true } : {}),
+        },
+        recipients,
+        idempotency_key: soloAdmin ? null : await claveCampana(datos),
       });
-      if (ok) sent++;
-      else failedRecipients.push(sub.email);
-      sendBtn.innerHTML = `Sending... ${sent + failedRecipients.length}/${allPromoRecipients.length}`;
-      if (sent + failedRecipients.length < allPromoRecipients.length) {
-        await sleep(CFG.EMAIL_THROTTLE_MS);
-      }
+    } finally {
+      /* En finally: si esto no se limpia, `emailInFlight` se queda en
+         true y la página avisa de un envío en curso para siempre,
+         además de bloquear el botón de prueba. */
+      window.AdminState.emailInFlight = false;
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = origHTML;
     }
 
-    // Record campaign in DB
-    try {
-      await api('campaigns', 'POST', {
-        subject,
-        message,
-        campaign_type: campaignType,
-        sent_at:       new Date().toISOString(),
-        sent_count:    sent,
-        failed_count:  failedRecipients.length,
-      });
-    } catch(_) { /* non-critical — don't block on this */ }
+    if (!r.ok) {
+      /* El modal NO se cierra cuando falla. Antes se cerraba siempre y
+         el mensaje escrito se perdía; ahora el texto sigue ahí y se
+         puede reintentar. Y reintentar es seguro: con la misma clave,
+         el servidor retoma la misma campaña en vez de crear otra. */
+      console.error('[promo] send failed:', r);
+      toast(r.message, true);
+      return;
+    }
 
-    window.AdminState.emailInFlight = false;
-    sendBtn.disabled = false;
-    sendBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Launch Campaign';
+    const d = r.data || {};
+    console.log('[promo] resultado del envio:', d);
 
-    // Close modal
+    if (soloAdmin) {
+      /* El modal se queda abierto a propósito: el ensayo existe para
+         mirar el correo y LUEGO lanzar de verdad. Cerrarlo obligaría a
+         escribir la campaña otra vez. */
+      const chk = document.getElementById('promo-only-me');
+      if (chk) { chk.checked = false; actualizarEtiquetaLanzar(); }
+      toast(d.sent
+        ? `✅ Rehearsal sent to ${CFG.ADMIN_EMAIL} only. Nothing went to the list. The checkbox is now off — press Launch again to send for real.`
+        : `Rehearsal did not go out: ${resumenEnvio(d)}`, !d.sent);
+      /* Aunque sea un ensayo, la tarjeta de la derecha vuelve a leerse:
+         los contadores de la lista pueden haber cambiado. */
+      return;
+    }
+
+    // Envío real: se cierra el modal, como hasta ahora.
     const modal = document.getElementById('promo-modal');
     if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
 
-    if (!failedRecipients.length) {
-      toast(`✅ Campaign launched! ${sent} emails sent.`);
+    /* Un envío nuevo tiene que renovar la clave: si no, volver a
+       lanzar la misma campaña más tarde chocaría con la de este envío
+       y no mandaría nada. */
+    _promoNonce = null;
+
+    const limpio = d.status === 'sent' && !d.failed && !d.unconfirmed;
+    if (limpio) {
+      toast(`✅ Campaign launched! ${d.sent} email${d.sent === 1 ? '' : 's'} sent.`);
     } else {
-      const failedList = failedRecipients.slice(0, 3).join(', ');
-      const more = failedRecipients.length > 3 ? ` (+${failedRecipients.length - 3} more)` : '';
-      toast(`Sent ${sent}. Failed: ${failedList}${more}`, true);
+      toast(`Campaign finished: ${resumenEnvio(d)}.`, true);
     }
   };
 
@@ -851,17 +1496,35 @@
   // Own these listeners directly (DOM is already parsed by the time this
   // script runs, same as every other listener).
   document.getElementById('promo-form')?.addEventListener('submit', sendPromoEmail);
+  document.getElementById('promo-only-me')?.addEventListener('change', actualizarEtiquetaLanzar);
   document.getElementById('sub-status-filter')?.addEventListener('change', () => { _subsShown = 25; _renderSubsTable(); });
   document.getElementById('sub-search')?.addEventListener('input', () => { _subsShown = 25; _renderSubsTable(); });
+  document.getElementById('sub-source-filter')?.addEventListener('change', () => { _subsShown = 25; _renderSubsTable(); });
 
   // ── Expose / register with the shared infrastructure ──────────────────
   window.loadPromotionsPage = loadPromotionsPage; // called from the page router
-  window.sendTestPromoEmail = sendTestPromoEmail; // exposed via window.app for tournament.js (set in app.js's BOOT)
   window.loadSubscribers    = loadSubscribers;    // called by sendPendingReminder, which stays in app.js
 
   Object.assign(window.CLICK_HANDLERS, {
     // CLICK_HANDLERS are called with ONE argument: the button element.
     viewSubscriber:      (btn) => window.viewSubscriber(btn.dataset.subid),
+    // El resumen por origen: cambiar de periodo, y saltar de una
+    // tarjeta al listado filtrado de esa misma gente.
+    setSourcePeriod: (btn) => {
+      _summaryPeriod = btn.dataset.period === 'all' ? 'all' : 'month';
+      _renderSourceSummary();
+    },
+    filterBySource: (btn) => {
+      const sel = document.getElementById('sub-source-filter');
+      if (!sel) return;
+      sel.value = btn.dataset.source;
+      _subsShown = 25;
+      _renderSubsTable();
+      // Sin esto la tabla se filtra fuera de la pantalla y parece que
+      // el botón no hizo nada.
+      document.getElementById('subscribers-table')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    },
     convertSubscriber:   (btn) => window.convertSubscriber(btn.dataset.subid),
     doConvertSubscriber: (btn) => window.doConvertSubscriber(btn.dataset.subid),
     closeSubView:        () => window.closeSubView(),
