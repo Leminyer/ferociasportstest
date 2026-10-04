@@ -5174,6 +5174,34 @@ async function printTournamentRoster(btn) {
     const RIGHT_X = ML + LEFT_W + 6;
     const RIGHT_W = PW - MR - RIGHT_X;
 
+    /* ── TEAMS LIST: name + age + coach/self rating ────────────────
+       Each player is drawn on their own line so the two value columns
+       line up under their headers. Everything is positioned off ML and
+       LEFT_W, so the column widths themselves are untouched. */
+    const DET_SIZE    = 6.5 * NAME_SIZE;     // player detail text size
+    const ROW_BASE    = 5.2;                 // team-name band of each row
+    const LINE_H      = 3.3;                 // one player line
+    const TEAM_LINE_H = 4.1;                 // one extra team-name line
+    const NAME_X      = ML + 11;             // player names, left-aligned
+    const RATE_X      = ML + LEFT_W - 1.5;   // rating column, right-aligned
+    const AGE_X       = RATE_X - 20;         // age column, right-aligned
+    const NAME_W      = AGE_X - 5.5 - NAME_X;
+
+    // Age from date_of_birth, without shifting the day in western timezones.
+    const ageFrom = (iso) => {
+      if (!iso) return null;
+      const b = new Date(iso + 'T00:00:00');
+      if (isNaN(b.getTime())) return null;
+      const now = new Date();
+      let e = now.getFullYear() - b.getFullYear();
+      if (now.getMonth() < b.getMonth() ||
+         (now.getMonth() === b.getMonth() && now.getDate() < b.getDate())) e--;
+      return e;
+    };
+    // Three decimals, same as the players table. A dash when there is no value.
+    const ratingText = (v) =>
+      (v === null || v === undefined || v === '') ? '—' : Number(v).toFixed(3);
+
     for (let ci = 0; ci < categories.length; ci++) {
       const cat = categories[ci];
       if (ci > 0) doc.addPage();
@@ -5193,22 +5221,63 @@ async function printTournamentRoster(btn) {
       teams.forEach(t => { teamMap[t.id] = t; });
 
       // ── Helper: draw teams list in left column ─────────────────────────
-      const ROW_H = 8.5;
+      /* The list fills one page at a time. teamCursor remembers where it
+         stopped, so each new page carries on from there instead of starting
+         over — the same way the schedule continues in the right column. */
+      let teamCursor = 0;
       const drawTeamsList = (startY) => {
+        if (teamCursor >= teams.length) return;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8);
         doc.setTextColor(...MUTED);
-        doc.text('TEAMS', ML, startY);
-        let ty = startY + 5;
-        teams.forEach((team, i) => {
+        doc.text(teamCursor === 0 ? 'TEAMS' : 'TEAMS (continued)', ML, startY);
+        doc.setFontSize(6.5);
+        doc.text('AGE', AGE_X, startY, { align: 'right' });
+        doc.text('COACH / SELF', RATE_X, startY, { align: 'right' });
+        const firstY = startY + 5;
+        let ty = firstY;
+        while (teamCursor < teams.length) {
+          const i = teamCursor;
+          const team = teams[i];
           const seed = i + 1;
           const seedColor = seed === 1 ? GOLD : seed === 2 ? SILVER : seed === 3 ? BRONZE : BLUE;
           const isTop3 = seed <= 3;
+
+          // Measured before drawing: a name that needs two lines makes the
+          // row taller instead of running over the player below it.
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(DET_SIZE);
+          const roster = [team.player1_id, team.player2_id, team.player3_id, team.player4_id]
+            .filter(Boolean)
+            .map(id => tAllPlayers.find(x => x.id === id))
+            .filter(Boolean)
+            .map(p => {
+              const age = ageFrom(p.date_of_birth);
+              return {
+                name: doc.splitTextToSize(`${p.first_name} ${p.last_name}`, NAME_W),
+                age: age === null ? '—' : String(age),
+                rating: `${ratingText(p.coach_rating)} / ${ratingText(p.self_rating)}`,
+              };
+            });
+          const nameLines = roster.reduce((n, pl) => n + pl.name.length, 0);
+
+          // A team name too long for the column wraps too, and pushes the
+          // players down instead of being printed on top of them.
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8 * NAME_SIZE);
+          const teamLines = doc.splitTextToSize(team.name || '', LEFT_W - 14);
+          const TEAM_EXTRA = (teamLines.length - 1) * TEAM_LINE_H;
+          const ROW_H = ROW_BASE + TEAM_EXTRA + Math.max(1, nameLines) * LINE_H;
+
+          // Out of room: the rest of the teams go on the next page. The first
+          // team of a page is always drawn, so the list can never stall.
+          if (ty + ROW_H > PAGE_BOTTOM && ty > firstY) break;
+
           if (i % 2 === 0) {
             doc.setFillColor(245, 247, 252);
             doc.rect(ML, ty, LEFT_W, ROW_H, 'F');
           }
-          const cx = ML + 5, cy = ty + ROW_H / 2;
+          const cx = ML + 5, cy = ty + 4.25;
           doc.setFillColor(...seedColor);
           doc.circle(cx, cy, 3.2, 'F');
           doc.setFont('helvetica', 'bold');
@@ -5218,20 +5287,21 @@ async function printTournamentRoster(btn) {
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(8 * NAME_SIZE);
           doc.setTextColor(...DARK);
-          doc.text(team.name, ML + 11, ty + 4, { maxWidth: LEFT_W - 14 });
-          const pIds = [team.player1_id, team.player2_id, team.player3_id, team.player4_id].filter(Boolean);
-          const pNames = pIds.map(id => {
-            const p = tAllPlayers.find(x => x.id === id);
-            return p ? `${p.first_name} ${p.last_name}` : null;
-          }).filter(Boolean).join(' & ');
-          if (pNames) {
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(6.5 * NAME_SIZE);
-            doc.setTextColor(...MUTED);
-            doc.text(pNames, ML + 11, ty + 7.2, { maxWidth: LEFT_W - 14 });
-          }
+          teamLines.forEach((ln, k) => doc.text(ln, NAME_X, ty + 4 + k * TEAM_LINE_H));
+
+          let py = ty + 7.2 + TEAM_EXTRA;
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(DET_SIZE);
+          doc.setTextColor(...MUTED);
+          roster.forEach(pl => {
+            pl.name.forEach((ln, k) => doc.text(ln, NAME_X, py + k * LINE_H));
+            doc.text(pl.age,    AGE_X,  py, { align: 'right' });
+            doc.text(pl.rating, RATE_X, py, { align: 'right' });
+            py += pl.name.length * LINE_H;
+          });
           ty += ROW_H;
-        });
+          teamCursor++;
+        }
       };
 
       // ── LEFT COLUMN: Teams list (page 1) ─────────────────────────────
@@ -5385,6 +5455,15 @@ async function printTournamentRoster(btn) {
         doc.setFontSize(8);
         doc.setTextColor(...MUTED);
         doc.text('No schedule generated yet.', schedX(), ry + 6);
+      }
+
+      // The schedule may finish before the teams list does — a long category
+      // gets its own extra pages so no team is ever left out.
+      while (teamCursor < teams.length) {
+        drawFooter();
+        doc.addPage();
+        drawHeader(cat.name);
+        drawTeamsList(30);
       }
 
       drawFooter();

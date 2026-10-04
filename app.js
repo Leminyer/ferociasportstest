@@ -101,6 +101,7 @@ window.selectLadderType = (type) => {
       'orders':       ['sb-orders',      null],
       'promotions':   ['sb-promotions',  null],
       'newsletter':   ['sb-newsletter',  null],
+      'communications': ['sb-communications', null],
       'share':        ['sb-share',       null],
       'match-hub':    ['sb-match-hub',   null],
     };
@@ -108,7 +109,7 @@ window.selectLadderType = (type) => {
     ids.forEach(id => { if (id) { const el = document.getElementById(id); if (el) el.classList.add('active'); } });
 
     // Bottom nav: pages in "more" drawer activate the ⋯ button
-    const morePages = ['add-player','ladders','t-tournaments','events','orders','promotions','newsletter','share','match-hub'];
+    const morePages = ['add-player','ladders','t-tournaments','events','orders','promotions','newsletter','communications','share','match-hub'];
     if (morePages.includes(pageOrKey)) {
       document.getElementById('bn-more')?.classList.add('active');
       const mdEl = document.getElementById(`md-${pageOrKey}`);
@@ -532,6 +533,7 @@ window.selectLadderType = (type) => {
     if (name === 'orders') window.AdminPageLoaders.orders?.();
     if (name === 'events') loadEventsPage();
     if (name === 'newsletter' && window.loadNewsletterPage) window.loadNewsletterPage();
+    if (name === 'communications') window.openCommunications?.();
     if (name === 'promotions' && typeof window.loadPromotionsPage !== 'undefined') window.loadPromotionsPage();
     if (name === 'match-hub') window.loadMatchHub();
     if (name === 't-tournaments' && typeof loadTournamentModule !== 'undefined') loadTournamentModule();
@@ -1121,8 +1123,17 @@ window.selectLadderType = (type) => {
     // closeEditLadderModal now registered by admin-ladder-management.js
     closeEditGameModal: () =>
       document.getElementById('edit-game-modal').classList.remove('open'),
-    closeNotifyModal: () => document.getElementById('notify-modal').classList.remove('open'),
+    /* Estos dos NO cierran mientras haya un envío en curso. Cerrar la
+       ventana no detiene el envío: sigue corriendo, y al reabrirla el
+       composer se limpia y se lleva el asunto y el mensaje por delante.
+       Si ese envío sale parcial, el texto que hace falta para
+       reintentar ya no existe. Email All Players ya se protegía así. */
+    closeNotifyModal: () => {
+      if (window.envioEnCurso && window.envioEnCurso()) return;
+      document.getElementById('notify-modal').classList.remove('open');
+    },
     closePromoModal: () => {
+      if (window.envioEnCurso && window.envioEnCurso()) return;
       const modal = document.getElementById('promo-modal');
       if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
     },
@@ -1130,61 +1141,7 @@ window.selectLadderType = (type) => {
       document.getElementById('edit-session-modal').classList.remove('open'),
     // Notify / promo
     // openNotifyPlayers/openSendPromo now registered by admin-email-notifications.js / admin-promotions.js
-    sendPendingReminder: async () => {
-      try {
-        const pending = await api(
-          'subscribers?status=eq.pending&select=first_name,last_name,email,confirm_token'
-        );
-        if (!pending.length) {
-          toast('No pending subscribers to remind.', true);
-          return;
-        }
-
-        // Confirm with admin before sending
-        const confirmed = await confirmModal({
-          title: 'Send Confirmation Reminders',
-          message: `Send a confirmation email reminder to ${pending.length} pending subscriber${pending.length !== 1 ? 's' : ''}? Each will receive a link to confirm their subscription.`,
-          okLabel: 'Send Reminders',
-        });
-        if (!confirmed) return;
-
-        const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
-        emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
-
-        let sent = 0;
-        const failed = [];
-
-        for (const sub of pending) {
-          const confirmUrl = sub.confirm_token
-            ? `${baseUrl}confirm.html?t=${sub.confirm_token}`
-            : `${baseUrl}confirm.html`;
-
-          const ok = await window.sendOneEmail(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.CONFIRM, {
-            player_name:  `${sub.first_name} ${sub.last_name}`,
-            player_email: sub.email,
-            subject:      '⏰ Reminder: Please confirm your Ferocia Sports subscription',
-            confirm_url:  confirmUrl,
-          });
-
-          if (ok) sent++;
-          else failed.push(sub.email);
-
-          if (sent + failed.length < pending.length) {
-            await sleep(CFG.EMAIL_THROTTLE_MS);
-          }
-        }
-
-        if (!failed.length) {
-          toast(`✅ Confirmation reminder sent to ${sent} subscriber${sent !== 1 ? 's' : ''}!`);
-        } else {
-          toast(`Sent ${sent} reminders. ${failed.length} failed: ${failed.join(', ')}`, true);
-        }
-        // Refresh page data
-        await window.loadSubscribers();
-      } catch(e) {
-        toast(`Error: ${e.message}`, true);
-      }
-    },
+    // sendPendingReminder now registered by admin-subscriber-reminder.js
     // generateQR now registered by admin-promotions.js
     // Share — copyShareLink/switchShareTab/showShareQR now registered by admin-share.js
     // Auth

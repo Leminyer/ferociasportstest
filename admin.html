@@ -20,17 +20,21 @@
 <!-- Extracted from the four embedded CSS blocks that used to live in this
      file. ORDER MATTERS: later rules of equal specificity win, so these
      four must stay in this sequence. See the header of admin-layout.css. -->
-<link rel="stylesheet" href="admin-layout.css?v=20260928b">
+<link rel="stylesheet" href="admin-layout.css?v=20261001c">
 <link rel="stylesheet" href="admin-components.css?v=20260928b">
-<link rel="stylesheet" href="admin-pages.css?v=20260928b">
+<link rel="stylesheet" href="admin-pages.css?v=20261001c">
 <link rel="stylesheet" href="admin-ftc.css?v=20260928b">
+
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="config.js?v=20260928b"></script>
+<script src="config.js?v=20260929j"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="db.js?v=20260928b"></script>
+<script src="db.js?v=20261003f"></script>
 <script src="auth.js?v=20260928b"></script>
 <script src="assets.js?v=20260928b"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<!-- En esta página no se carga ningún servicio de correo, y es a
+     propósito: las pantallas que mandan correo lo hacen a través de las
+     funciones del servidor (send-email, send-newsletter), donde vive la
+     credencial. El de abajo es para los códigos QR. -->
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
@@ -138,6 +142,10 @@
     <button class="sb-item" id="sb-newsletter" data-action="showPage" data-page="newsletter">
       <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9h4"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg></span>
       <span class="sb-item-label">Newsletter</span>
+    </button>
+    <button class="sb-item" id="sb-communications" data-action="showPage" data-page="communications">
+      <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
+      <span class="sb-item-label">Communications</span>
     </button>
     <button class="sb-item" id="sb-share" data-action="showPage" data-page="share">
       <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
@@ -1888,6 +1896,100 @@
   </div>
 
   <!-- PROMOTIONS -->
+  <!-- ════════════════════════════════════════════════════════════
+       COMMUNICATIONS
+       Dos pestañas: desde dónde se manda, y qué se ha mandado. El
+       historial vive aquí y no suelto en el menú porque es el
+       historial DE las comunicaciones: su origen es esta pantalla.
+       ════════════════════════════════════════════════════════════ -->
+  <div id="page-communications" class="page">
+
+    <!-- Page title -->
+    <div style="font-family:'Inter',sans-serif;font-size:28px;color:var(--text);letter-spacing:1px;line-height:1;margin-bottom:4px;">Communications</div>
+    <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:22px;">Send emails to your players and subscribers, and see everything that went out.</div>
+
+    <!-- Pestañas: la misma clase .pp-tab que usa la ficha de jugador,
+         para que se vean y se comporten igual en toda la aplicación. -->
+    <div class="pp-tabs" id="co-tabs">
+      <button class="pp-tab co-tab pp-tab-on" data-action="commShowTab" data-tab="send">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Send
+      </button>
+      <button class="pp-tab co-tab" data-action="commShowTab" data-tab="history">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        History
+      </button>
+    </div>
+
+    <!-- ── PESTAÑA 1: SEND ──────────────────────────────────── -->
+    <div class="co-tab-content" data-tab="send">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:6px;">Where each email is sent from</div>
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:20px;">
+          Every email below is sent by the server and recorded in History.
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px;">
+
+          <button class="co-launch" data-action="showPage" data-page="promotions">
+            <span class="co-launch-t">Campaign</span>
+            <span class="co-launch-d">To your subscriber list</span>
+          </button>
+
+          <button class="co-launch" data-action="showPage" data-page="players">
+            <span class="co-launch-t">All Players</span>
+            <span class="co-launch-d">To every active player</span>
+          </button>
+
+          <button class="co-launch" data-action="showPage" data-page="ladders">
+            <span class="co-launch-t">Ladder Update</span>
+            <span class="co-launch-d">To one ladder&rsquo;s players</span>
+          </button>
+
+          <button class="co-launch" data-action="showPage" data-page="t-tournaments">
+            <span class="co-launch-t">Tournament Update</span>
+            <span class="co-launch-d">To one tournament&rsquo;s players</span>
+          </button>
+
+          <button class="co-launch" data-action="showPage" data-page="newsletter">
+            <span class="co-launch-t">Newsletter</span>
+            <span class="co-launch-d">The monthly newsletter</span>
+          </button>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PESTAÑA 2: HISTORY ───────────────────────────────── -->
+    <div class="co-tab-content" data-tab="history" style="display:none;">
+      <div class="card" style="padding:0;overflow:hidden;">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:0.5px solid var(--divider-color);flex-wrap:wrap;gap:10px;">
+          <div class="card-title" style="margin:0;">Sent emails</div>
+          <select id="co-hist-type-filter" style="font-size:12px;padding:8px 14px;font-family:'Inter',sans-serif;font-weight:700;border:0.5px solid var(--border);border-radius:99px;outline:none;">
+            <option value="">All types</option>
+            <option value="promo">Campaign</option>
+            <option value="players_broadcast">All Players</option>
+            <option value="ladder_notify">Ladder Update</option>
+            <option value="tournament_notify">Tournament Update</option>
+            <option value="player_message">Single Player</option>
+            <option value="subscriber_confirm">Confirmation</option>
+            <option value="newsletter">Newsletter</option>
+          </select>
+        </div>
+
+        <div id="co-hist-table"><div class="loading" style="padding:20px;">Loading history...</div></div>
+
+        <!-- Load more: la misma fila que la tabla de suscriptores -->
+        <div id="co-hist-more-row" style="display:none;padding:14px 20px;border-top:0.5px solid var(--divider-color);align-items:center;justify-content:space-between;">
+          <span id="co-hist-info" style="font-size:11px;font-weight:600;color:var(--text-muted);"></span>
+          <button id="co-hist-more-btn" style="font-size:10px;font-weight:700;padding:7px 18px;border-radius:99px;border:0.5px solid #c5d6f5;background:white;color:var(--blue);cursor:pointer;">Load 25 more</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
   <div id="page-promotions" class="page">
 
     <!-- Page title -->
@@ -1931,7 +2033,7 @@
     </div>
 
     <!-- QR + Quick Actions row -->
-    <div style="display:grid;grid-template-columns:5fr 7fr;gap:20px;margin-bottom:20px;align-items:stretch;">
+    <div class="promo-top-row">
 
       <!-- QR card — dark gradient -->
       <div style="background:linear-gradient(180deg,#1A2458 0%,#22306F 100%);border-radius:12px;padding:24px 22px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(8,15,46,.2);">
@@ -1957,7 +2059,7 @@
       <!-- Quick Actions card -->
       <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px;">
         <div style="font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text);">Quick Actions</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div class="promo-quick-grid">
 
           <!-- Launch Campaign — featured -->
           <div style="display:flex;flex-direction:column;gap:4px;padding:12px;background:#f4f7ff;border-radius:8px;border:0.5px solid var(--divider-color);border-left:3px solid var(--blue);">
@@ -1992,7 +2094,20 @@
             </div>
             <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:2px;">Pending</div>
             <div style="font-size:11px;font-weight:700;color:var(--orange);line-height:1.4;margin-bottom:8px;" id="promo-pending-label">— subscribers awaiting confirmation.</div>
-            <button type="button" data-action="sendPendingReminder" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 12px;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;border:0.5px solid rgba(242,96,36,0.3);background:white;color:#c04a0e;margin-top:auto;width:100%;">
+            <!-- Ensayo. La casilla y el botón van juntos:
+                 admin-subscriber-reminder.js le cambia el texto al botón
+                 mientras está marcada, para que el botón nunca diga una
+                 cosa y haga otra. -->
+            <label for="pr-only-me" style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;margin-bottom:8px;border:1px solid var(--divider-color);border-radius:10px;background:white;cursor:pointer;text-transform:none;letter-spacing:normal;">
+              <input type="checkbox" id="pr-only-me" aria-describedby="pr-only-me-ayuda" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
+              <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.4;text-transform:none;letter-spacing:normal;">
+                Send only to me
+                <span id="pr-only-me-ayuda" style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;text-transform:none;letter-spacing:normal;">
+                  Real send, fully logged &mdash; but only you receive it.
+                </span>
+              </span>
+            </label>
+            <button type="button" id="pr-send-btn" data-action="sendPendingReminder" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 12px;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;border:0.5px solid rgba(242,96,36,0.3);background:white;color:#c04a0e;margin-top:auto;width:100%;">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               Send Reminder
             </button>
@@ -2004,10 +2119,19 @@
 
     <!-- Subscribers table card -->
     <div class="card" style="padding:0;overflow:hidden;">
-      <!-- Toolbar -->
-      <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:0.5px solid var(--divider-color);">
+      <!-- Toolbar.
+
+           `flex-wrap:wrap` es lo que hace que esto se pueda usar en un
+           móvil. Sin él, los controles se quedaban en una sola fila que
+           no cabe: a 375px el buscador se quedaba en 9px de ancho y el
+           filtro de origen acababa en el píxel 502 — fuera de la
+           pantalla y, por el `overflow:hidden` de la tarjeta, cortado y
+           sin forma de llegar a él. Medido con el navegador, no
+           supuesto. Al buscador se le da un ancho mínimo de 200px para
+           que se baje a su propia fila en vez de estrangularse. -->
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;border-bottom:0.5px solid var(--divider-color);">
         <div style="font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text);flex-shrink:0;">Subscribers</div>
-        <div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--bg);border:0.5px solid var(--divider-color);border-radius:8px;padding:7px 12px;">
+        <div style="flex:1 1 200px;display:flex;align-items:center;gap:8px;background:var(--bg);border:0.5px solid var(--divider-color);border-radius:8px;padding:7px 12px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="sub-search" placeholder="Search subscribers, email, or phone..."
             style="border:none;background:transparent;outline:none;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--text);width:100%;padding:0;line-height:1.4;">
@@ -2017,6 +2141,16 @@
             <option value="all">All Statuses</option>
             <option value="active">Active</option>
             <option value="pending">Pending</option>
+            <!-- NO es un estado: el estado de éstas sigue siendo
+                 'pending'. Son las fichas a las que el freno del
+                 formulario público no les mandó el correo de
+                 confirmación. Va en este desplegable, y no en un cuarto
+                 filtro, porque es un subconjunto de Pending y es aquí
+                 donde se busca por estado. El valor lleva dos guiones
+                 bajos delante para que no se pueda confundir nunca con
+                 un valor real de la columna `status`.
+                 La lógica está en _renderSubsTable, admin-promotions.js. -->
+            <option value="__frenadas">Pending — no email sent</option>
             <option value="unsubscribed">Unsubscribed</option>
           </select>
           <svg style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="10" height="6" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="var(--text-muted)"/></svg>
@@ -2044,7 +2178,35 @@
           </select>
           <svg style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="10" height="6" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="var(--text-muted)"/></svg>
         </div>
+        <!-- Filtro de fecha. Las dos palabras ("all" y "month") son las
+             MISMAS que usa el interruptor del resumen de origen, porque
+             al pulsar una tarjeta el resumen le pasa su periodo a este
+             desplegable. Si alguien renombrara un valor aquí y no allí,
+             la tarjeta volvería a enseñar un número y la tabla otro. Una
+             prueba lo comprueba contra admin-promotions.js.
+             Arranca en "all" para que la tabla siga enseñando todo
+             mientras nadie lo toque.
+             La lógica está en _renderSubsTable, admin-promotions.js. -->
+        <div style="position:relative;">
+          <select id="sub-period-filter" style="font-family:'Inter',sans-serif;font-size:12px;font-weight:700;padding:8px 32px 8px 12px;border:0.5px solid var(--divider-color);border-radius:99px;color:var(--text);background:white;outline:none;appearance:none;cursor:pointer;">
+            <option value="all">All Time</option>
+            <option value="month">This Month</option>
+          </select>
+          <svg style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="10" height="6" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="var(--text-muted)"/></svg>
+        </div>
       </div>
+      <!-- EL AVISO DEL FRENO DEL FORMULARIO.
+
+           Va ARRIBA DE TODO y no en una esquina, porque el freno tiene
+           un coste que de otra forma no se ve: mientras está puesto, la
+           gente nueva de VERDAD tampoco recibe su correo de
+           confirmación, y bastan 61 altas en 24 horas para dejarlo así.
+           Sin este aviso, el único rastro estaría en los registros de
+           Supabase — o sea, en ninguna parte.
+
+           Lo rellena _renderSubsTable (admin-promotions.js). Está
+           escondido mientras no haya nada que decir. -->
+      <div id="sub-brake-banner" style="display:none;"></div>
       <!-- Resumen por origen. Va encima de la tabla porque responde la
            pregunta que se hace primero: de donde viene la gente nueva. -->
       <div id="sub-source-summary" style="padding:14px 20px;border-bottom:0.5px solid var(--divider-color);"></div>
@@ -2356,6 +2518,12 @@
   <button class="more-drawer-item" id="md-promotions" data-action="showPage" data-page="promotions">
     <span class="more-drawer-icon">📣</span>Promotions
   </button>
+  <button class="more-drawer-item" id="md-newsletter" data-action="showPage" data-page="newsletter">
+    <span class="more-drawer-icon">📰</span>Newsletter
+  </button>
+  <button class="more-drawer-item" id="md-communications" data-action="showPage" data-page="communications">
+    <span class="more-drawer-icon">✉️</span>Communications
+  </button>
   <button class="more-drawer-item" id="md-share" data-action="showPage" data-page="share">
     <span class="more-drawer-icon">🔗</span>Share Links
   </button>
@@ -2591,8 +2759,69 @@
 </div>
 
 <!-- Notify Players Modal -->
+<!-- ════════════════════════════════════════════════════════════════
+     DETALLE DE UN ENVÍO
+     El mensaje tal como se escribió, y la lista persona por persona
+     con el motivo exacto de cada fallo. Misma estructura que las
+     demás ventanas: max-height 88vh y el cuerpo con su propio
+     scroll, para que el pie se pueda alcanzar en un portátil.
+     ════════════════════════════════════════════════════════════════ -->
+<div class="modal-bg" id="communications-detail-modal">
+  <div class="modal" style="max-width:760px;max-height:88vh;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+
+    <!-- HEADER -->
+    <div style="padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-shrink:0;">
+      <div style="min-width:0;">
+        <div id="co-det-subject" style="font-family:'Inter',sans-serif;font-size:20px;color:var(--text);letter-spacing:.5px;line-height:1.25;margin-bottom:6px;word-break:break-word;"></div>
+        <div id="co-det-meta"></div>
+      </div>
+      <button type="button" data-action="closeCommDetail"
+        style="width:30px;height:30px;border-radius:8px;border:0.5px solid var(--divider-color);background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"
+        onmouseover="this.style.background='var(--orange-light)';this.style.borderColor='rgba(229,57,53,0.3)'"
+        onmouseout="this.style.background='white';this.style.borderColor='var(--divider-color)'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- CUERPO -->
+    <div style="padding:16px 24px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:18px;">
+
+      <!-- El mensaje que se escribió -->
+      <div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Message</div>
+        <div id="co-det-body" style="background:#fafbff;border:0.5px solid var(--divider-color);border-radius:10px;padding:16px 18px;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;max-height:220px;overflow-y:auto;word-break:break-word;"></div>
+      </div>
+
+      <!-- Quién lo recibió -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+          <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);">Recipients</div>
+          <div id="co-det-filters" style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button class="co-pfilter co-pfilter-on" data-action="filterCommPeople" data-pf="">All</button>
+            <button class="co-pfilter" data-action="filterCommPeople" data-pf="failed">Failed</button>
+            <button class="co-pfilter" data-action="filterCommPeople" data-pf="sent">Sent</button>
+            <button class="co-pfilter" data-action="filterCommPeople" data-pf="pending">Pending</button>
+          </div>
+        </div>
+        <div id="co-det-people" style="border:0.5px solid var(--divider-color);border-radius:10px;overflow:hidden;"></div>
+      </div>
+
+      <!-- Reintento -->
+      <div id="co-det-retry-row" style="display:none;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#fff8ec;border:0.5px solid #f0dcb8;border-radius:10px;padding:14px 16px;">
+        <div id="co-det-retry-text" style="font-size:12px;font-weight:600;color:var(--text);line-height:1.5;flex:1 1 300px;"></div>
+        <button id="co-det-retry-btn" type="button" data-action="retryComm"
+          style="padding:10px 20px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,var(--blue) 100%);color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;flex-shrink:0;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Retry
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="notify-modal">
-  <div class="modal" style="max-width:560px;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+  <div class="modal" style="max-width:680px;max-height:88vh;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
 
     <!-- HEADER -->
     <div style="padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
@@ -2659,8 +2888,9 @@
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               <span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);">Message Preview</span>
             </div>
-            <textarea id="notify-message"
-              style="width:100%;min-height:160px;padding:14px;border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;resize:vertical;background:white;"></textarea>
+            <!-- La barra de formato la fabrica admin-rich-editor.js. -->
+            <div class="promo-fmt-toolbar" id="notify-fmt-bar" style="padding:6px 8px;background:#fcfdff;border-bottom:0.5px solid var(--divider-color);display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
+            <div id="notify-message" contenteditable="true" style="width:100%;min-height:160px;padding:14px;border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;background:white;overflow-y:auto;max-height:340px;"></div>
           </div>
           <div style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:5px;">Results and standings links will be automatically added to every email.</div>
         </div>
@@ -2678,14 +2908,18 @@
       </div>
 
       <!-- FOOTER -->
-      <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px;border-top:0.5px solid var(--divider-color);margin-top:2px;">
-        <button type="button" id="notify-test-btn" data-action="sendTestNotifyEmail"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border:1px solid var(--blue);border-radius:99px;background:white;color:var(--blue);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Send Test to Me
-        </button>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding-top:4px;border-top:0.5px solid var(--divider-color);margin-top:2px;">
+        <label for="notify-only-me" style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-right:auto;border:1px solid var(--divider-color);border-radius:10px;background:#f8f9ff;cursor:pointer;flex:0 1 auto;max-width:330px;min-width:0;text-transform:none;letter-spacing:normal;">
+          <input type="checkbox" id="notify-only-me" aria-describedby="notify-only-me-ayuda" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
+          <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;text-transform:none;letter-spacing:normal;">
+            Send only to me
+            <span id="notify-only-me-ayuda" style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;text-transform:none;letter-spacing:normal;">
+              Real send, fully logged &mdash; but only you receive it.
+            </span>
+          </span>
+        </label>
         <button type="submit" id="notify-send-btn"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           Send Update
         </button>
@@ -2721,14 +2955,15 @@
       </div>
       <div>
         <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Message <span style="color:#e53935;">*</span></div>
-        <textarea id="pp-email-message"
-          style="width:100%;min-height:180px;padding:12px;border:1px solid var(--divider-color);border-radius:10px;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;resize:vertical;"></textarea>
+        <!-- La barra de formato la fabrica admin-rich-editor.js. -->
+          <div class="promo-fmt-toolbar" id="pp-fmt-bar" style="padding:6px 8px;background:#fcfdff;border:1px solid var(--divider-color);border-radius:10px 10px 0 0;display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
+          <div id="pp-email-message" contenteditable="true" style="width:100%;min-height:180px;max-height:340px;overflow-y:auto;padding:12px;border:1px solid var(--divider-color);border-top:none;border-radius:0 0 10px 10px;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;background:white;"></div>
       </div>
 
       <!-- FOOTER -->
       <div style="display:flex;justify-content:flex-end;padding-top:4px;border-top:0.5px solid var(--divider-color);margin-top:2px;">
         <button type="submit" id="pp-email-send-btn"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           Send Email
         </button>
@@ -2739,7 +2974,7 @@
 
 <!-- Email All Players Modal -->
 <div class="modal-bg" id="players-email-modal">
-  <div class="modal" style="max-width:540px;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:88vh;">
+  <div class="modal" style="max-width:680px;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:88vh;">
 
     <!-- HEADER -->
     <div style="padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
@@ -2767,24 +3002,32 @@
       </div>
       <div>
         <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Message <span style="color:#e53935;">*</span></div>
-        <textarea id="pe-message" placeholder="Hi {{player_name}}, ..."
-          style="width:100%;min-height:180px;padding:12px;border:1px solid var(--divider-color);border-radius:10px;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;resize:vertical;"></textarea>
+        <!-- La barra de formato la fabrica admin-rich-editor.js. -->
+          <div class="promo-fmt-toolbar" id="pe-fmt-bar" style="padding:6px 8px;background:#fcfdff;border:1px solid var(--divider-color);border-radius:10px 10px 0 0;display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
+          <div id="pe-message" contenteditable="true" style="width:100%;min-height:180px;max-height:340px;overflow-y:auto;padding:12px;border:1px solid var(--divider-color);border-top:none;border-radius:0 0 10px 10px;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;background:white;"></div>
+        <!-- Ya no se pide escribir {{player_name}}: la plantilla del
+             correo saluda por el nombre ella sola, encima del mensaje.
+             Poner la variable a mano solo conseguia que el nombre
+             saliera dos veces. Si alguien la escribe igualmente, el
+             servidor la sigue sustituyendo. -->
         <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-top:5px;">
-          Use <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">{{player_name}}</code> to address each player by name.
+          Each player is greeted by name automatically &mdash; just write your message.
         </div>
       </div>
 
       <!-- FOOTER -->
-      <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:8px;border-top:0.5px solid var(--divider-color);">
-        <!-- Test send first: a mass email cannot be recalled, so checking how
-             it actually looks in an inbox is worth one extra click. -->
-        <button type="button" id="pe-test-btn" data-action="sendTestPlayersEmail"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border:1px solid var(--blue);border-radius:99px;background:white;color:var(--blue);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Send Test to Me
-        </button>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding-top:8px;border-top:0.5px solid var(--divider-color);">
+        <label for="pe-only-me" style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-right:auto;border:1px solid var(--divider-color);border-radius:10px;background:#f8f9ff;cursor:pointer;flex:0 1 auto;max-width:330px;min-width:0;text-transform:none;letter-spacing:normal;">
+          <input type="checkbox" id="pe-only-me" aria-describedby="pe-only-me-ayuda" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
+          <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;text-transform:none;letter-spacing:normal;">
+            Send only to me
+            <span id="pe-only-me-ayuda" style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;text-transform:none;letter-spacing:normal;">
+              Real send, fully logged &mdash; but only you receive it.
+            </span>
+          </span>
+        </label>
         <button type="submit" id="pe-send-btn"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           Send to All Players
         </button>
@@ -2979,7 +3222,7 @@
 
 <!-- Tournament Notify Modal -->
 <div class="modal-bg" id="tournament-notify-modal">
-  <div class="modal" style="max-width:560px;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+  <div class="modal" style="max-width:680px;max-height:88vh;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
 
     <!-- HEADER -->
     <div style="padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
@@ -3029,8 +3272,9 @@
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               <span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);">Message Preview</span>
             </div>
-            <textarea id="t-notify-message"
-              style="width:100%;min-height:160px;padding:14px;border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;resize:vertical;background:white;"></textarea>
+            <!-- La barra de formato la fabrica admin-rich-editor.js. -->
+            <div class="promo-fmt-toolbar" id="t-notify-fmt-bar" style="padding:6px 8px;background:#fcfdff;border-bottom:0.5px solid var(--divider-color);display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
+            <div id="t-notify-message" contenteditable="true" style="width:100%;min-height:160px;padding:14px;border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;background:white;overflow-y:auto;max-height:340px;"></div>
           </div>
           <div style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:5px;">Results and standings links will be automatically added to every email.</div>
         </div>
@@ -3048,14 +3292,18 @@
       </div>
 
       <!-- FOOTER inside form -->
-      <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px;border-top:0.5px solid var(--divider-color);margin-top:2px;">
-        <button type="button" id="t-notify-test-btn" data-action="sendTestTournamentNotifyEmail"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border:1px solid var(--blue);border-radius:99px;background:white;color:var(--blue);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Send Test to Me
-        </button>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding-top:4px;border-top:0.5px solid var(--divider-color);margin-top:2px;">
+        <label for="t-notify-only-me" style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-right:auto;border:1px solid var(--divider-color);border-radius:10px;background:#f8f9ff;cursor:pointer;flex:0 1 auto;max-width:330px;min-width:0;text-transform:none;letter-spacing:normal;">
+          <input type="checkbox" id="t-notify-only-me" aria-describedby="t-notify-only-me-ayuda" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
+          <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;text-transform:none;letter-spacing:normal;">
+            Send only to me
+            <span id="t-notify-only-me-ayuda" style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;text-transform:none;letter-spacing:normal;">
+              Real send, fully logged &mdash; but only you receive it.
+            </span>
+          </span>
+        </label>
         <button type="submit" id="t-notify-send-btn"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           Send Update
         </button>
@@ -3161,32 +3409,12 @@
           <div style="flex:1;display:flex;flex-direction:column;">
             <div class="promo-comp-label">Message</div>
             <div class="promo-message-card">
-              <!-- Formatting toolbar -->
-              <div class="promo-fmt-toolbar">
-                <button type="button" class="promo-fmt-btn" onclick="document.execCommand('bold')" title="Bold"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg></button>
-                <button type="button" class="promo-fmt-btn" onclick="document.execCommand('italic')" title="Italic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
-                <button type="button" class="promo-fmt-btn" onclick="document.execCommand('underline')" title="Underline"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg></button>
-                <div class="promo-fmt-sep"></div>
-                <button type="button" class="promo-fmt-btn" onclick="document.execCommand('insertUnorderedList')" title="Bullet list"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></button>
-                <button type="button" class="promo-fmt-btn" onclick="promptInsertLink()" title="Link"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
-                <div class="promo-fmt-sep"></div>
-                <div style="position:relative;display:inline-block;">
-                  <button type="button" class="promo-fmt-btn" onclick="toggleEmojiPicker(event)" title="Emoji" id="emoji-picker-btn">😊</button>
-                  <div id="emoji-picker" style="display:none;position:absolute;top:32px;left:0;background:white;border:0.5px solid var(--divider-color);border-radius:8px;padding:8px;box-shadow:0 4px 16px rgba(8,15,46,.12);z-index:999;display:none;grid-template-columns:repeat(6,1fr);gap:2px;width:180px;">
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('👋')">👋</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('📅')">📅</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('📍')">📍</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('🎾')">🎾</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('🏆')">🏆</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('⚡')">⚡</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('🔥')">🔥</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('✅')">✅</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('🎉')">🎉</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('👑')">👑</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('⭐')">⭐</button>
-                    <button type="button" class="promo-emoji-item" onclick="insertFixedEmoji('📢')">📢</button>
-                  </div>
-                </div>
+              <!-- Barra de formato.
+                   La fabrica admin-rich-editor.js, el mismo módulo que
+                   la pone en las otras cuatro pantallas que escriben
+                   correos. Antes estaba escrita a mano aquí; con cinco
+                   editores eso eran cinco copias del mismo HTML. -->
+              <div class="promo-fmt-toolbar" id="promo-fmt-bar">
                 <div style="flex:1;"></div>
                 <span id="promo-char-count" style="font-size:9px;font-weight:700;color:#b0bbd6;">0 / 2000</span>
               </div>
@@ -3205,12 +3433,12 @@
                admin-promotions.js la desmarca sola cada vez que se abre
                el modal, y cambia la etiqueta del botón mientras está
                puesta, para que el botón nunca diga una cosa y haga otra. -->
-          <label for="promo-only-me" style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-bottom:8px;border:1px solid #e8edf8;border-radius:10px;background:#f8f9ff;cursor:pointer;">
-            <input type="checkbox" id="promo-only-me" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
-            <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;">
+          <label for="promo-only-me" style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--divider-color);border-radius:10px;background:#f8f9ff;cursor:pointer;text-transform:none;letter-spacing:normal;">
+            <input type="checkbox" id="promo-only-me" aria-describedby="promo-only-me-ayuda" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
+            <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;text-transform:none;letter-spacing:normal;">
               Send only to me
-              <span style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;">
-                Full rehearsal &mdash; real send, fully logged, but nobody on the list receives it.
+              <span id="promo-only-me-ayuda" style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;text-transform:none;letter-spacing:normal;">
+                Real send, fully logged &mdash; but only you receive it.
               </span>
             </span>
           </label>
@@ -3501,7 +3729,7 @@
 <!-- Loaded before every admin-* module: three of them call
      FerociaPhone.format() when rendering. -->
 <script src="country-codes.js?v=20260928b"></script>
-<script src="location-fields.js?v=20260928b"></script>
+<script src="location-fields.js?v=20260929a"></script>
 <!-- Etiquetas y colores del origen. Compartido por Promotions y la
      ficha del jugador, y cargado antes que los dos. -->
 <script src="source-labels.js?v=20260928b"></script>
@@ -3509,29 +3737,32 @@
 <script src="admin-incident-reports.js?v=20260928b"></script>
 <script src="admin-ladder-selector.js?v=20260928b"></script>
 <script src="admin-orders.js?v=20260928b"></script>
-<script src="admin-email-utils.js?v=20260928c"></script>
+<script src="admin-email-utils.js?v=20261003d"></script>
+<script src="admin-rich-editor.js?v=20260929a"></script>
 <script src="admin-share.js?v=20260928b"></script>
-<script src="admin-tournament-notify.js?v=20260928b"></script>
+<script src="admin-tournament-notify.js?v=20261003d"></script>
 <script src="admin-player-status-history.js?v=20260928b"></script>
-<script src="admin-player-profile.js?v=20260928b"></script>
-<script src="admin-email-notifications.js?v=20260928b"></script>
-<script src="admin-ladder-standings.js?v=20260928b"></script>
+<script src="admin-player-profile.js?v=20260929i"></script>
+<script src="admin-email-notifications.js?v=20261003d"></script>
+<script src="admin-ladder-standings.js?v=20260930a"></script>
 <script src="admin-sessions.js?v=20260928b"></script>
 <script src="admin-print-roster.js?v=20260928b"></script>
 <script src="admin-ladder-management.js?v=20260928b"></script>
-<script src="admin-promotions.js?v=20260928c"></script>
-<script src="admin-newsletter.js?v=20260928b"></script>
+<script src="admin-communications.js?v=20261003d"></script>
+<script src="admin-promotions.js?v=20261004a"></script>
+<script src="admin-subscriber-reminder.js?v=20261003f"></script>
+<script src="admin-newsletter.js?v=20261003d"></script>
 <!-- TEMPORARY: fills in missing dates of birth from a CSV import.
      Delete this line and temp-dob-backfill.js once every player has one.
      See the header of that file. -->
 <script src="temp-dob-backfill.js?v=20260928b"></script>
 <script src="admin-players.js?v=20260928b"></script>
-<script src="admin-players-email.js?v=20260928b"></script>
+<script src="admin-players-email.js?v=20261003d"></script>
 <script src="admin-ftc-standings.js?v=20260928b"></script>
 <script src="admin-ftc-playoffs-schedule.js?v=20260928b"></script>
 <script src="admin-ftc-teams.js?v=20260928b"></script>
-<script src="app.js?v=20260928c"></script>
-<script src="tournament.js?v=20260928b"></script>
+<script src="app.js?v=20260930a"></script>
+<script src="tournament.js?v=20260930a"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────
   (function() {

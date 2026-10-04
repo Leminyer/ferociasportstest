@@ -4,10 +4,16 @@
    Load order: admin-state.js -> admin-email-utils.js ->
                admin-tournament-notify.js -> app.js -> tournament.js
 
-   Extracted from app.js's TOURNAMENT NOTIFY section. Uses the shared
-   sendOneEmail()/AdminState.emailInFlight from admin-email-utils.js
-   instead of a private copy (this section never had its own — it was
-   already sharing app.js's, so this preserves that exactly).
+   Extracted from app.js's TOURNAMENT NOTIFY section.
+
+   ── EL ENVÍO PASA POR EL SERVIDOR ─────────────────────────────────
+   Manda con sendEmailServer() de admin-email-utils.js: una sola
+   petición para todo el torneo, la clave del proveedor fuera del
+   navegador, y registro persona a persona. El mensaje se escribe con
+   formato y viaja como HTML, que el servidor filtra antes de pintarlo.
+
+   Hay UN solo camino de envío. La casilla "Send only to me" es ese
+   mismo camino con la lista reducida a una dirección.
 
    openTournamentNotifyModal is called by tournament.js via
    window.app.openTournamentNotifyModal — exposed as a plain global
@@ -24,9 +30,26 @@
     return;
   }
 
+  /* Compartidos con las otras cuatro pantallas que mandan correo. */
+  const edTNotify = window.FerociaEditor
+    ? window.FerociaEditor.mount('t-notify-message', { barraId: 't-notify-fmt-bar' }) : null;
+  if (!edTNotify) console.error('[Ferocia] admin-rich-editor.js must load before admin-tournament-notify.js');
+  const claveador = window.crearClaveador('tourney');
+
+  /* La casilla de ensayo y la etiqueta del botón van juntas: con la
+     casilla puesta, el botón dice "Send only to me". Un botón que
+     dijera "Send Update" mientras la casilla está marcada
+     diría una cosa y haría otra. */
+  const ensayo = window.vincularEnsayo('t-notify-only-me', 't-notify-send-btn', 'Send Update');
+
   // Opens the tournament notify modal, pre-filled with a default subject/message.
   // tournamentId and tournamentName are passed from tournament.js via window.app.
   const openTournamentNotifyModal = async (tournamentId) => {
+    /* Reabrir la ventana con un envío en curso limpiaba el composer y
+       se llevaba por delante el asunto y el mensaje de ESE envío, que
+       todavía no ha contestado. Si sale parcial, el texto que hace
+       falta para reintentar ya no existe. */
+    if (window.envioEnCurso && window.envioEnCurso('abrir')) return;
     if (!tournamentId) { toast('No tournament selected.', true); return; }
 
     // Fetch tournament name + all teams in parallel
@@ -94,14 +117,32 @@
     // Pre-fill default subject and message
     document.getElementById('t-notify-subject').value =
       `🏆 ${tournamentName} — Your Results Are Ready`;
-    document.getElementById('t-notify-message').value =
-      `Hi {{player_name}},\n\nThe results for ${tournamentName} are now available. Click the link below to view your standings, bracket results, and more.\n\nThank you for participating and congratulations to all players on a great tournament!\n\nFerocia Sports Center`;
+    /* SIN el "Hi {{player_name}}," que llevaba antes, por dos motivos:
+
+       · La plantilla del correo YA saluda por el nombre, arriba del
+         mensaje. Con esa línea el nombre salía dos veces.
+       · No hay que escribir variables a mano. Quien redacte esto
+         mañana no tiene por qué saber qué es {{player_name}}.
+
+       Si alguien la escribe igualmente, el servidor la sigue
+       sustituyendo: se quitó del texto por defecto, no del sistema. */
+    if (edTNotify) edTNotify.setHTML(window.FerociaEditor.textoAHTML(
+      `The results for ${tournamentName} are now available. `
+      + `Click the link below to view your standings, bracket results, and more.`
+      + `\n\nThank you for participating and congratulations to all players `
+      + `on a great tournament!\n\nFerocia Sports Center`));
 
     // Store on modal for use by sendTournamentNotify
     const modal = document.getElementById('tournament-notify-modal');
     modal._tournamentId = tournamentId;
     modal._tournamentName = tournamentName;
     modal._emailPlayers = emailPlayers;
+
+    /* Casilla de ensayo siempre desmarcada al abrir; la clave sólo se
+       pone si no hay ninguna pendiente (ver admin-email-utils.js). */
+    ensayo.reset();
+    claveador.asegurar();
+
     modal.classList.add('open');
   };
 
@@ -109,130 +150,164 @@
     document.getElementById('tournament-notify-modal').classList.remove('open');
   };
 
-  // Sends the subject/message currently in the form to the admin only, so
-  // they can preview exactly how it'll look before notifying real players.
-  const sendTestTournamentNotifyEmail = async () => {
-    if (window.AdminState.emailInFlight) { toast('Please wait for the current send to finish.', true); return; }
-
-    const modal = document.getElementById('tournament-notify-modal');
-    const { _tournamentId, _tournamentName } = modal;
-    if (!_tournamentId) { toast('No tournament selected.', true); return; }
-
-    const subject = document.getElementById('t-notify-subject').value.trim();
-    const message = document.getElementById('t-notify-message').value.trim();
-    if (!subject || !message) {
-      toast('Please fill in subject and message before sending a test.', true);
-      return;
-    }
-
-    const baseTourneyUrl =
-      window.location.origin + window.location.pathname.replace('admin.html', '') + 'tournament-results.html';
-    const resultsUrl = `${baseTourneyUrl}?t=${btoa(String(_tournamentId))}`;
-    const testMsg = message.replace('{{player_name}}', 'Ferocia Admin');
-
-    const testBtn = document.getElementById('t-notify-test-btn');
-    const origHTML = testBtn.innerHTML;
-    testBtn.disabled = true;
-    testBtn.innerHTML = 'Sending test...';
-
-    try {
-      emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
-      const ok = await window.sendOneEmail(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.LADDER_NOTIFY, {
-        player_name: 'Ferocia Admin',
-        player_email: CFG.ADMIN_EMAIL,
-        email_title: _tournamentName || 'Tournament',
-        subject: `[TEST] ${subject}`,
-        message: testMsg,
-        leaderboard_url: resultsUrl,
-      });
-      if (ok) {
-        toast(`✅ Test email sent to ${CFG.ADMIN_EMAIL}`);
-      } else {
-        toast('Test email failed. Check your EmailJS config.', true);
-      }
-    } catch (err) {
-      toast(`Error: ${err.message}`, true);
-    } finally {
-      testBtn.disabled = false;
-      testBtn.innerHTML = origHTML;
-    }
-  };
-
   const sendTournamentNotify = async (e) => {
     e.preventDefault();
+    if (window.AdminState.emailInFlight) { toast('Please wait for the current send to finish.', true); return; }
+
     const modal = document.getElementById('tournament-notify-modal');
     const { _tournamentId, _tournamentName, _emailPlayers } = modal;
     if (!_tournamentId || !_emailPlayers?.length) return;
 
     const subject = document.getElementById('t-notify-subject').value.trim();
-    const message = document.getElementById('t-notify-message').value.trim();
-    if (!subject || !message) { toast('Please fill in subject and message.', true); return; }
+    const message = edTNotify ? edTNotify.getHTML() : '';
+    const texto   = edTNotify ? edTNotify.getText() : '';
+    if (!subject || !texto) { toast('Please fill in subject and message.', true); return; }
 
-    // Build tournament results URL
+    const soloAdmin = !!document.getElementById('t-notify-only-me')?.checked;
+    /* La casilla se bloquea AQUÍ, en cuanto se lee, y no después de la
+       confirmación. Entre leerla y bloquearla hay al menos un `await`,
+       y en ese hueco un clic en la casilla la cambiaba: el envío salía
+       con lo leído, pero el `finally` —que a propósito mira la casilla
+       de verdad— dejaba el botón diciendo lo contrario de lo que se
+       acababa de mandar. */
+    ensayo.bloquear(true);
+
+
     const baseTourneyUrl =
       window.location.origin + window.location.pathname.replace('admin.html', '') + 'tournament-results.html';
     const resultsUrl = `${baseTourneyUrl}?t=${btoa(String(_tournamentId))}`;
 
+    const copiaAdmin = { email: CFG.ADMIN_EMAIL, name: 'Ferocia Admin' };
+
+    let recipients;
+    if (soloAdmin) {
+      recipients = [copiaAdmin];
+    } else {
+      recipients = [
+        ..._emailPlayers.map((p) => ({
+          email: p.email,
+          name:  window.nombreDestinatario(p),
+          player_id: p.id,
+        })),
+        copiaAdmin,
+      ];
+
+      const cuantos = _emailPlayers.length;
+      const seguro = await confirmModal({
+        title:   `Notify ${cuantos} player${cuantos === 1 ? '' : 's'}?`,
+        message: `"${subject}" will be emailed to ${cuantos} player`
+               + `${cuantos === 1 ? '' : 's'} from ${_tournamentName}`
+               + `, plus a copy to you. This cannot be undone.`
+               /* Una sola frase seguida: confirmModal pinta con
+                  textContent y sin white-space:pre-line, así que un
+                  \n\n se queda en un espacio y la frase se pega a la
+                  anterior. Su propio admin-incident-reports.js lo
+                  documenta. */
+               + ` To check it first, cancel and use "Send only to me".`,
+        okLabel: `Send to ${cuantos}`,
+        cancelLabel: 'Cancel',
+        danger: true,
+      });
+      // Al cancelar hay que SOLTAR la casilla: si no, se queda gris
+      // para siempre y ya no se puede marcar el ensayo.
+      if (!seguro) { ensayo.bloquear(false); return; }
+    }
+
     const sendBtn = document.getElementById('t-notify-send-btn');
-    const sendBtnOrigText = sendBtn.innerHTML;
     sendBtn.disabled = true;
-    sendBtn.textContent = 'Sending...';
+    sendBtn.innerHTML = soloAdmin
+      ? 'Sending rehearsal to you...'
+      : `Sending to ${recipients.length} people...`;
     window.AdminState.emailInFlight = true;
 
-    emailjs.init({ publicKey: CFG.EMAILJS.PUBLIC_KEY });
-    let sent = 0;
-    const failedRecipients = [];
-
-    // Add admin as last recipient to receive a copy and verify delivery
-    const allTourneyRecipients = [
-      ..._emailPlayers,
-      { first_name: 'Ferocia', last_name: 'Admin', email: CFG.ADMIN_EMAIL },
-    ];
-
-    for (const player of allTourneyRecipients) {
-      const playerMsg = message.replace('{{player_name}}', `${player.first_name} ${player.last_name}`);
-      const ok = await window.sendOneEmail(CFG.EMAILJS.SERVICE, CFG.EMAILJS.TEMPLATES.LADDER_NOTIFY, {
-        player_name: `${player.first_name} ${player.last_name}`,
-        player_email: player.email,
-        email_title: _tournamentName,
+    let r;
+    try {
+      r = await window.sendEmailServer({
+        kind:     'tournament_notify',
+        template: 'notify',
         subject,
-        message: playerMsg,
-        leaderboard_url: resultsUrl,
+        body: message,
+        meta: {
+          email_title: _tournamentName,
+          leaderboard_url: resultsUrl,
+          cuerpo_html: true,
+          ...(soloAdmin ? { solo_admin: true } : {}),
+        },
+        recipients,
+        idempotency_key: soloAdmin ? null
+          : await claveador.clave([_tournamentId, subject, message]),
       });
-      if (ok) sent++;
-      else failedRecipients.push(player.email);
-      sendBtn.textContent = `Sending... ${sent + failedRecipients.length}/${allTourneyRecipients.length}`;
-      if (sent + failedRecipients.length < allTourneyRecipients.length) {
-        await sleep(CFG.EMAIL_THROTTLE_MS);
-      }
+    } finally {
+      window.AdminState.emailInFlight = false;
+      sendBtn.disabled = false;
+      /* ensayo.sync() y NO `innerHTML = origHTML`.
+
+         `origHTML` era una FOTO del botón tomada al empezar el envío.
+         Si la casilla cambiaba mientras se mandaba, el finally reponía
+         esa foto vieja y el botón acababa diciendo lo contrario de lo
+         que marca la casilla — justo la mentira que esto existe para
+         impedir. sync() mira la casilla de verdad, no una foto.
+
+         Y con bloquear(false) la casilla vuelve a estar disponible. */
+      ensayo.bloquear(false);
+      ensayo.sync();
     }
 
-    window.AdminState.emailInFlight = false;
-
-    // Show completion state before closing
-    if (!failedRecipients.length) {
-      sendBtn.style.background = 'linear-gradient(180deg,#2ab87a,#1d9e68)';
-      sendBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sent ${sent} emails!`;
-    } else {
-      sendBtn.style.background = 'linear-gradient(180deg,var(--orange),#d44e10)';
-      sendBtn.innerHTML = `⚠ Sent ${sent}, ${failedRecipients.length} failed`;
+    if (!r.ok) {
+      console.error('[tournament-notify] send failed:', r);
+      toast(r.message, true);
+      return;   // la ventana se queda abierta: no se pierde el mensaje
     }
 
-    await sleep(2000);
-    sendBtn.disabled = false;
-    sendBtn.innerHTML = sendBtnOrigText;
-    // Same bug as in admin-email-notifications.js: clearing style.background
-    // wipes the inline gradient declared in admin.html and leaves the button
-    // transparent. Restore it explicitly.
-    sendBtn.style.background = 'linear-gradient(180deg,#2456d3,var(--blue))';
-    closeTournamentNotifyModal();
+    const d = r.data || {};
+    console.log('[tournament-notify] resultado del envio:', d);
 
-    if (!failedRecipients.length) {
-      toast(`✅ ${sent} emails sent successfully!`);
+    if (soloAdmin) {
+      ensayo.reset();
+      toast(d.sent
+        ? `✅ Rehearsal sent to ${CFG.ADMIN_EMAIL} only. No player received it. The checkbox is now off — press Send again to notify everyone.`
+        : `Rehearsal did not go out: ${window.resumenEnvio(d)}`, !d.sent);
+      return;
+    }
+
+    /* La clave y el cierre SOLO cuando el envío salió LIMPIO.
+
+       El servidor contesta 200 también con estado 'partial' o 'failed'
+       (index.ts: json() usa 200 por defecto), así que `r.ok` no quiere
+       decir "salió bien". Antes se hacían las dos cosas siempre:
+       - tirar la clave abría una campaña NUEVA en el reintento, y el
+         servidor ya no sabía quién tenía el correo: todos repetían;
+       - cerrar la ventana se llevaba por delante el mensaje escrito,
+         justo cuando hacía falta para reintentar. */
+    /* La llave se renueva cuando la campaña está TERMINADA —no va a
+       salir ni un correo más de ella— y no cuando llegó a todos. Las
+       dos formas de equivocarse hacen daño en direcciones opuestas:
+       renovar antes de tiempo duplica correos; no renovar nunca deja
+       la pantalla enganchada a una campaña vieja. Ver `envioTerminado`
+       en admin-email-utils.js. */
+    /* Ya NO se mira `d.failed`. Esa condición sobraba y costaba una
+       pulsación: `d.failed` son los fallos de ESTA pulsación, y en la
+       única pulsación donde cambiaba algo —la que agota el tercer
+       intento de una dirección muerta— la campaña ya estaba terminada.
+       El aviso te mandaba a reintentar algo que no se va a reintentar
+       nunca, y había que pulsar una cuarta vez para cerrarla.
+
+       Mientras queden intentos no hace falta: esa fila no está ni en
+       los enviados ni en los agotados, así que `envioTerminado` ya es
+       falso por su cuenta. */
+    const limpio = window.envioTerminado(d) && !d.unconfirmed;
+    if (limpio) {
+      claveador.limpiar();   // el siguiente aviso será uno nuevo
+      closeTournamentNotifyModal();
+      toast(window.mensajeExito(d) + window.loQueFalto(d), window.huboPerdidas(d));
     } else {
-      const failedList = failedRecipients.slice(0, 3).join(', ');
-      const more = failedRecipients.length > 3 ? ` (+${failedRecipients.length - 3} more)` : '';
-      toast(`Sent ${sent}. Failed: ${failedList}${more}`, true);
+      console.warn('[tournament-notify] no salio limpio:', d);
+      /* Si el envío se CORTÓ, eso es lo único que importa, y la
+         respuesta dice por qué. Sin esto el aviso mandaba a reintentar
+         un corte que no se arregla reintentando. */
+      const corte = window.motivoDelCorte(d);
+      toast(corte
+        || `Finished: ${window.resumenEnvio(d)}. Press Send again to retry the ones that failed.`, true);
     }
   };
 
@@ -243,7 +318,12 @@
   // ── Register with the shared infrastructure ───────────────────────────
   window.openTournamentNotifyModal = openTournamentNotifyModal; // for window.app, built in app.js's BOOT
   Object.assign(window.CLICK_HANDLERS, {
-    closeTournamentNotifyModal: () => closeTournamentNotifyModal(),
-    sendTestTournamentNotifyEmail: () => sendTestTournamentNotifyEmail(),
+    /* Aquí y no dentro de la función: el cierre automático que hace
+       el propio envío al terminar tiene que seguir funcionando. Lo que
+       se protege es el botón X, que es por donde entra la persona. */
+    closeTournamentNotifyModal: () => {
+      if (window.envioEnCurso && window.envioEnCurso()) return;
+      closeTournamentNotifyModal();
+    },
   });
 })();

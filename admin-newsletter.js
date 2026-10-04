@@ -48,23 +48,6 @@
 
   const isSent = () => _current?.status === 'sent';
 
-  /* The newsletter spells the month out in full — "October 2, 2026" — while
-     the rest of the admin uses the short form.
-
-     fmtDate is a global shared by nine modules (players, sessions,
-     promotions, rosters and more). Changing it to suit the newsletter
-     would move dates on screens nobody asked about, so it is left alone
-     and the long form is built here, for this section only.
-
-     Noon rather than midnight: "2026-10-02" parsed as UTC midnight becomes
-     October 1st for anyone west of Greenwich. */
-  const fmtDateLong = (d) => {
-    if (!d) return '';
-    const dt = new Date(String(d).includes('T') ? d : d + 'T12:00:00');
-    return isNaN(dt) ? String(d)
-      : dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  };
-
   /** Reads a value out of the content object by dotted path. */
   const get = (path, fallback = '') => {
     const parts = path.split('.');
@@ -106,48 +89,6 @@
         <div style="${FONT}font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">${esc(label)}</div>
         ${el}
         ${opts.hint ? `<div style="${FONT}font-size:11px;font-weight:600;color:var(--text-light);margin-top:4px;line-height:1.5;">${esc(opts.hint)}</div>` : ''}
-      </div>`;
-  };
-
-  /* The icon that sits above each Around FEROCIA number.
-
-     These are the PNG files in the newsletter-images bucket, the same ones
-     the email itself loads — so what the dropdown previews is exactly what
-     the reader gets. A <select> cannot draw an image, so the chosen icon is
-     shown beside it.
-
-     Leaving it on "Default" gives the icon that matches the position, so
-     nothing has to be chosen for the section to look finished. A <select>
-     fires the same `input` event as the text fields, so it saves through
-     the one delegated listener already in place. */
-  const ICON_BASE = CFG.SUPABASE_URL + '/storage/v1/object/public/newsletter-images/icons/';
-
-  const ICON_CHOICES = [
-    ['num-players', 'Players'],
-    ['num-games',   'Games played'],
-    ['num-ladders', 'Ladders'],
-    ['num-new',     'New players'],
-  ];
-  const ICON_DEFAULTS = ICON_CHOICES.map((c) => c[0]);   // same order as the email
-
-  const iconField = (path, index) => {
-    const v    = get(path);
-    const dis  = isSent() ? 'disabled' : '';
-    // Drafts saved before the icons became images may still hold an emoji.
-    const name = /^[a-z][a-z0-9-]*$/.test(v) ? v : '';
-    const shown = name || ICON_DEFAULTS[index] || ICON_DEFAULTS[0];
-    return `
-      <div style="margin-bottom:12px;">
-        <div style="${FONT}font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Icon</div>
-        <div style="display:flex;align-items:center;gap:9px;">
-          <img src="${esc(ICON_BASE + shown + '.png')}" alt="" width="26" height="26"
-               style="flex-shrink:0;display:block;">
-          <select data-nlpath="${path}" ${dis} style="${inputStyle}cursor:pointer;">
-            <option value="" ${name ? '' : 'selected'}>Default</option>
-            ${ICON_CHOICES.map(([f, n]) =>
-              `<option value="${f}" ${name === f ? 'selected' : ''}>${esc(n)}</option>`).join('')}
-          </select>
-        </div>
       </div>`;
   };
 
@@ -220,11 +161,6 @@
     if (path && e.target.files?.[0]) {
       uploadImage(e.target.files[0], path, e.target.id + '_status');
     }
-    // A <select> fires `input` in every current browser, so the delegated
-    // input listener already covers the icon dropdown. This is the belt to
-    // that suspenders: writing the same value twice changes nothing.
-    const nlpath = e.target?.dataset?.nlpath;
-    if (nlpath && e.target.tagName === 'SELECT' && _current) set(nlpath, e.target.value);
   });
 
   window.nlImgClear = (path) => { set(path, ''); renderSections(); };
@@ -269,11 +205,6 @@
     arr.splice(idx, 1);
     set(path, arr);
     renderSections();
-    /* Removing something looks final — it even asks first — but like every
-       other edit here it has only changed the copy in the browser. Say so,
-       because a reload before saving quietly brings the item back and that
-       reads as the delete having failed. */
-    toast('Removed. Press Save Draft to keep the change.');
   };
   window.nlListRemove = listRemove;
 
@@ -296,13 +227,6 @@
 
   /* ─── SECTION RENDERERS ──────────────────────────────────── */
 
-  /* Sits above the banner, on the page background rather than inside the
-     white card — so it is its own card here too, before the Header, in the
-     order the reader meets it. */
-  const secIntro = () => sectionCard('I', 'Opening Note', 'Optional. A line from you, above the newsletter itself', `
-    ${field('Opening note', 'intro', { textarea: true, rows: 4,
-       hint: 'Shown at the very top of the email, outside the newsletter, in italics. Leave it empty and nothing is shown — no heading, no space. Blank lines become paragraphs.' })}`);
-
   const secHeader = () => sectionCard('H', 'Header', 'The banner image and the line printed over it', `
     ${imageField('Banner image', 'hero.image_url',
        'Appears at the top of the email, under the FEROCIA Monthly title. Landscape works best — about twice as wide as it is tall.')}
@@ -321,18 +245,12 @@
           Add from Events
         </button>
       </div>`)
-      // The line that sits under the heading. The email has always rendered
-      // it; there was simply no box to type it in, so it was always empty.
-      + field('Intro line', 'upcoming_sub',
-              { placeholder: 'New ladders. A spooky tournament. More pickleball.',
-                hint: 'One short line under the WHAT\'S COMING UP heading.' })
       + items.map((_, i) => itemBox(
         field('Name', `upcoming.${i}.title`) +
         field('Date', `upcoming.${i}.date`, { placeholder: 'Starts October 2, 2026' }) +
         field('Time', `upcoming.${i}.time`, { placeholder: '8:30 AM – 10:30 AM' }) +
         field('Location', `upcoming.${i}.location`) +
-        imageField(`Flyer (optional)`, `upcoming.${i}.image_url`,
-          'For a tournament with its own artwork. The flyer fills the top of the card; leave it empty and the card shows the calendar instead.') +
+        field('Short description', `upcoming.${i}.description`, { textarea: true, rows: 2 }) +
         field('Registration URL', `upcoming.${i}.url`, { hint: 'Leave empty if registration has not opened.' }) +
         field('Button label', `upcoming.${i}.cta_label`, { placeholder: 'Register Now — or "Registration coming soon" with no URL' }),
         'upcoming', i)).join('')
@@ -362,15 +280,6 @@
           Add a Ladder
         </button>
       </div>`)
-      /* The email has always rendered a subtitle and an intro line here —
-         there was simply no box to type either, so both were permanently
-         blank. Same gap the What's Coming Up intro had. */
-      + (items.length
-          ? field('Subtitle', 'spotlight_sub',
-                  { hint: 'Shown in caps under the PLAYER SPOTLIGHT heading.' })
-            + field('Intro line', 'spotlight_intro',
-                  { hint: 'One sentence under the subtitle. Example: Two ladders. Twelve standout performances. One competitive summer.' })
-          : '')
       + items.map((_, i) => itemBox(
         field('Ladder name', `spotlight.${i}.ladder`) +
         field('Period', `spotlight.${i}.period`, { placeholder: 'July – September 2026' }) +
@@ -396,8 +305,7 @@
       // and an "Add division" button up front asked the admin to do work
       // the importer was about to do for them.
       + (items.length
-          ? field('Tournament name', 'champions_sub', { placeholder: 'Mamba Day 2026 Pickleball Tournament' })
-            + field('Tournament date', 'champions_date', { placeholder: 'Sunday, August 23, 2026' })
+          ? field('Tournament name', 'champions_sub', { placeholder: 'Mamba Day 2026 · Sunday, August 23, 2026' })
           : '')
       + items.map((_, i) => {
         const pod = get(`champions.${i}.podium`, ['', '', '']);
@@ -409,25 +317,17 @@
                   { placeholder: 'Chris Berry & Emely Skiff' })).join(''),
           'champions', i);
       }).join('')
-      + (items.length ? `<div style="margin-bottom:18px;">${addBtn('Add division', 'nlAddChampion', 'champions')}</div>`
-                      : addBtn('Add manually', 'nlAddChampion', 'champions'))
-      + (items.length
-          ? field('Closing line', 'champions_footer',
-                  { placeholder: 'Congratulations to all our champions!' })
-          : ''));
+      + addBtn(items.length ? 'Add division' : 'Add manually', 'nlAddChampion', 'champions'));
   };
 
   const secCoach = () => sectionCard(4, "Coach's Corner", 'Real pickleball teaching — the reason to open the email', `
     ${field('Tip headline', 'coach.title', { placeholder: 'Win the point later, not on your third shot' })}
     ${field('Body', 'coach.body', { textarea: true, rows: 9, hint: 'Blank lines become paragraphs.' })}
     ${field('Signature', 'coach.author', { placeholder: 'Coach Leminyer' })}
-    ${field("This month's challenge", 'coach.challenge', { textarea: true, rows: 3 })}
-    ${field('Challenge goal', 'coach.goal', {
-       placeholder: 'Ten clean third-shot drops in a row',
-       hint: 'Optional. Shown on its own line, in bold, under the challenge.' })}`);
+    ${field("This month's challenge", 'coach.challenge', { textarea: true, rows: 3 })}`);
 
   const secPick = () => sectionCard(5, 'FEROCIA Pick of the Month', 'One product — never a carousel', `
-    ${field('Product name', 'pick.name', { placeholder: 'Selkirk SLK Halo Control' })}
+    ${field('Product name', 'pick.name')}
     ${imageField('Product photo', 'pick.image_url',
        'Optional. A photo of the product — the email still reads fine without one.')}
     ${field('Description', 'pick.description', { textarea: true, rows: 3 })}
@@ -440,7 +340,6 @@
       field('Subtitle', 'numbers.subtitle', { placeholder: 'September by the numbers' })
       + items.map((_, i) => `
         <div style="display:flex;gap:8px;align-items:flex-start;">
-          <div style="width:168px;flex-shrink:0;">${iconField(`numbers.items.${i}.icon`, i)}</div>
           <div style="flex:1;">${field('Value', `numbers.items.${i}.value`, { placeholder: '64' })}</div>
           <div style="flex:2;">${field('Label', `numbers.items.${i}.label`, { placeholder: 'Players on court' })}</div>
           <div style="padding-top:10px;">${removeBtn('numbers.items', i)}</div>
@@ -452,7 +351,7 @@
   const renderSections = () => {
     const el = document.getElementById('nl-sections');
     if (!el || !_current) return;
-    el.innerHTML = secIntro() + secHeader() + secUpcoming() + secSpotlight() + secChampions()
+    el.innerHTML = secHeader() + secUpcoming() + secSpotlight() + secChampions()
                  + secCoach() + secPick() + secNumbers();
   };
 
@@ -461,24 +360,6 @@
   document.addEventListener('input', (e) => {
     const path = e.target?.dataset?.nlpath;
     if (path && _current) set(path, e.target.value);
-  });
-
-  /* Nothing typed, added or removed here reaches the database until Save
-     Draft is pressed — that separation is deliberate, so a half-written
-     edition never becomes the saved one.
-
-     What was missing was the warning. Reloading with work in progress threw
-     it away in silence and the page came back showing the last saved copy,
-     which looks exactly like the edit never happened. The browser's own
-     "leave site?" prompt is the one thing that interrupts a reload, so it
-     is asked for whenever there is something unsaved.
-
-     Chrome and Safari need returnValue set as well as preventDefault, and
-     they show their own wording — the string below is never displayed. */
-  window.addEventListener('beforeunload', (e) => {
-    if (!_dirty || !_current || isSent()) return;
-    e.preventDefault();
-    e.returnValue = '';
   });
 
 
@@ -625,9 +506,6 @@
         top_women: women,
       });
       set('spotlight', arr);
-      // Written in rather than offered as grey placeholder text, which is
-      // easy to mistake for a filled-in value and never reaches the email.
-      if (!get('spotlight_sub')) set('spotlight_sub', 'Celebrating our ladder leaders');
       window.nlClosePick();
       renderSections();
       toast(`Added ${l.name} — ${men.length} men, ${women.length} women.`);
@@ -670,40 +548,6 @@
      drop to the bottom. Reimplemented here rather than imported because
      tournament.js keeps it inside a page-scoped closure — the ordering is
      copied exactly so both agree. */
-  /* WHO ACTUALLY FINISHED FIRST
-
-     Round-robin position is not the result. Once a division plays a
-     bracket, the tournament screen declares the champion the way
-     renderPodium does in tournament-results.html:
-
-       1st — winner of the match whose round_name is 'Final'
-       2nd — the other team in that Final
-       3rd — winner of the '3rd Place' match
-
-     Reading the round robin instead put whoever topped the group stage
-     first, so a team that won the group and then lost the final came out
-     ahead of the team that beat them. That is the swap that was reported.
-
-     Only when there is no completed Final does the round robin decide —
-     a division that never played a bracket has nothing else to go on. */
-  const finalPodium = (teams, rrMatches, bracketMatches) => {
-    const byId = new Map(teams.map((t) => [t.id, t]));
-    const fin = (bracketMatches || []).find(
-      (m) => m.round_name === 'Final' && m.status === 'completed' && m.winner_id);
-
-    if (fin) {
-      const champion = byId.get(fin.winner_id);
-      const runnerId = fin.team_a_id === fin.winner_id ? fin.team_b_id : fin.team_a_id;
-      const third = (bracketMatches || []).find(
-        (m) => m.round_name === '3rd Place' && m.status === 'completed' && m.winner_id);
-      // A division with no third-place match simply has two places, which
-      // is what the tournament screen shows too. Nothing is invented.
-      return [champion, runnerId ? byId.get(runnerId) : null,
-              third ? byId.get(third.winner_id) : null].filter(Boolean);
-    }
-    return calcPodium(teams, rrMatches).slice(0, 3).map((r) => r.team);
-  };
-
   const calcPodium = (teams, matches) => {
     const st = {};
     teams.forEach((t) => { st[t.id] = { team: t, w: 0, l: 0, pf: 0, pa: 0, ff: false }; });
@@ -734,45 +578,18 @@
         return;
       }
       const catIds = cats.map((c) => c.id).join(',');
-      /* tournament_teams.name is the SEED LABEL — "A1", "B4" — not the
-         players. Reading it straight is what put "A1" in the newsletter
-         where a champion's name belongs.
-
-         The players hang off player1_id … player4_id, exactly as the
-         tournament screen reads them, so those ids are fetched and turned
-         into "First Last & First Last". */
-      const [teams, matches, bracket] = await Promise.all([
-        api(`tournament_teams?category_id=in.(${catIds})`
-          + `&select=id,category_id,name,player1_id,player2_id,player3_id,player4_id`),
+      const [teams, matches] = await Promise.all([
+        api(`tournament_teams?category_id=in.(${catIds})&select=id,category_id,name`),
         api(`tournament_rr_matches?category_id=in.(${catIds})`
           + `&select=category_id,status,team_a_id,team_b_id,score_a,score_b,winner_id,forfeit_team_id`),
-        api(`tournament_bracket_matches?category_id=in.(${catIds})`
-          + `&select=category_id,round_name,status,team_a_id,team_b_id,winner_id`).catch(() => []),
       ]);
-
-      const playerIds = [...new Set((teams || []).flatMap((t2) =>
-        [t2.player1_id, t2.player2_id, t2.player3_id, t2.player4_id].filter(Boolean)))];
-      const roster = playerIds.length
-        ? await api(`players?id=in.(${playerIds.join(',')})&select=id,first_name,last_name`)
-        : [];
-      const byId = new Map((roster || []).map((pl) => [pl.id, `${pl.first_name} ${pl.last_name}`]));
-
-      /* A team with no players on it — a placeholder, or a format that
-         does not use them — keeps its label rather than coming through
-         blank. Better a seed code than an empty line. */
-      const teamLabel = (tm) => {
-        const names = [tm.player1_id, tm.player2_id, tm.player3_id, tm.player4_id]
-          .filter(Boolean).map((id) => byId.get(id)).filter(Boolean);
-        return names.length ? names.join(' & ') : (tm.name || '');
-      };
 
       const added = [];
       (cats || []).forEach((c) => {
         const ct = (teams || []).filter((x) => x.category_id === c.id);
         const cm = (matches || []).filter((m) => m.category_id === c.id);
         if (!ct.length) return;
-        const podium = finalPodium(ct, cm, (bracket || []).filter((m) => m.category_id === c.id))
-          .map(teamLabel);
+        const podium = calcPodium(ct, cm).slice(0, 3).map((r) => r.team.name);
         // A division with no completed matches produces no real podium.
         if (!podium.length) return;
         // tournament_categories has no skill/level column — the level is
@@ -788,15 +605,9 @@
       }
 
       set('champions', (get('champions', [])).concat(added));
-      // Name and date are two separate lines in the email now, so they are
-      // stored as two values rather than one string joined with a dot.
-      if (!get('champions_sub'))  set('champions_sub', t.name);
-      if (!get('champions_date') && t.date) set('champions_date', fmtDateLong(t.date));
-      /* The closing line was only a placeholder — grey ghost text that
-         looks filled in but is not, so the line never reached the email
-         and its absence read as a bug. It is written in for real now, and
-         can be edited or emptied like any other field. */
-      if (!get('champions_footer')) set('champions_footer', 'Congratulations to all our champions!');
+      if (!get('champions_sub')) {
+        set('champions_sub', `${t.name}${t.date ? ` · ${fmtDate(t.date)}` : ''}`);
+      }
       window.nlClosePick();
       renderSections();
       toast(`Added ${added.length} division${added.length !== 1 ? 's' : ''} from ${t.name}.`);
@@ -819,15 +630,10 @@
     const arr = get('upcoming', []);
     chosen.forEach((e) => arr.push({
       title: e.title,
-      // "Starts" comes in as part of the text so it can be taken out for a
-      // tournament, where the proposal shows the date on its own.
-      date: 'Starts ' + fmtDateLong(e.event_date),
+      date: fmtDate(e.event_date),
       time: [fmtT(e.event_time), fmtT(e.end_time)].filter(Boolean).join(' – '),
       location: '',
-      // The description is no longer imported: the card shows name, date
-      // and time, as the visual proposal does, so carrying the text across
-      // only left dead weight in the saved JSON.
-      image_url: '',
+      description: e.description || '',
       url: e.registration_url || '',
       // An event with no registration link gets the label the spec asks
       // for rather than a button that goes nowhere.
@@ -841,8 +647,38 @@
 
   /* ─── LIST VIEW ──────────────────────────────────────────── */
 
-  const statusPill = (s) => s === 'sent'
+  /* Un número a MEDIO enviar sigue siendo 'draft' a propósito, para que el
+     botón Enviar siga disponible y pueda terminarse. Pero entonces era
+     igualito a un borrador que nunca salió: misma pastilla, mismo "Last
+     edited", sin aviso de ninguna clase. Al día siguiente no había forma
+     de saber que media lista ya lo tenía. */
+  const aMedias = (n) => n.status !== 'sent' && (n.sent_count || 0) > 0;
+
+  /* ¿Se puede borrar? SÓLO si nunca se intentó enviar.
+
+     Antes esto miraba sólo `sent_count`, que es un contador copiado en la
+     tabla `newsletters`. Y hay un camino en el que ese contador se queda
+     en cero DESPUÉS de que los correos salgan: si al terminar el envío
+     falla la consulta que cuenta los destinatarios, el servidor —a
+     propósito— no escribe ninguna cuenta, para no borrar el registro de
+     un envío que sí ocurrió. Lo mismo si la función se muere por tiempo
+     en el último paso.
+
+     El resultado era que un número que ya tenían 453 personas aparecía
+     como borrador intacto, con la papelera disponible y un mensaje que
+     decía "no se envió a nadie, nadie se ve afectado". Si se borraba y se
+     creaba otro, esas 453 personas lo recibían DOS VECES.
+
+     `communication_id` no tiene ese problema: se escribe ANTES de mandar
+     el primer correo y no se borra nunca. Si el número tiene uno, hubo un
+     envío y esto no es un borrador. */
+  const nuncaSeIntentoEnviar = (n) =>
+    n.status === 'draft' && !(n.sent_count || 0) && !n.communication_id;
+
+  const statusPill = (n) => n.status === 'sent'
     ? '<span style="font-size:10px;font-weight:800;color:#1D9E68;background:#EEF9F2;padding:3px 10px;border-radius:99px;text-transform:uppercase;">Sent</span>'
+    : aMedias(n)
+    ? '<span style="font-size:10px;font-weight:800;color:#c2410c;background:#FFF1E8;padding:3px 10px;border-radius:99px;text-transform:uppercase;">Half sent</span>'
     : '<span style="font-size:10px;font-weight:800;color:#9a6200;background:#FFF4E6;padding:3px 10px;border-radius:99px;text-transform:uppercase;">Draft</span>';
 
   const renderList = () => {
@@ -859,11 +695,28 @@
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:2px;">
             ${n.status === 'sent'
               ? `Sent ${fmtDate(String(n.sent_at).slice(0, 10))} · ${n.sent_count} recipient${n.sent_count !== 1 ? 's' : ''}${n.failed_count ? ` · ${n.failed_count} failed` : ''}`
+              : aMedias(n)
+              /* ── ESTA FILA NO TE MANDA PULSAR ENVIAR ─────────────
+                 Decía "press Send to finish", y hay un caso en el que
+                 eso es exactamente lo que NO hay que hacer: si el último
+                 envío salió y no se pudo apuntar a quién, el aviso dice
+                 "no vuelvas a pulsar Enviar — esa gente lo recibiría dos
+                 veces". El aviso se va a los pocos segundos; esta fila
+                 se queda, contradiciéndolo.
+
+                 Y no se puede arreglar dándole el dato: ese "salió sin
+                 apuntarse" viaja en la respuesta de un envío, no está
+                 guardado en la tabla, así que esta fila no puede
+                 saberlo nunca.
+
+                 Así que la fila dice el HECHO y no la orden. Abrir el
+                 número siempre es seguro; pulsar Enviar, no siempre. */
+              ? `<span style="color:#c2410c;">${n.sent_count} already received it · open to finish</span>`
               : `Last edited ${fmtDate(String(n.updated_at).slice(0, 10))}`}
           </div>
         </div>
-        ${statusPill(n.status)}
-        ${n.status === 'draft' ? `
+        ${statusPill(n)}
+        ${nuncaSeIntentoEnviar(n) ? `
         <button type="button" data-action="nlDelete" data-id="${n.id}" title="Delete this draft"
           style="background:none;border:none;padding:4px 6px;cursor:pointer;color:var(--text-light);"
           onmouseover="this.style.color='#e53935'" onmouseout="this.style.color='var(--text-light)'">
@@ -960,17 +813,41 @@
     document.getElementById('nl-edit-view').style.display = 'block';
     // "October 2026 — Draft" on one line, with the status in a lighter
     // weight so the month still leads.
+    const medias = aMedias(n);
     document.getElementById('nl-edit-title').innerHTML =
-      `${esc(n.title)} <span style="font-size:15px;font-weight:600;color:var(--text-muted);letter-spacing:0;">— ${n.status === 'sent' ? 'Sent' : 'Draft'}</span>`;
+      `${esc(n.title)} <span style="font-size:15px;font-weight:600;color:var(--text-muted);letter-spacing:0;">— ${n.status === 'sent' ? 'Sent' : medias ? 'Half sent' : 'Draft'}</span>`;
 
     // A sent issue is what subscribers already received. Editing it would
     // make the archive disagree with their inbox.
     const banner = document.getElementById('nl-sent-banner');
     const sent = n.status === 'sent';
-    banner.style.display = sent ? 'block' : 'none';
+    banner.style.display = (sent || medias) ? 'block' : 'none';
     if (sent) {
       banner.textContent = `This edition was sent on ${fmtDate(String(n.sent_at).slice(0, 10))} to `
         + `${n.sent_count} subscriber${n.sent_count !== 1 ? 's' : ''}. It is kept exactly as it went out, so it cannot be edited.`;
+    } else if (medias) {
+      /* Sigue editable a propósito: si el envío se cortó por un enlace
+         roto, hay que poder arreglarlo. Pero el aviso tiene que decir lo
+         que cuesta cambiarlo ahora, porque la copia que queda guardada en
+         el historial es la que salió la primera vez. */
+      /* ⚠️  LA ÚNICA EXCEPCIÓN A "NADIE LO RECIBE DOS VECES" SE DICE AQUÍ.
+         Este aviso es el sitio al que llevan la fila de la lista y el
+         aviso de borrar desde que ninguno de los dos ordena pulsar. Si
+         aquí se promete "nobody gets it twice" a secas, el arreglo no
+         sirve de nada: la contradicción sólo se habría movido un clic
+         más adentro, y encima dicha con más fuerza.
+
+         El caso es real: cuando un envío sale y NO se puede apuntar a
+         quién, el aviso de ESE envío dice "no vuelvas a pulsar Enviar".
+         Ese dato viaja en la respuesta del envío y no se guarda, así que
+         este aviso no puede saberlo — pero sí puede nombrar la
+         excepción, que es lo único honesto a su alcance. */
+      banner.textContent = `This edition is half sent: ${n.sent_count} subscriber`
+        + `${n.sent_count !== 1 ? 's' : ''} already received it. Pressing Send delivers it to the `
+        + `rest, and nobody gets it twice — unless the last send warned that some emails went out `
+        + `without being recorded. If it did, check with me before pressing. If you change the `
+        + `content now, the people still waiting will get a different edition than the ones who `
+        + `already have it.`;
     }
     ['nl-save-btn', 'nl-test-btn', 'nl-send-btn'].forEach((bid) => {
       const b = document.getElementById(bid);
@@ -999,6 +876,33 @@
       toast('Sent editions cannot be deleted — they are the record of what was sent.', true);
       return;
     }
+    /* Un número a MEDIO enviar sigue en borrador a propósito, para que el
+       botón Enviar siga disponible y pueda terminarse. Pero ya hay gente
+       que lo recibió: borrarlo destruiría el texto que les falta a los
+       demás, y un número nuevo arrancaría de cero y se lo mandaría otra
+       vez a quienes ya lo tienen. */
+    if ((n.sent_count || 0) > 0) {
+      /* Tampoco aquí se ordena pulsar Enviar, por lo mismo que en la
+         fila de la lista: hay un caso en el que pulsar es justo lo que
+         no se debe hacer, y este aviso no tiene forma de saberlo. */
+      toast(`${n.sent_count} subscriber${n.sent_count !== 1 ? 's' : ''} already received this edition, `
+          + 'so it cannot be deleted. Open it to finish delivering it.', true);
+      return;
+    }
+    /* Y LA MISMA PUERTA, CERRADA POR EL OTRO LADO. El contador de arriba
+       puede quedarse en cero aunque los correos hayan salido (está
+       explicado en `nuncaSeIntentoEnviar`). `communication_id` no: se
+       escribe antes del primer correo. Si lo tiene, hubo un envío, y
+       borrar esto llevaría a mandarlo otra vez a quien ya lo tiene.
+
+       El botón de la papelera ya no aparece en este caso, pero la
+       garantía no puede depender de que un botón esté escondido. */
+    if (n.communication_id) {
+      toast('This edition already has a send on record, so it cannot be deleted from here. '
+          + 'Even if it shows 0 recipients, that count can be wrong — the emails may have gone out. '
+          + 'Check with me before doing anything else.', true);
+      return;
+    }
     const ok = await confirmModal({
       title: `Delete the ${n.title} draft?`,
       message: 'This draft and everything written in it will be removed. Nothing was sent to subscribers, so nobody is affected — but the text cannot be recovered.',
@@ -1024,28 +928,143 @@
       if (!ok) return;
     }
     _current = null;
+    /* La bandera se apaga al salir. Hoy no se nota —al abrir un número
+       se vuelve a poner, y todo el que la lee comprueba `_current`
+       primero— pero dejar una marca global diciendo "hay cambios sin
+       guardar" cuando ya no hay número abierto es sembrar el fallo que
+       acabamos de tapar: una bandera que miente. */
+    setDirty(false);
     loadNewsletterPage();
   };
 
   /* ─── SAVE ───────────────────────────────────────────────── */
 
+  /* DEVUELVE SI SE GUARDÓ, y de eso depende que se pueda enviar.
+
+     Antes esto se tragaba el fallo: pintaba "Error saving" y volvía como
+     si nada. Y como Enviar, Probar y la Vista previa guardan primero
+     ("if (_dirty) await nlSave()"), ninguno de los tres se enteraba.
+
+     Lo que pasaba entonces: arreglas un enlace roto, pulsas Enviar, el
+     guardado falla —lo más común, la sesión caducada tras una hora con
+     la pantalla abierta—, y la función del servidor vuelve a LEER el
+     número de la base de datos, donde sigue el texto viejo. Salen 453
+     correos con el enlace roto, la pantalla dice "Sent to 453
+     subscribers", y en el editor sigues viendo tu texto corregido. No
+     hay forma de darse cuenta ni de deshacerlo.
+
+     Devolviendo true/false, quien llama puede pararse. */
+  /* POR QUÉ no se pudo guardar, cuando no se pudo: '' si fue bien,
+     'error' si la escritura falló, 'escribio' si se guardó pero se
+     siguió escribiendo durante el guardado.
+
+     Hace falta porque los dos casos piden mensajes distintos y
+     `guardarAntesDe` añadía el suyo encima del de `nlSave`. En el
+     segundo caso eso salía mal: el aviso decía "no se pudo guardar" —
+     falso, se guardó— y mandaba a cerrar sesión, que no tiene nada que
+     ver. Dos avisos y uno mintiendo. */
+  let _porQueNoSeGuardo = '';
+
   window.nlSave = async () => {
-    if (!_current || isSent()) return;
+    _porQueNoSeGuardo = '';
+    if (!_current || isSent()) return false;
     const btn = document.getElementById('nl-save-btn');
-    btn.disabled = true; btn.textContent = 'Saving...';
+    /* La búsqueda del botón va DENTRO del try. Fuera, si algún día no
+       existiera, el error saltaría por encima de quien llama —que no lo
+       espera— y el envío se quedaría mudo: sin aviso y sin explicación. */
     try {
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+      /* LO QUE SE MANDA SE CONGELA AQUÍ, y después se compara.
+
+         El botón Guardar se apaga mientras esto va, pero los campos del
+         editor NO: se puede seguir escribiendo durante el viaje de ida y
+         vuelta, y es lo normal. Antes, al volver, esto hacía
+         `setDirty(false)` sin mirar nada — así que las teclas escritas
+         durante el guardado se marcaban como guardadas sin estarlo.
+
+         Y esa bandera es justo la que decide si se puede enviar. O sea
+         que el agujero que este arreglo venía a tapar volvía a abrirse
+         por otra puerta: la base con el texto viejo, la pantalla con el
+         nuevo, la marca diciendo que todo está guardado, y 453 correos
+         con el texto viejo.
+
+         Comparando lo enviado con lo que hay al volver, la bandera deja
+         de poder mentir. Si no coinciden, sigue habiendo cambios sin
+         guardar — que es la verdad. */
+      const loQueSeManda = JSON.stringify(_current.content);
       await api(`newsletters?id=eq.${_current.id}`, 'PATCH', {
         content: _current.content,
         updated_at: new Date().toISOString(),
       });
-      setDirty(false);
-      toast('Draft saved.');
+
+      const sigueIgual = _current && JSON.stringify(_current.content) === loQueSeManda;
+      if (sigueIgual) {
+        setDirty(false);
+        toast('Draft saved.');
+        return true;
+      }
+      /* Se guardó bien, pero mientras tanto se escribió más. No es un
+         error —lo guardado está a salvo— pero NO se puede enviar: el
+         texto de la pantalla todavía no está en la base. */
+      _porQueNoSeGuardo = 'escribio';
+      toast('Saved, but you kept typing while it was saving. Press Save again '
+          + 'so the newest text is stored before sending — nothing was sent.', true);
+      return false;
     } catch (err) {
+      _porQueNoSeGuardo = 'error';
       toast(`Error saving: ${err.message}`, true);
+      return false;
     } finally {
-      btn.disabled = false;
-      if (!_dirty) btn.textContent = 'Save Draft';
+      if (btn) {
+        btn.disabled = false;
+        if (!_dirty) btn.textContent = 'Save Draft';
+      }
     }
+  };
+
+  /* Guarda si hace falta y dice si se puede seguir.
+
+     Vive en un solo sitio porque son TRES los que guardan antes de
+     actuar —Enviar, Probar y la Vista previa— y los tres tienen el mismo
+     problema si el guardado falla: trabajan sobre el texto viejo
+     creyendo que es el nuevo. Escrito tres veces, a la tercera ya no
+     diría lo mismo.
+
+     El aviso nombra lo que está en juego: que lo que saldría NO es lo
+     que ella está viendo. */
+  const guardarAntesDe = async (queIba) => {
+    if (!_dirty) return true;
+    const ok = await window.nlSave();
+    /* Sólo se añade el aviso cuando la escritura FALLÓ. Si se guardó y lo
+       que pasó es que se siguió escribiendo, `nlSave` ya lo ha explicado
+       con las palabras correctas, y repetirlo con otras —"no se pudo
+       guardar"— sería decir algo que no es verdad. */
+    if (!ok && _porQueNoSeGuardo === 'error') {
+      toast(`Your changes could not be saved, so ${queIba} would use the previous `
+          + 'version — not what you see on screen. Nothing was sent. Try saving again; '
+          + 'if it keeps failing, sign out and back in.', true);
+    }
+    return ok;
+  };
+
+  /* ÚLTIMA MIRADA, PEGADA AL ENVÍO.
+
+     Guardar al principio no basta, y ésta es la razón: entre el guardado
+     y el envío pasan tres esperas —contar los suscriptores, comprobar si
+     ya salió un número este mes, y la ventana de confirmación, que
+     espera a una persona y puede tardar lo que haga falta—. Durante las
+     dos primeras el editor está vivo, sin nada encima. Una tecla ahí y
+     lo que sale no es lo que se ve.
+
+     Aquí NO se guarda, se para. Ella ya confirmó un contenido concreto;
+     guardar y mandar algo escrito después sería mandar lo que no
+     confirmó. Se para, se dice, y vuelve a pulsar cuando quiera. */
+  const nadaSinGuardar = (queIba) => {
+    if (!_dirty) return true;
+    toast(`There are unsaved changes again, so ${queIba} was not sent. `
+        + 'Press Save Draft and then Send.', true);
+    return false;
   };
 
   /* ─── PREVIEW ────────────────────────────────────────────── */
@@ -1062,7 +1081,12 @@
 
   window.nlPreview = async () => {
     if (!_current) return;
-    if (_dirty) { await window.nlSave(); }
+    /* La vista previa no manda nada, pero si muestra el texto viejo
+       diciendo que es el nuevo, es peor que no mostrar nada: la cabecera
+       de este archivo promete que la vista previa es lo que va a salir. */
+    if (!(await guardarAntesDe('the preview'))) return;
+    /* Igual que en Probar: sin esperas por el medio, no hace falta
+       volver a mirar. */
     const frame = document.getElementById('nl-preview-frame');
     frame.srcdoc = '<p style="font-family:sans-serif;padding:20px;color:#6b7a99;">Loading preview...</p>';
     document.getElementById('nl-preview-modal').classList.add('open');
@@ -1107,7 +1131,12 @@
 
   window.nlTest = async () => {
     if (!_current || isSent()) return;
-    if (_dirty) { await window.nlSave(); }
+    /* Aquí NO hace falta la segunda mirada de `nadaSinGuardar`, y no es
+       un olvido: entre esta línea y la llamada de abajo no hay ninguna
+       espera, así que el navegador no puede atender ni una tecla por el
+       medio. En Enviar sí la hay —tres, una de ellas esperando a una
+       persona— y por eso allí se vuelve a mirar. */
+    if (!(await guardarAntesDe('the test email'))) return;
     const btn = document.getElementById('nl-test-btn');
     btn.disabled = true; btn.textContent = 'Sending...';
     try {
@@ -1128,7 +1157,9 @@
 
   window.nlSend = async () => {
     if (!_current || isSent()) return;
-    if (_dirty) { await window.nlSave(); }
+    /* AQUÍ ES DONDE IMPORTA DE VERDAD: esto manda 453 correos y no se
+       puede deshacer. */
+    if (!(await guardarAntesDe('the newsletter'))) return;
 
     // How many people this actually reaches, counted now rather than
     // quoted from a stale number.
@@ -1138,27 +1169,43 @@
       count = (subs || []).length;
     } catch (_) { /* the confirmation still works without it */ }
 
-    // Already sent an issue this month? A warning, not a block: a special
-    // edition is legitimate, a duplicate by accident is not.
-    let dupWarning = '';
-    try {
-      const { data: prior } = await window.supabase.rpc('newsletter_sent_this_month',
-        { p_issue_date: _current.issue_date });
-      if (prior?.length) {
-        dupWarning = `A newsletter for this month was already sent on `
-          + `${fmtDate(String(prior[0].sent_at).slice(0, 10))} to ${prior[0].sent_count} subscribers. `
-          + `Sending this one means subscribers receive a second edition for the same month. `;
-      }
-    } catch (_) { /* non-fatal */ }
+    /* Reanudar no es lo mismo que enviar: este número ya salió a parte de
+       la lista y sólo le faltan los demás. */
+    const yaTiene = _current.sent_count || 0;
 
+    // Already sent an issue this month? A warning, not a block: a special
+    // edition is legitimate, a duplicate by accident is not. Al reanudar
+    // no se consulta: terminar de mandar este número no duplica nada.
+    let dupWarning = '';
+    if (!yaTiene) {
+      try {
+        const { data: prior } = await window.supabase.rpc('newsletter_sent_this_month',
+          { p_issue_date: _current.issue_date });
+        if (prior?.length) {
+          dupWarning = `A newsletter for this month was already sent on `
+            + `${fmtDate(String(prior[0].sent_at).slice(0, 10))} to ${prior[0].sent_count} subscribers. `
+            + `Sending this one means subscribers receive a second edition for the same month. `;
+        }
+      } catch (_) { /* non-fatal */ }
+    }
+
+    /* El texto no puede decir lo mismo en los dos casos: "se mandará a
+       450" asusta sin razón cuando sólo faltan 150, y además suena a que
+       los 300 lo recibirían por segunda vez. */
     const ok = await confirmModal({
-      title: `Send ${_current.title}?`,
-      message: `${dupWarning}This will be sent to ${count} active subscriber${count !== 1 ? 's' : ''}. `
-        + `Please confirm you have reviewed the content and every link. `
-        + `Once sent, the edition is locked as a historical record and cannot be edited.`,
-      okLabel: 'Confirm & send', cancelLabel: 'Cancel',
+      title: yaTiene ? `Finish sending ${_current.title}?` : `Send ${_current.title}?`,
+      message: yaTiene
+        ? `${yaTiene} of the ${count} active subscriber${count !== 1 ? 's' : ''} already received this `
+          + `edition. Only the ones still missing will be emailed — nobody gets it twice.`
+        : `${dupWarning}This will be sent to ${count} active subscriber${count !== 1 ? 's' : ''}. `
+          + `Please confirm you have reviewed the content and every link. `
+          + `Once sent, the edition is locked as a historical record and cannot be edited.`,
+      okLabel: yaTiene ? 'Finish sending' : 'Confirm & send', cancelLabel: 'Cancel',
     });
     if (!ok) return;
+
+    /* Pegado al envío, después de la confirmación: ver `nadaSinGuardar`. */
+    if (!nadaSinGuardar('the newsletter')) return;
 
     const btn = document.getElementById('nl-send-btn');
     btn.disabled = true; btn.textContent = 'Sending...';
@@ -1171,10 +1218,144 @@
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
-      const msg = `Sent to ${data.sent} subscriber${data.sent !== 1 ? 's' : ''}`
-        + (data.failed ? `, ${data.failed} failed` : '')
-        + (data.skipped ? `, ${data.skipped} already had it` : '') + '.';
-      toast(msg);
+      /* El aviso contaba sólo enviados, fallidos y saltados. Eso dejaba
+         invisible lo único que puede acabar en un correo repetido: que
+         el correo saliera y NO se pudiera apuntar quién lo recibió. Si
+         eso pasa, el siguiente Send se lo manda otra vez a esa gente, y
+         ella necesita enterarse en el momento, no después. */
+      /* Y una dirección que AGOTÓ sus tres intentos también lo pinta.
+         Si no, el envío que acaba de perder tres buzones salía en verde
+         aquí y en naranja en las otras cinco pantallas (`huboPerdidas`):
+         el mismo hecho con dos colores según por dónde hubiera pulsado.
+
+         Las bajas NO cuentan para el color, a propósito: quien se dio de
+         baja no es un problema que arreglar, y pintarlo de naranja la
+         manda a buscar algo que no existe. Se nombran en el texto, que es
+         donde corresponde. */
+      /* ── SI SE CORTÓ, LO DICE LA MISMA FUNCIÓN QUE EN LAS OTRAS CINCO
+         Y el `message` del servidor se ignora.
+
+         La segunda revisión encontró por qué hace falta: el servidor
+         compone su frase mirando SÓLO el motivo, y decía "espera unos
+         minutos y vuelve a pulsar — nadie lo recibe dos veces" incluso
+         cuando había correos que salieron sin poder apuntarse. El
+         navegador le añadía detrás su propio "NO vuelvas a pulsar", así
+         que el aviso llevaba las dos instrucciones contrarias en la misma
+         línea, y ella haría la última que leyó. Con 453 personas.
+
+         Y para la contraseña caducada el servidor decía que volviera a
+         pulsar, que es justo lo que no sirve. Un aviso, un sitio. */
+      const corte = window.motivoDelCorte(data);
+
+      /* Y una dirección que AGOTÓ sus tres intentos también lo pinta.
+         Si no, el envío que acaba de perder tres buzones salía en verde
+         aquí y en naranja en las otras cinco pantallas (`huboPerdidas`):
+         el mismo hecho con dos colores según por dónde hubiera pulsado.
+
+         Igual las direcciones mal escritas y las que no tienen enlace de
+         baja: esas personas no reciben NADA, y salían en verde aquí
+         mientras las otras cinco pantallas las pintaban.
+
+         Las bajas NO cuentan para el color, a propósito: quien se dio de
+         baja no es un problema que arreglar, y pintarlo de naranja la
+         manda a buscar algo que no existe. Se nombran en el texto, que es
+         donde corresponde. */
+      const malo = (data.failed || 0) > 0 || (data.unrecorded || 0) > 0
+                || (data.unrecorded_failures || 0) > 0
+                || (data.dead_addresses || 0) > 0
+                || (data.invalid_addresses || 0) > 0
+                || (data.missing_token || 0) > 0
+                || !!corte;
+
+      /* Todo lo que se quedó fuera, dicho por su motivo. Antes se perdían
+         dos cosas: a quién le falta el enlace de baja, y la frase que el
+         servidor compone cuando no quedaba nadie a quien escribir. Sin
+         ellas, un envío a cero no decía por qué. */
+      const detalles = [
+        /* ── "failed" Y "will not be retried" PUEDEN SER LA MISMA GENTE ──
+           `failed` son los fallos de ESTA pulsación; los dos desgloses de
+           abajo son el estado final, acumulado. En la pulsación que agota
+           el tercer intento de tres buzones muertos, los dos números son
+           3 — y el aviso decía "3 failed, 3 will not be retried", que ella
+           lee como seis direcciones con problema.
+
+           Cuando el envío ha TERMINADO (`complete`), cualquier fila
+           fallida está por definición agotada, así que ya la nombra el
+           desglose y repetirla sólo suma de mentira. Y cuando NO ha
+           terminado, "on this attempt" frente a "in total" deja ver que
+           pueden ser los mismos. */
+        (data.failed && !data.complete) ? `${data.failed} failed on this attempt` : '',
+        data.skipped           ? `${data.skipped} already had it` : '',
+        /* ── LOS QUE YA NO VAN A RECIBIRLO ────────────────────────
+           El servidor manda estos dos números desde que existe el motor
+           compartido, y esta pantalla no leía ninguno. Era el agujero
+           que dejó el cambio del 3 de octubre: desde que un envío se da
+           por terminado aunque falte gente, callarse a quién falta
+           convierte el aviso en un ✅ que esconde algo.
+
+           Van los DOS desgloses y no el total (`gave_up`), que es la
+           suma de ambos: nombrar los tres sería contar a la misma
+           persona dos veces.
+
+           Y se distinguen a propósito. Una baja NO es una dirección
+           mala: no hay nada que arreglar, y meterla en el mismo saco
+           hace que ella busque un problema donde no hay ninguno. Las
+           palabras son las mismas que usa la lista de destinatarios de
+           Communications, para que signifiquen lo mismo en las dos
+           pantallas.
+
+           `failed` (arriba) es de ESTA pulsación y puede reintentarse;
+           esto es definitivo. Por eso lo dice: "will not be retried". */
+        data.dead_addresses    ? `${data.dead_addresses} in total will not be retried — the mailbox rejected it 3 times` : '',
+        data.unsubscribed_midway ? `${data.unsubscribed_midway} unsubscribed before this went out` : '',
+        data.invalid_addresses ? `${data.invalid_addresses} invalid address${data.invalid_addresses !== 1 ? 'es' : ''} skipped` : '',
+        data.missing_token     ? `${data.missing_token} with no unsubscribe link skipped` : '',
+        /* La ventana de confirmación cuenta PERSONAS ("se mandará a 453")
+           y el envío cuenta DIRECCIONES, porque hasta cuatro personas
+           pueden compartir un correo. El servidor calcula esta diferencia
+           justo para poder explicarla, y aquí no se estaba leyendo: la
+           pantalla prometía 453 y luego decía 450 sin decir por qué. */
+        data.shared_addresses  ? `${data.shared_addresses} share an address with someone else` : '',
+      ].filter(Boolean);
+
+      /* La cola es UNA frase, nunca dos. Antes se añadían las dos por
+         separado, y como un envío sin apuntar nunca sale "completo",
+         salían juntas: "no vuelvas a darle a Send" y justo detrás "dale a
+         Send otra vez para terminar". Ella haría lo último que leyó, y esa
+         gente lo recibiría dos veces.
+
+         Y si hubo CORTE, no hay cola: `corte` ya dice qué pasó y qué
+         hacer —incluido el aviso de los no apuntados— y añadirle algo
+         detrás es volver a meter dos instrucciones en una línea. */
+      const cola = corte ? ''
+        : data.unrecorded
+          ? ` ⚠️ ${data.unrecorded} went out but could not be recorded. Do not send this again from any screen — those people would get it twice. Check with me first.`
+          : (!data.complete && (data.sent || data.failed)
+              ? ' Some people are still missing — press Send again to finish.'
+              : '');
+
+      /* El desglose se calla cuando el servidor YA lo ha explicado en su
+         frase. `message` lleva dentro el mismo recuento (`porQue`) en dos
+         de sus tres casos, así que ponerlo también aquí nombraba a la
+         misma gente dos veces con dos redacciones distintas: "Finished.
+         3 addresses gave up after 3 tries." y detrás "3 in total will not
+         be retried". Se queda la del servidor, que es la que encabeza. */
+      const yaLoExplica = !corte && !!data.message
+                       && ((data.gave_up || 0) > 0 || (data.dead_addresses || 0) > 0
+                           || (data.unsubscribed_midway || 0) > 0);
+      const visibles = yaLoExplica
+        ? detalles.filter((t) => !/will not be retried|unsubscribed before/.test(t))
+        : detalles;
+
+      toast((corte || data.message || `Sent to ${data.sent} subscriber${data.sent !== 1 ? 's' : ''}.`)
+        + (visibles.length ? ` ${visibles.join(', ')}.` : '')
+        + cola, malo);
+      if (data.errors && data.errors.length) console.warn('[newsletter] avisos del envio:', data.errors);
+      /* El botón se queda en "Sending..." si no se repone aquí. Antes no
+         se notaba porque un envío siempre dejaba el número cerrado; ahora
+         un envío a medias vuelve a dejarlo disponible, y al reabrirlo
+         aparecía habilitado pero con el texto de "mandando". */
+      btn.textContent = 'Send Newsletter';
       await loadNewsletterPage();
     } catch (err) {
       toast(`Send failed: ${err.message}`, true);

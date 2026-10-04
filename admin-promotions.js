@@ -7,9 +7,9 @@
    Extracted from app.js's PROMOTIONS section.
 
    ── EL ENVÍO PASA POR EL SERVIDOR ─────────────────────────────────
-   Este módulo ya NO usa EmailJS. Manda con sendEmailServer() de
-   admin-email-utils.js, que llama a la Edge Function `send-email`.
-   Sigue usando AdminState.emailInFlight, igual que antes.
+   Manda con sendEmailServer() de admin-email-utils.js, que llama a la
+   Edge Function `send-email`. Usa AdminState.emailInFlight para que
+   salir de la pantalla a media campaña pueda avisar.
 
    Lo que eso significa aquí:
      · Una sola petición para toda la campaña, no una por persona.
@@ -25,8 +25,6 @@
    además un botón de prueba que iba por otro lado y no dejaba
    registro; se quitó porque dos caminos que parecen lo mismo y no lo
    son es como se cuela un fallo sin que nadie lo vea.
-
-   Tournament Notify y Email Notifications siguen con EmailJS por ahora.
 
    _subsShown is local module state (how many subscriber rows are
    currently shown) — the status-filter and search inputs need to reset
@@ -94,18 +92,89 @@
      Los suscriptores sin origen se cuentan aparte y NO entran en los
      porcentajes: meter 429 filas de las que no se sabe nada dentro del
      cálculo haría que cualquier canal real pareciera insignificante. */
+  /* ⚠️  UNA SOLA DEFINICIÓN DE "ESTE MES", Y LA USAN LOS TRES SITIOS:
+     el resumen por origen, el filtro de fecha de la tabla, y el
+     "+N this month" de las tarjetas de arriba.
+
+     Los tres tienen que cortar por el MISMO instante. Si cada uno se lo
+     calculara aparte, el día que uno pasara a hora local y otro a UTC
+     la tarjeta diría un número y la tabla enseñaría otro — que es
+     exactamente el fallo que este filtro vino a arreglar.
+
+     Es la medianoche del día 1 en la hora de Florida, no en UTC: la
+     pregunta es "este mes" para quien mira la pantalla. En Florida eso
+     son las 4 o 5 de la mañana en UTC, así que una alta de las 2 de la
+     madrugada del día 1 cuenta como de este mes, que es lo que
+     cualquiera esperaría. */
+  const _inicioDeMes = () => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1).getTime();
+  };
+
+  /* ⚠️  SE COMPARAN INSTANTES, NO TEXTOS. Y NO ES UN DETALLE.
+
+     La versión anterior comparaba las dos fechas como cadenas de texto.
+     Eso sólo funciona si están escritas EXACTAMENTE igual, y no lo
+     están: PostgREST manda '2026-10-03T22:00:05+00:00' —con '+00:00' y
+     recortando los ceros de los decimales, como ya está documentado en
+     db.js— mientras que `toISOString()` escribe
+     '2026-10-01T04:00:00.000Z'. Comparando texto, el '+' va antes que
+     el '.' y antes que la 'Z', así que un alta del segundo exacto del
+     corte se caía fuera.
+
+     Y lo grave no es ese milisegundo al mes. Es que el día que una
+     consulta devuelva la columna con el desfase local
+     ('2026-10-01T00:30:00-04:00'), la comparación de texto decide antes
+     de llegar al desfase: compararía un reloj local contra uno UTC y se
+     comería las primeras cuatro horas de cada mes, sin un solo error en
+     ninguna parte.
+
+     Comparando instantes eso no puede pasar, venga el formato que
+     venga. Las 453 lecturas por pintada no cuestan nada. */
+  const _momento = (iso) => {
+    if (iso === null || iso === undefined || iso === '') return null;
+    /* Postgres puede mandar el desfase corto ('+00' o '-04' en vez de
+       '+00:00'), que `new Date()` no sabe leer: devuelve NaN. Se
+       completa antes de interpretarlo.
+
+       ⚠️  EL PATRÓN EXIGE UNA HORA DELANTE, Y NO SOBRA. La primera
+       versión era `/([+-]\d{2})$/` a secas, y eso se comía el DÍA de
+       una fecha sin hora: '2026-10-03' se convertía en '2026-10-03:00',
+       que no se puede interpretar, y la función devolvía null. Hoy sólo
+       se la llama con columnas que traen la hora, así que no habría
+       roto nada — pero es una mina para el siguiente que la use. Lo
+       encontró la segunda revisión del 4 de octubre.
+
+       Y sólo se toca si es texto: un número o una fecha ya hecha pasan
+       enteros. */
+    const t = typeof iso === 'string'
+      ? new Date(iso.replace(/(\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)([+-]\d{2})$/, '$1$2:00')).getTime()
+      : new Date(iso).getTime();
+    return isNaN(t) ? null : t;
+  };
+
+  /* El corte que toca para un periodo: null = sin corte, o sea "todo".
+     Se le pasa el valor del interruptor del resumen o el del
+     desplegable de la tabla, que usan las mismas dos palabras. */
+  const _desdeDelPeriodo = (periodo) =>
+    periodo === 'month' ? _inicioDeMes() : null;
+
+  /* Sin fecha, o con una fecha que no se puede interpretar, NO es de
+     este mes: no sabemos cuándo entró esa persona. Sigue saliendo en
+     "All Time", que es donde tiene que salir. */
+  const _enPeriodo = (s, desde) => {
+    if (desde === null) return true;
+    const t = _momento(s.subscribed_at);
+    return t !== null && t >= desde;
+  };
+
   const _renderSourceSummary = () => {
     const cont = document.getElementById('sub-source-summary');
     if (!cont) return;
 
-    const desde = (() => {
-      if (_summaryPeriod !== 'month') return null;
-      const n = new Date();
-      return new Date(n.getFullYear(), n.getMonth(), 1).toISOString();
-    })();
+    const desde = _desdeDelPeriodo(_summaryPeriod);
 
-    const enPeriodo = _allSubs.filter(s =>
-      !desde || (s.subscribed_at && s.subscribed_at >= desde));
+    const enPeriodo = _allSubs.filter(s => _enPeriodo(s, desde));
 
     const cuenta = new Map();
     let sinOrigen = 0;
@@ -160,22 +229,145 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;">${cuerpo}</div>`;
   };
 
+  /* ════════════════════════════════════════════════════════════
+     EL AVISO DEL FRENO DEL FORMULARIO
+
+     El freno del formulario público (`subscribe-confirm`) deja de
+     mandar correos de confirmación cuando entran demasiadas altas en 24
+     horas. Eso protege la cuota y la reputación del dominio, y tiene un
+     coste que hay que decir en voz alta: MIENTRAS ESTÁ PUESTO, LA GENTE
+     DE VERDAD TAMPOCO RECIBE SU CORREO. Bastan 61 altas en un día para
+     dejarlo así, y a un script eso le cuesta nada.
+
+     Sin este aviso, el único rastro estaría en los registros de
+     Supabase. Con 453 suscriptores se pueden perder todas las altas de
+     una semana y esta pantalla parecería normal: el contador de
+     pendientes sube, que es lo que hace siempre.
+
+     ⚠️  AQUÍ NO SE REPITE EL NÚMERO 60. Eso vive en la función del
+     servidor, y tener el mismo número en dos archivos es la forma más
+     segura de que un día no coincidan. Este aviso no recalcula la
+     decisión: mira la PRUEBA de que se tomó —fichas marcadas en las
+     últimas 24 horas— que es un dato, no una copia de una regla.
+     ════════════════════════════════════════════════════════════ */
+  const pintarAvisoDelFreno = () => {
+    const caja = document.getElementById('sub-brake-banner');
+    if (!caja) return;
+
+    const desde    = Date.now() - 24 * 60 * 60 * 1000;
+    /* Lee la fecha con `_momento`, LA MISMA que usa el filtro de la
+       tabla. Tenía su propio `new Date(iso)`, y eso dejaba una
+       contradicción fea: con el desfase corto de Postgres ('+00'),
+       `new Date` devuelve NaN y este aviso se APAGABA mientras la
+       persona frenada seguía saliendo en la tabla. O sea, la única
+       alarma que avisa de que el formulario está bloqueando a gente de
+       verdad, muda. Lo encontró la segunda revisión del 4 de octubre. */
+    const enVentana = (iso) => {
+      const t = _momento(iso);
+      return t !== null && t >= desde;
+    };
+
+    const frenadas = _allSubs.filter((s) => enVentana(s.confirm_email_skipped_at)).length;
+    if (!frenadas) { caja.style.display = 'none'; caja.innerHTML = ''; return; }
+
+    const altas = _allSubs.filter((s) => enVentana(s.subscribed_at)).length;
+
+    /* ── LOS NÚMEROS SON UN MÍNIMO, NO UN TOTAL, Y SE DICE ─────
+       `_allSubs` no son todos los suscriptores: la consulta que los trae
+       no pide tope, y el servidor devuelve 1.000 filas como máximo sin
+       avisar. O sea que justo en el caso para el que existe este aviso
+       —una ráfaga de miles de altas— el número estaría cortado.
+
+       Y aquí eso importa: si entraron 3.000 y el aviso dice "1.000",
+       ella decide con un número tres veces menor que el real. Cuando se
+       llega al tope se dice "al menos", que es lo único cierto que se
+       puede afirmar sin pedir otra consulta. Lo señaló la segunda
+       revisión. */
+    const alMenos = _allSubs.length >= 1000 ? 'at least ' : '';
+
+    /* ⚠️  EL AVISO LLEVA UN BOTÓN, NO UNA INSTRUCCIÓN.
+
+       Antes decía "usa el filtro Pending — no email sent", y ahí se
+       abría un hueco: los OTROS tres filtros se quedaban como
+       estuvieran. Con una búsqueda escrita, o con el origen que una
+       tarjeta del resumen acababa de poner, esa lista salía corta o
+       directamente vacía. Una lista de alarma que se ve completa y no lo
+       está es peor que no tener alarma.
+
+       Las dos revisiones del 4 de octubre llegaron a esto por tres
+       caminos distintos. La lección: la respuesta no era poner
+       inteligencia en el desplegable de estado —eso además saltaba al
+       pasar por encima con las flechas del teclado— sino que el aviso
+       deje la pantalla ENTERA en el estado correcto de una vez. */
+    caja.style.display = 'block';
+    caja.innerHTML = `
+      <div style="padding:14px 20px;background:#FFF1E8;border-bottom:0.5px solid #f3c9ae;">
+        <div style="font-size:13px;font-weight:800;color:#9a3d0e;margin-bottom:4px;">
+          ⚠️ The signup brake is on
+        </div>
+        <div style="font-size:12px;font-weight:600;color:#9a3d0e;line-height:1.5;">
+          ${alMenos}${altas} signup${altas === 1 ? '' : 's'} came in over the last 24 hours,
+          and ${alMenos}<strong>${frenadas}</strong> of them did not get a confirmation
+          email, so those people cannot join the list. This protects the monthly email
+          quota, but while it lasts <strong>new real signups are being blocked too</strong>.
+          Tell me so I can look at it.
+        </div>
+        <button type="button" data-action="verFrenadas"
+          style="margin-top:10px;font-family:'Inter',sans-serif;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:11px 16px;border-radius:99px;border:0.5px solid #c88a5e;background:white;color:#9a3d0e;cursor:pointer;">
+          Show me who
+        </button>
+      </div>`;
+  };
+
   const _renderSubsTable = () => {
     const search = (document.getElementById('sub-search')?.value || '').toLowerCase().trim();
     const filter = document.getElementById('sub-status-filter')?.value || 'all';
     const srcFil = document.getElementById('sub-source-filter')?.value || 'all';
+    /* El filtro de fecha. 'all' por defecto, para que la tabla siga
+       enseñando todo mientras nadie lo toque.
+
+       Se calcula el corte UNA VEZ, aquí fuera, y no dentro del filtro:
+       con 453 filas, hacerlo dentro crearía 453 objetos de fecha para
+       devolver siempre lo mismo. */
+    const perFil = document.getElementById('sub-period-filter')?.value || 'all';
+    const desde  = _desdeDelPeriodo(perFil);
     const filtered = _allSubs.filter(s => {
       const nameMatch = `${s.first_name} ${s.last_name} ${s.email} ${s.phone || ''} ${FerociaPhone.searchable(s.country_code, s.phone)}`.toLowerCase().includes(search);
-      const statusMatch = filter === 'all' || s.status === filter;
-      /* Los tres filtros se combinan (Y, no O): buscar "maria", estado
-         Active y origen Instagram devuelve las Marías activas que
-         llegaron por Instagram, no la suma de las tres listas. */
+      /* '__frenadas' no es un estado: son las fichas a las que el freno
+         del formulario público no les mandó el correo de confirmación.
+         Su estado sigue siendo 'pending', así que se mira la marca y no
+         la columna de estado. Los dos guiones bajos del valor están
+         para que no pueda chocar nunca con un estado real. */
+      /* Y SE EXIGE QUE SIGA PENDIENTE. La marca del freno no se borra
+         nunca, así que sin esto una persona a la que frenaron, que
+         escribió, a la que rescataste y que ya confirmó seguiría
+         saliendo para siempre en una lista que se llama "no email
+         sent" — y trabajando esa lista te encontrarías una y otra vez
+         a gente que ya rescataste, sin forma de distinguirla.
+
+         Es además la MISMA definición que usa el SQL de limpieza
+         (sql/62: `status = 'pending' and confirm_email_skipped_at is
+         not null`). Dos definiciones de lo mismo en el mismo cambio era
+         justo lo que no quería dejar. */
+      const statusMatch = filter === 'all' ? true
+        : filter === '__frenadas'
+            ? (s.status === 'pending' && !!s.confirm_email_skipped_at)
+        : s.status === filter;
+      /* Los CUATRO filtros se combinan (Y, no O): buscar "maria", estado
+         Active, origen Instagram y este mes devuelve las Marías activas
+         que llegaron por Instagram este mes, no la suma de las cuatro
+         listas. */
       const srcMatch = srcFil === 'all'
         || (srcFil === SOURCE_NONE ? !s.source : s.source === srcFil);
-      return nameMatch && statusMatch && srcMatch;
+      /* Quien no tenga fecha de alta NO sale en "este mes". Es la misma
+         regla que usa el resumen de arriba, por `_enPeriodo`. */
+      const perMatch = _enPeriodo(s, desde);
+      return nameMatch && statusMatch && srcMatch && perMatch;
     });
     const slice   = filtered.slice(0, _subsShown);
     const total   = filtered.length;
+
+    pintarAvisoDelFreno();
 
     const avColors = ['var(--blue)','var(--teal)','var(--orange)','#7c3aed','#0891b2','#d97706'];
     const getAv = (s) => {
@@ -392,6 +584,30 @@
       <div style="font-size:13px;font-weight:600;color:var(--text);text-align:right;word-break:break-word;">${value || '—'}</div>
     </div>`;
 
+  /* ── UNA FECHA CON HORA, QUE `fmtDate` NO SABE HACER ──────────
+     `fmtDate` (db.js) es para fechas SUELTAS: le pega 'T12:00:00' al
+     texto para que la zona horaria no la mueva un día. Si lo que le
+     llegan son fecha Y hora —como `confirm_email_skipped_at`, que es
+     un `timestamptz`— el texto resultante no se puede interpretar y
+     devuelve literalmente «Invalid Date». Lo comprobé ejecutándolo.
+
+     Y mi prueba no lo pilló porque su banco tenía una versión FALSA de
+     `fmtDate` que sí funcionaba. Simular una función cuyo
+     comportamiento real ES el fallo es la forma más limpia de no
+     encontrarlo nunca; el banco ahora usa la de verdad.
+
+     Esto se escribe aquí y no en db.js para no tocar un archivo que
+     cargan las cinco páginas por una etiqueta de una ficha. Es el mismo
+     patrón que usa `cuando()` en admin-communications.js, que tenía
+     este problema resuelto desde el principio. */
+  const fechaYHora = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+         + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  };
+
   const svSection = (title) => `
     <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin:18px 0 4px;">${title}</div>`;
 
@@ -494,6 +710,26 @@
       + svRow('Status', esc(s.status))
       + svRow('Subscribed', fmtDate(s.subscribed_at))
       + svRow('Confirmed', s.confirm_token ? 'Pending confirmation' : 'Yes')
+      /* Si el freno del formulario público le quitó el correo de
+         confirmación, se dice AQUÍ y no en la tabla: la tabla se lee de
+         un vistazo y una columna más la volvería ilegible en el móvil.
+         Sin esto, una ficha pendiente a la que se le mandó el correo y
+         otra a la que no son idénticas en pantalla.
+
+         ⚠️  LA FILA SÓLO SALE CUANDO HUBO FRENO, y en el resto no sale
+         nada. Mi primera versión ponía "Sent" para todos los demás, y
+         eso es afirmar algo que no sabemos: el correo también se queda
+         sin salir cuando Resend lo rechaza, cuando la ficha vuelve sin
+         token, o cuando el propio apuntado del freno falla — y en esos
+         tres casos esta columna está vacía. Lo encontró la revisión, y
+         el caso que lo hace grave es el peor posible: alguien escribe
+         diciendo que no le llegó, ella abre la ficha, y la ficha le
+         dice que sí se mandó. */
+      + (s.confirm_email_skipped_at
+          ? svRow('Confirmation email',
+              '<span style="color:#c04a0e;">Not sent — the signup brake was on '
+              + `${esc(fechaYHora(s.confirm_email_skipped_at))}</span>`)
+          : '')
       // Surfaces the legacy rows that have no token and therefore cannot
       // use the unsubscribe link in a campaign.
       + svRow('Can unsubscribe', s.unsubscribe_token ? 'Yes' : '<span style="color:#c04a0e;">No — no token</span>');
@@ -783,10 +1019,15 @@
     setEl('promo-stat-total',   countTotal);
     setEl('promo-stat-unsub',   countUnsub);
 
-    // Trend: count subscribers joined this month
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const newThisMonth = subs.filter(s => s.subscribed_at && s.subscribed_at >= monthStart).length;
+    /* Los de este mes, para el "+N this month" y el porcentaje de abajo.
+       Usa LA MISMA definición que el resumen de origen y que el filtro
+       de la tabla (`_desdeDelPeriodo` / `_enPeriodo`). Tenía su propia
+       copia, byte a byte igual pero aparte, así que los tres números
+       podían separarse en cuanto alguien tocara uno — y arrastraba el
+       mismo fallo de comparar fechas como texto. Lo encontró la
+       revisión del 4 de octubre. */
+    const desdeMes = _desdeDelPeriodo('month');
+    const newThisMonth = subs.filter(s => _enPeriodo(s, desdeMes)).length;
     const growthPct = countTotal > 0 ? Math.round((newThisMonth / countTotal) * 100) : 0;
 
     // Update ctx lines with real trend data
@@ -865,6 +1106,11 @@
   };
 
   const openSendPromo = async () => {
+    /* Reabrir la ventana con un envío en curso limpiaba el composer y
+       se llevaba por delante el asunto y el mensaje de ESE envío, que
+       todavía no ha contestado. Si sale parcial, el texto que hace
+       falta para reintentar ya no existe. */
+    if (window.envioEnCurso && window.envioEnCurso('abrir')) return;
     const modal = document.getElementById('promo-modal');
     if (!modal) return;
 
@@ -876,8 +1122,7 @@
        haría que añadir un campo mañana se arreglara en un sitio y se
        olvidara en el otro — que es justo el fallo que acaba de aparecer. */
     const limpiarComposer = () => {
-      const ed = document.getElementById('promo-message');
-      if (ed) ed.innerHTML = '';
+      if (edPromo) edPromo.clear();
       const sj = document.getElementById('promo-subject');
       if (sj) sj.value = '';
       const pv = document.getElementById('promo-preview-text');
@@ -893,7 +1138,6 @@
     };
 
     // Reset composer
-    const editor = document.getElementById('promo-message');
     limpiarComposer();
 
     // Reset type pills to Tournament
@@ -959,48 +1203,11 @@
       };
     }
 
-    // Wire character counter
-    if (editor) {
-      editor.addEventListener('input', () => {
-        const len = editor.innerText.length;
-        const el1 = document.getElementById('promo-char-count');
-        const el2 = document.getElementById('promo-char-count2');
-        if (el1) el1.textContent = `${len} / 2000`;
-        if (el2) el2.textContent = `${len} / 2000`;
-      });
-    }
+    /* El contador de caracteres lo mantiene admin-rich-editor.js, que
+       recibe `alEscribir` al montar el editor. Antes se enganchaba aquí
+       un escuchador nuevo en CADA apertura del modal: a la quinta
+       campaña, cinco copias contando lo mismo. */
 
-    // Wire link button
-    window.promptInsertLink = () => {
-      const url = prompt('Enter URL:');
-      if (url) document.execCommand('createLink', false, url);
-    };
-    window.toggleEmojiPicker = (e) => {
-      e.stopPropagation();
-      const picker = document.getElementById('emoji-picker');
-      if (!picker) return;
-      const isOpen = picker.style.display === 'grid';
-      picker.style.display = isOpen ? 'none' : 'grid';
-      if (!isOpen) {
-        // Close when clicking outside
-        const close = (ev) => {
-          if (!picker.contains(ev.target) && ev.target.id !== 'emoji-picker-btn') {
-            picker.style.display = 'none';
-            document.removeEventListener('click', close);
-          }
-        };
-        setTimeout(() => document.addEventListener('click', close), 0);
-      }
-    };
-    window.insertFixedEmoji = (emoji) => {
-      const editor = document.getElementById('promo-message');
-      if (!editor) return;
-      editor.focus();
-      document.execCommand('insertText', false, emoji);
-      // Close picker after selection
-      const picker = document.getElementById('emoji-picker');
-      if (picker) picker.style.display = 'none';
-    };
 
     /* Cada vez que se abre el modal: casilla de ensayo desmarcada y
        clave de campaña nueva.
@@ -1011,9 +1218,7 @@
 
        Lo segundo, porque abrir el modal es lo que distingue "reenviar
        esta campaña a propósito" de "he hecho doble clic". */
-    const chkSolo = document.getElementById('promo-only-me');
-    if (chkSolo) chkSolo.checked = false;
-    actualizarEtiquetaLanzar();
+    ensayo.reset();
 
     /* ⚠️  OJO: la clave NO se renueva aquí si ya hay una pendiente.
 
@@ -1033,7 +1238,7 @@
        La clave se borra sola cuando una campaña termina bien. Por eso
        reenviar una campaña a propósito sigue funcionando: después de
        un envío correcto no queda ninguna, y aquí se pone una nueva. */
-    if (!_promoNonce) _promoNonce = _nuevoNonce();
+    claveador.asegurar();
 
     // Load audience + last campaign in parallel
     try {
@@ -1109,6 +1314,31 @@
       sel.innerHTML = '<option value="">Error loading events</option>';
     }
   };
+
+  /* ─── EL EDITOR CON FORMATO ────────────────────────────────
+     La barra y su comportamiento viven en admin-rich-editor.js, que
+     usan las cinco pantallas que escriben correos. Antes estaban aquí,
+     cuando Promotions era la única con editor.
+
+     El contador de caracteres sigue siendo de esta pantalla, así que
+     se le pasa al módulo en vez de moverlo allí: lo que comparten las
+     cinco es la barra, no lo que cada una pinta a su lado. */
+  const edPromo = window.FerociaEditor
+    ? window.FerociaEditor.mount('promo-message', {
+        /* SIN barraId, mount() no encontraba barra y se creaba UNA
+           SEGUNDA encima de la escrita a mano: dos tiras grises
+           apiladas, y sólo en esta pantalla. La de aquí ya existe en
+           admin.html porque lleva además el contador de caracteres. */
+        barraId: 'promo-fmt-bar',
+        alEscribir: (n) => {
+          const c1 = document.getElementById('promo-char-count');
+          const c2 = document.getElementById('promo-char-count2');
+          if (c1) c1.textContent = `${n} / 2000`;
+          if (c2) c2.textContent = `${n} / 2000`;
+        },
+      })
+    : null;
+  if (!edPromo) console.error('[Ferocia] admin-rich-editor.js must load before admin-promotions.js');
 
   /* ─── LOS DATOS QUE VIAJAN A LA PLANTILLA ──────────────────
      Un solo sitio los construye, y un solo camino los usa. Antes había
@@ -1194,8 +1424,27 @@
      Devuelve null si falta algo, y ya ha avisado con un toast. */
   const leerFormulario = () => {
     const subject = (document.getElementById('promo-subject')?.value || '').trim();
-    const editor  = document.getElementById('promo-message');
-    const message = editor ? editor.innerText.trim() : '';
+
+
+    /* SE MANDA innerHTML, NO innerText.
+
+       `innerText` da solo el texto: sin negritas, sin listas, sin
+       colores. Por eso el editor tenía botones de negrita y de lista
+       desde siempre y el correo llegaba sin nada — la aplicación
+       enseñaba una cosa y mandaba otra.
+
+       El HTML se filtra ENTERO en el servidor (sanear.ts), que es lo
+       único que no se puede saltar nadie. Aquí no se filtra: filtrar
+       en los dos sitios daría una falsa sensación de seguridad y
+       además haría más difícil ver dónde se decide qué pasa. */
+    const message = edPromo ? edPromo.getHTML() : '';
+
+    /* Para validar y para el texto de la bandeja de entrada. Un editor
+       "vacío" en el navegador no es una cadena vacía: suele tener un
+       <br> o un <div></div> dentro. Con el HTML no se puede saber si
+       hay algo escrito; con el texto, sí. */
+    const texto = edPromo ? edPromo.getText() : '';
+
     const campaignType = document.getElementById('promo-campaign-type')?.value || 'Other';
 
     let flyerUrl = '';
@@ -1207,11 +1456,11 @@
       flyerUrl = (document.getElementById('promo-other-flyer-url')?.value || '').trim();
     }
 
-    if (!subject || !message) {
+    if (!subject || !texto) {
       toast('Please fill in the subject and message.', true);
       return null;
     }
-    return { subject, message, campaignType, flyerUrl };
+    return { subject, message, texto, campaignType, flyerUrl };
   };
 
   /* Lo que vale para TODA la campaña, no para una persona.
@@ -1225,126 +1474,40 @@
          plantilla del servidor (templates.ts, renderPromo). Una clave
          que no existe allí se ignora en silencio: no da error,
          simplemente no aparece en el correo. */
-  const metaPromo = ({ campaignType, message, flyerUrl }) => ({
+  const metaPromo = ({ campaignType, texto, flyerUrl }) => ({
     /* Cuando no hay flyer va el espaciador, NO una cadena vacía. La
        plantilla omite la fila de la imagen si la URL está vacía, y eso
-       cambiaría el alto del correo respecto a como sale hoy. Esta
-       etapa mueve el envío; no cambia cómo se ven los correos. */
+       cambiaría el alto del correo respecto a como sale hoy. */
     flyer_url:     flyerUrl || SPACER_FLYER,
     email_type:    etiquetaCabecera(campaignType),
-    preview_text:  textoVistaPrevia(message),
+    /* El texto de la bandeja sale del TEXTO, no del HTML: si saliera
+       del HTML, la bandeja de entrada enseñaría `<p style="color...`
+       antes de que nadie abriera el correo. */
+    preview_text:  textoVistaPrevia(texto),
     /* Para la tarjeta "Last Campaign". `communications.kind` es 'promo'
        en todas las campañas, así que el tipo (Tournament / Ladder /
        Other) no cabe ahí: va aquí, que es la columna que existe justo
        para lo que cambia según el caso. */
     campaign_type: campaignType,
+    /* LA MARCA. El servidor no tiene que adivinar si este mensaje
+       lleva formato: se lo decimos, y como `meta` se guarda con la
+       campaña, un reintento de dentro de dos semanas lo sabrá igual. */
+    cuerpo_html:   true,
   });
+  /* La clave contra envíos duplicados. El mecanismo entero —y por qué
+     lleva dos trozos— está explicado en admin-email-utils.js, donde lo
+     comparten las cuatro pantallas que mandan en lote. */
+  const claveador = window.crearClaveador('promo');
 
-  /* ─── CONTRA EL ENVÍO DUPLICADO ────────────────────────────
-     El servidor rechaza una campaña repetida si llega con la misma
-     idempotency_key. La clave se compone de dos trozos, y cada uno
-     resuelve un caso distinto:
+  /* La casilla de ensayo y la etiqueta del botón van juntas. El
+     mecanismo vive en admin-email-utils.js: lo comparten las cuatro
+     pantallas que tienen casilla, y así todas dicen lo mismo. */
+  const ensayo = window.vincularEnsayo('promo-only-me', 'promo-send-btn', 'Launch Campaign');
 
-       · el NONCE, que se renueva al abrir el modal
-       · el HASH del contenido
-
-     Doble clic en Launch      → mismo nonce, mismo hash → misma clave
-                                 → el segundo no manda nada. ✔
-     Editas el texto y reenvías→ mismo nonce, OTRO hash → clave nueva
-       sin cerrar el modal        → campaña nueva con el texto nuevo. ✔
-                                 (con una clave sola por contenido, el
-                                 servidor habría retomado la campaña
-                                 vieja y mandado el texto ANTERIOR)
-     Cierras y reabres el modal→ nonce nuevo → campaña nueva, aunque el
-                                 texto sea idéntico: un reenvío a
-                                 propósito tiene que poder hacerse. ✔ */
-  let _promoNonce = null;
-
-  const _nuevoNonce = () =>
-    Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-
-  const _hashCorto = async (txt) => {
-    try {
-      if (!window.crypto || !window.crypto.subtle) return null;
-      const buf = await window.crypto.subtle.digest(
-        'SHA-256', new TextEncoder().encode(txt));
-      return [...new Uint8Array(buf)].slice(0, 8)
-        .map((b) => b.toString(16).padStart(2, '0')).join('');
-    } catch (_) {
-      /* Sin crypto.subtle no hay clave. Se manda sin ella: el envío
-         funciona igual y el botón deshabilitado sigue cubriendo el
-         doble clic. Es peor, pero no es un motivo para no enviar. */
-      return null;
-    }
-  };
-
-  /* La clave es SOLO para el envío a la lista.
-
-     El ensayo va sin clave, y no es un descuido. Protegerlo de
-     duplicados no aporta nada —es un correo a tu propia dirección— y
-     en cambio costaba algo real: dos ensayos seguidos del mismo texto
-     habrían compartido clave, y el segundo no te habría llegado. Te
-     quedarías mirando la bandeja sin entender por qué. El botón
-     deshabilitado ya cubre el doble clic. */
-  const claveCampana = async (datos) => {
-    if (!_promoNonce) _promoNonce = _nuevoNonce();
-    const h = await _hashCorto([
-      datos.subject, datos.message, datos.campaignType, datos.flyerUrl,
-    ].join('\u0000'));
-    return h ? `promo-${_promoNonce}-${h}` : null;
-  };
-
-  /* ─── LA ETIQUETA DEL BOTÓN SIGUE A LA CASILLA ─────────────
-     Un botón que dice "Launch Campaign" mientras la casilla de ensayo
-     está marcada es una trampa: dice una cosa y hace otra. Con la
-     casilla puesta, el botón lo dice.
-
-     Se guarda el HTML original una sola vez y se sustituye solo el
-     texto, para no perder el icono.
-
-     ⚠️  El texto "Launch Campaign" tiene que coincidir con el de
-         admin.html. Si allí cambia, aquí hay que cambiarlo también. */
-  let _lanzarHTMLOriginal = null;
-
-  const actualizarEtiquetaLanzar = () => {
-    const btn = document.getElementById('promo-send-btn');
-    if (!btn) return;
-    if (_lanzarHTMLOriginal === null) _lanzarHTMLOriginal = btn.innerHTML;
-    const solo = !!document.getElementById('promo-only-me')?.checked;
-    btn.innerHTML = solo
-      ? _lanzarHTMLOriginal.replace('Launch Campaign', 'Launch — only to me')
-      : _lanzarHTMLOriginal;
-  };
-
-  /* El nombre para el saludo del correo.
-
-     `[a, b].filter(Boolean).join(' ')` y no `${a} ${b}`: un suscriptor
-     sin apellido salía saludado como "Hi Ana null," porque la
-     interpolación convierte el null en texto. Con la lista filtrada
-     queda "Hi Ana,". */
-  const nombreDe = (s) =>
-    [s.first_name, s.last_name].filter(Boolean).join(' ').trim() || 'Player';
-
-  /* Una línea que resuma lo que devolvió el servidor.
-
-     Se mira campo por campo porque cada uno significa algo distinto y
-     mezclarlos sería mentir:
-       sent        salieron en esta ejecución
-       already_sent ya habían salido antes (un reintento)
-       failed      rebotaron o Resend los rechazó
-       unconfirmed salieron, pero no se pudo escribir su fila: se
-                   recuperan solos en el siguiente intento
-       invalid_addresses descartados antes de empezar por no ser un
-                   correo válido — nunca se intentaron */
-  const resumenEnvio = (d) => {
-    const partes = [];
-    if (d.sent)         partes.push(`${d.sent} sent`);
-    if (d.already_sent) partes.push(`${d.already_sent} already sent earlier`);
-    if (d.failed)       partes.push(`${d.failed} failed`);
-    if (d.unconfirmed)  partes.push(`${d.unconfirmed} unconfirmed (will retry)`);
-    if (d.invalid_addresses) partes.push(`${d.invalid_addresses} invalid address${d.invalid_addresses === 1 ? '' : 'es'}`);
-    return partes.length ? partes.join(', ') : 'nothing to send';
-  };
+  /* nombreDestinatario() y resumenEnvio() viven en admin-email-utils.js:
+     los usan las cuatro pantallas que mandan en lote. */
+  const nombreDe = window.nombreDestinatario;
+  const resumenEnvio = window.resumenEnvio;
 
   const sendPromoEmail = async (e) => {
     e.preventDefault();
@@ -1361,6 +1524,14 @@
        abre el modal, así que un ensayo de ayer no puede convertirse en
        el lanzamiento de hoy sin querer. */
     const soloAdmin = !!document.getElementById('promo-only-me')?.checked;
+    /* La casilla se bloquea AQUÍ, en cuanto se lee, y no después de la
+       confirmación. Entre leerla y bloquearla hay al menos un `await`,
+       y en ese hueco un clic en la casilla la cambiaba: el envío salía
+       con lo leído, pero el `finally` —que a propósito mira la casilla
+       de verdad— dejaba el botón diciendo lo contrario de lo que se
+       acababa de mandar. */
+    ensayo.bloquear(true);
+
 
     const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
 
@@ -1385,10 +1556,12 @@
         subs = await api('subscribers?status=eq.active&select=*');
       } catch (err) {
         toast(`Error: ${err.message}`, true);
+        ensayo.bloquear(false);   // soltar la casilla al salir por aquí
         return;
       }
       if (!subs.length) {
         toast('No active subscribers to send to.', true);
+        ensayo.bloquear(false);   // soltar la casilla al salir por aquí
         return;
       }
       recipients = [
@@ -1408,10 +1581,41 @@
         })),
         copiaAdmin,
       ];
+
+      /* ─── ÚLTIMA PARADA ANTES DE 450 CORREOS ─────────────────
+         Un clic en Launch mandaba la campaña inmediatamente. Un clic
+         donde no era —o dos veces en la tecla equivocada— y ya está:
+         no hay forma de recoger un correo enviado.
+
+         La confirmación dice el NÚMERO, que es lo que de verdad hace
+         parar a pensar. "¿Seguro?" a secas se contesta que sí sin
+         leer; "462 personas" no.
+
+         Solo aparece en el envío a la lista. En el ensayo "solo a mí"
+         no: preguntar por un correo a tu propia dirección no protege
+         de nada y enseña a darle a Confirmar sin leer, que es
+         exactamente lo que no queremos. */
+      const cuantos = subs.length;
+      const seguro = await confirmModal({
+        title:   `Send this campaign to ${cuantos} subscriber${cuantos === 1 ? '' : 's'}?`,
+        message: `"${datos.subject}" will be emailed to ${cuantos} active subscriber`
+               + `${cuantos === 1 ? '' : 's'}, plus a copy to you. This cannot be undone.`
+               /* Una sola frase seguida: confirmModal pinta con
+                  textContent y sin white-space:pre-line, así que un
+                  \n\n se queda en un espacio y la frase se pega a la
+                  anterior. Su propio admin-incident-reports.js lo
+                  documenta. */
+               + ` To check it first, cancel and use "Send only to me".`,
+        okLabel: `Send to ${cuantos}`,
+        cancelLabel: 'Cancel',
+        danger: true,
+      });
+      // Al cancelar hay que SOLTAR la casilla: si no, se queda gris
+      // para siempre y ya no se puede marcar el ensayo.
+      if (!seguro) { ensayo.bloquear(false); return; }   // el modal se queda abierto
     }
 
     const sendBtn  = document.getElementById('promo-send-btn');
-    const origHTML = sendBtn.innerHTML;
     sendBtn.disabled = true;
     /* Ya no hay contador "127/450": el envío es UNA petición, no 450.
        Lo que se puede decir con verdad es a cuánta gente va. */
@@ -1437,7 +1641,9 @@
           ...(soloAdmin ? { solo_admin: true } : {}),
         },
         recipients,
-        idempotency_key: soloAdmin ? null : await claveCampana(datos),
+        idempotency_key: soloAdmin ? null
+          : await claveador.clave([datos.subject, datos.message,
+                                   datos.campaignType, datos.flyerUrl]),
       });
     } finally {
       /* En finally: si esto no se limpia, `emailInFlight` se queda en
@@ -1445,7 +1651,17 @@
          además de bloquear el botón de prueba. */
       window.AdminState.emailInFlight = false;
       sendBtn.disabled = false;
-      sendBtn.innerHTML = origHTML;
+      /* ensayo.sync() y NO `innerHTML = origHTML`.
+
+         `origHTML` era una FOTO del botón tomada al empezar el envío.
+         Si la casilla cambiaba mientras se mandaba, el finally reponía
+         esa foto vieja y el botón acababa diciendo lo contrario de lo
+         que marca la casilla — justo la mentira que esto existe para
+         impedir. sync() mira la casilla de verdad, no una foto.
+
+         Y con bloquear(false) la casilla vuelve a estar disponible. */
+      ensayo.bloquear(false);
+      ensayo.sync();
     }
 
     if (!r.ok) {
@@ -1465,8 +1681,7 @@
       /* El modal se queda abierto a propósito: el ensayo existe para
          mirar el correo y LUEGO lanzar de verdad. Cerrarlo obligaría a
          escribir la campaña otra vez. */
-      const chk = document.getElementById('promo-only-me');
-      if (chk) { chk.checked = false; actualizarEtiquetaLanzar(); }
+      ensayo.reset();
       toast(d.sent
         ? `✅ Rehearsal sent to ${CFG.ADMIN_EMAIL} only. Nothing went to the list. The checkbox is now off — press Launch again to send for real.`
         : `Rehearsal did not go out: ${resumenEnvio(d)}`, !d.sent);
@@ -1475,20 +1690,61 @@
       return;
     }
 
-    // Envío real: se cierra el modal, como hasta ahora.
-    const modal = document.getElementById('promo-modal');
-    if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+    /* La clave y el cierre SOLO cuando la campaña salió LIMPIA.
 
-    /* Un envío nuevo tiene que renovar la clave: si no, volver a
-       lanzar la misma campaña más tarde chocaría con la de este envío
-       y no mandaría nada. */
-    _promoNonce = null;
+       El servidor contesta 200 también con estado 'partial' o 'failed'
+       (index.ts: json() usa 200 por defecto), así que `r.ok` no quiere
+       decir "salió bien". Antes se hacían las dos cosas siempre:
+       - tirar la clave abría una campaña NUEVA en el reintento, y el
+         servidor ya no sabía quién tenía el correo: los 462 repetían;
+       - cerrar el modal se llevaba por delante la campaña escrita,
+         justo cuando hacía falta para reintentar. */
+    /* La llave se renueva cuando la campaña está TERMINADA —no va a
+       salir ni un correo más de ella— y no cuando llegó a todos. Las
+       dos formas de equivocarse hacen daño en direcciones opuestas:
+       renovar antes de tiempo duplica correos; no renovar nunca deja
+       la pantalla enganchada a una campaña vieja. Ver `envioTerminado`
+       en admin-email-utils.js. */
+    /* Ya NO se mira `d.failed`. Esa condición sobraba y costaba una
+       pulsación: `d.failed` son los fallos de ESTA pulsación, y en la
+       única pulsación donde cambiaba algo —la que agota el tercer
+       intento de una dirección muerta— la campaña ya estaba terminada.
+       El aviso te mandaba a reintentar algo que no se va a reintentar
+       nunca, y había que pulsar una cuarta vez para cerrarla.
 
-    const limpio = d.status === 'sent' && !d.failed && !d.unconfirmed;
+       Mientras queden intentos no hace falta: esa fila no está ni en
+       los enviados ni en los agotados, así que `envioTerminado` ya es
+       falso por su cuenta. */
+    const limpio = window.envioTerminado(d) && !d.unconfirmed;
     if (limpio) {
-      toast(`✅ Campaign launched! ${d.sent} email${d.sent === 1 ? '' : 's'} sent.`);
+      const modal = document.getElementById('promo-modal');
+      if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+      /* Una campaña nueva tiene que renovar la clave: si no, volver a
+         lanzar la misma campaña más tarde chocaría con la de este
+         envío y no mandaría nada. */
+      claveador.limpiar();
+      /* "Campaign launched!" sólo si LANZÓ algo. Con todas las
+         direcciones agotadas, `mensajeExito` ya dice "Nothing was sent"
+         —y le quita el ✅ a propósito— pero este prefijo volvía a
+         afirmar lo contrario, y más fuerte: "Campaign launched! Nothing
+         was sent. 60 addresses could not be reached." */
+      const falto = window.huboPerdidas(d);
+      /* MÁS DE UNO, no más de cero: a esta campaña se le añade siempre
+         una copia para ella (`copiaAdmin`), y esa copia cuenta en
+         `d.sent`. Con todas las direcciones de la lista agotadas y sólo
+         su copia entregada, `d.sent` vale 1 y el aviso decía "Campaign
+         launched!" de una campaña que no llegó a ningún suscriptor. */
+      const salio = (d.sent || 0) + (d.already_sent || 0) > 1;
+      toast(`${salio ? 'Campaign launched! ' : ''}`
+            + `${window.mensajeExito(d)}${window.loQueFalto(d)}`, falto);
     } else {
-      toast(`Campaign finished: ${resumenEnvio(d)}.`, true);
+      console.warn('[promotions] no salio limpio:', d);
+      /* Si el envío se CORTÓ, eso es lo único que importa, y la
+         respuesta dice por qué. Sin esto el aviso mandaba a reintentar
+         un corte que no se arregla reintentando. */
+      const corte = window.motivoDelCorte(d);
+      toast(corte
+        || `Campaign finished: ${resumenEnvio(d)}. Press Launch again to retry the ones that failed.`, true);
     }
   };
 
@@ -1496,14 +1752,14 @@
   // Own these listeners directly (DOM is already parsed by the time this
   // script runs, same as every other listener).
   document.getElementById('promo-form')?.addEventListener('submit', sendPromoEmail);
-  document.getElementById('promo-only-me')?.addEventListener('change', actualizarEtiquetaLanzar);
   document.getElementById('sub-status-filter')?.addEventListener('change', () => { _subsShown = 25; _renderSubsTable(); });
   document.getElementById('sub-search')?.addEventListener('input', () => { _subsShown = 25; _renderSubsTable(); });
   document.getElementById('sub-source-filter')?.addEventListener('change', () => { _subsShown = 25; _renderSubsTable(); });
+  document.getElementById('sub-period-filter')?.addEventListener('change', () => { _subsShown = 25; _renderSubsTable(); });
 
   // ── Expose / register with the shared infrastructure ──────────────────
   window.loadPromotionsPage = loadPromotionsPage; // called from the page router
-  window.loadSubscribers    = loadSubscribers;    // called by sendPendingReminder, which stays in app.js
+  window.loadSubscribers    = loadSubscribers;    // called by admin-subscriber-reminder.js
 
   Object.assign(window.CLICK_HANDLERS, {
     // CLICK_HANDLERS are called with ONE argument: the button element.
@@ -1517,11 +1773,76 @@
     filterBySource: (btn) => {
       const sel = document.getElementById('sub-source-filter');
       if (!sel) return;
+      /* ⚠️  SI ESE ORIGEN NO ESTÁ EN EL DESPLEGABLE, NO SE FINGE.
+
+         Asignarle a un `<select>` un valor que no tiene deja el valor
+         en cadena vacía, y más abajo `'' || 'all'` lo convierte en
+         "todos los orígenes": la tarjeta diría 2 y la tabla enseñaría
+         los 453, con el desplegable en blanco y sin explicación. El
+         mismo fallo que esto vino a arreglar, por otra puerta.
+
+         Puede pasar de verdad: el resumen pinta a propósito una
+         tarjeta para un origen que no reconozca, y añadir un origen
+         nuevo se hace en la base y en el enlace, sin tocar admin.html.
+         Lo encontró la revisión del 4 de octubre. */
+      const existe = [...sel.options].some((o) => o.value === btn.dataset.source);
+      if (!existe) {
+        toast(`"${btn.dataset.source}" is not in the Sources filter yet, `
+            + 'so the table cannot be narrowed to it. Tell your developer to add it.', true);
+        return;
+      }
       sel.value = btn.dataset.source;
+      /* ⚠️  AQUÍ ESTABA EL FALLO, Y ES EL MOTIVO DE TODO ESTE FILTRO.
+
+         La tarjeta cuenta el periodo del resumen; la tabla no tenía
+         periodo ninguno. Así que pulsar "Direct (2)" con "This month"
+         puesto enseñaba los 26 Direct de la historia. Un botón que dice
+         2 y te da 26 es un botón que miente.
+
+         LOS CUATRO FILTROS, NO DOS. La primera versión de este arreglo
+         sincronizaba el origen y la fecha y se dejaba el estado y el
+         buscador como estuvieran. Eso es PEOR que el fallo original:
+         con el filtro "Pending — no email sent" puesto —que es el que
+         el propio aviso del freno te manda usar— pulsar "Direct (4)"
+         dejaba la tabla en "No subscribers found". Un número equivocado
+         es un número equivocado; "no hay nadie de Direct" es una
+         afirmación falsa. Lo encontró la revisión del 4 de octubre.
+
+         El resumen cuenta por origen y por periodo, y por nada más. Así
+         que la tabla tiene que quedarse exactamente así: esos dos
+         puestos, y los otros dos abiertos. Los cuatro controles están a
+         la vista, así que se ve lo que pasó. */
+      const per = document.getElementById('sub-period-filter');
+      if (per) per.value = _summaryPeriod === 'month' ? 'month' : 'all';
+      const est = document.getElementById('sub-status-filter');
+      if (est) est.value = 'all';
+      const bus = document.getElementById('sub-search');
+      if (bus) bus.value = '';
       _subsShown = 25;
       _renderSubsTable();
       // Sin esto la tabla se filtra fuera de la pantalla y parece que
       // el botón no hizo nada.
+      document.getElementById('subscribers-table')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    },
+    /* El botón del aviso del freno. Deja los CUATRO filtros en el único
+       estado en que esa lista está completa: el estado en "no email
+       sent" y los otros tres abiertos.
+
+       Los tres se abren a propósito, y el de fecha es el que más
+       importa: el aviso mira las últimas 24 HORAS y el filtro de fecha
+       corta por MES, así que el 1 de noviembre el aviso habla de
+       frenadas del 31 de octubre y "This Month" las esconde. Esa lista
+       nunca es una pregunta de calendario: es "a quién le falta su
+       correo ahora mismo". */
+    verFrenadas: () => {
+      const poner = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+      poner('sub-status-filter', '__frenadas');
+      poner('sub-period-filter', 'all');
+      poner('sub-source-filter', 'all');
+      poner('sub-search', '');
+      _subsShown = 25;
+      _renderSubsTable();
       document.getElementById('subscribers-table')
         ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     },
