@@ -95,7 +95,15 @@
   let _envios        = [];     // lo que ya se ha traído del servidor
   let _hayMas        = false;  // ¿queda algo más por traer?
   let _cargando      = false;  // para que dos clics no pidan lo mismo dos veces
+  let _respuestas    = new Map();  // id de un envío con encuesta → { recipients, responded }
+  let _problemas     = new Map();  // id de un envío → { rebotes, quejas } (ajuste 16)
+  let _rechazos      = new Map();  // id de un envío → cuántas direcciones rechazadas (ajuste 20)
+  let _rechazadosDet = { id: null, emails: new Set() };  // las del envío abierto (ajuste 20)
   let _filtroTipo    = '';     // '' = todos
+  /* Una escalera o un torneo concreto (decidido el 10 de octubre: el
+     historial de cada audiencia vive aquí, no debajo del formulario).
+     Sólo con el tipo Ladder Players o Tournament Players. */
+  let _filtroAudiencia = '';   // id, o '' = todas
   let _abierto       = null;   // el envío que está abierto en la ventana
   let _personas      = [];     // sus destinatarios
   let _personasMas   = false;
@@ -121,6 +129,7 @@
      En una pantalla cuyo único trabajo es decir a quién le llegó, eso no
      es un detalle. */
   let _vez = 0;
+  let _recargarAlCerrar = false;   // al cerrar el detalle, volver a leer la lista (entregable 7)
   let _cargandoPersonas = false;
 
   /* ── LO QUE SE LEE DE LA BASE DE DATOS ─────────────────────
@@ -147,14 +156,66 @@
      eran cuatrocientos trozos de texto cargados en cada página de la
      lista para nada. El reintento sí lo necesita, y se lo pide él solo
      cuando toca. */
-  const COLS_PERSONA = ['id', 'email', 'status', 'error', 'sent_at', 'attempts'].join(',');
+  /* `delivery_problem`: lo que avisó Resend DESPUÉS de mandarlo
+     (rebote o queja de spam), ajuste 16. */
+  const COLS_PERSONA_BASE = ['id', 'email', 'status', 'error', 'sent_at', 'attempts'];
+  const COLS_PERSONA = COLS_PERSONA_BASE.concat(['delivery_problem', 'delivery_problem_at']).join(',');
+  /* Si el sitio se sube ANTES que el SQL 80, la base aún no tiene esas dos
+     columnas y el detalle entero fallaría. Entonces se piden las de antes
+     (y no se enseña lo de los rebotes) hasta recargar la página. */
+  let _colsPersona = COLS_PERSONA;
+
+  /* ── Ajuste 20: correos RECHAZADOS ──────────────────────────
+     Un servidor de correo que rechaza el mensaje (MessageRejected:
+     contenido, autenticación del dominio…) no dice nada malo de la
+     dirección, así que el SQL 80 sólo lo anota en email_events y no
+     marca a nadie. Aquí se cuentan para que History lo enseñe: si se
+     rechaza media campaña, casi seguro es un problema del dominio.
+
+     MISMA REGLA que procesar_evento_resend (sql/80): un rebote
+     permanente es "de verdad" sólo con subtipo General, NoEmail,
+     Suppressed u OnAccountSuppressionList (o sin subtipo). Cualquier
+     otro subtipo es un rechazo. Si cambia allí, hay que cambiarla aquí
+     y en admin-delivery-problems.js. */
+  const FILTRO_RECHAZO = '&type=eq.email.bounced&bounce_type=ilike.permanent&bounce_subtype=not.is.null'
+    + '&and=(bounce_subtype.not.ilike.general,bounce_subtype.not.ilike.noemail,'
+    + 'bounce_subtype.not.ilike.suppressed,bounce_subtype.not.ilike.onaccountsuppressionlist)';
+  /* La base no devuelve más de 1.000 filas por pregunta: si una campaña
+     grande se rechaza entera, se piden por tandas para no quedarse
+     cortos justo en el caso que importa. Se sigue hasta que una tanda
+     llega VACÍA (no "más corta de lo pedido": si algún día el servidor
+     devolviera menos por pregunta, eso cortaría antes de tiempo), y
+     cada tanda empieza donde terminó la anterior. */
+  const RECHAZOS_POR_TANDA = 500;
+  const RECHAZOS_TANDAS_MAX = 60;
+  /* El aviso fuerte: 10% o más de lo enviado, y por lo menos 3
+     (decidido el 13 de octubre). */
+  const RECHAZOS_MINIMO_AVISO = 3;
+  const hayQueAvisarRechazos = (rechazados, enviados) =>
+    rechazados >= RECHAZOS_MINIMO_AVISO && rechazados * 10 >= (Number(enviados) || 0);
+
+  /** Las filas de rechazo (communication_id, email) que cumplen `filtro`. */
+  async function leerFilasRechazo(filtro) {
+    const todas = [];
+    for (let t = 0; t < RECHAZOS_TANDAS_MAX; t++) {
+      const r = await window.api(`email_events?select=communication_id,email${filtro}${FILTRO_RECHAZO}`
+        + `&order=id.asc&limit=${RECHAZOS_POR_TANDA}&offset=${todas.length}`);
+      if (!Array.isArray(r)) throw new Error('unexpected_response');
+      if (!r.length) return todas;
+      todas.push(...r);
+    }
+    console.warn('[communications] demasiados rechazados: la cuenta puede quedarse corta');
+    return todas;
+  }
+
+  const normal = (x) => String(x || '').trim().toLowerCase();
 
   /* Los nombres que ve ella. En la base de datos son etiquetas
      técnicas; aquí se llaman como los llama la aplicación. */
   const NOMBRE_TIPO = {
     promo:              'Campaign',
-    ladder_notify:      'Ladder Update',
-    tournament_notify:  'Tournament Update',
+    ladder_notify:      'Ladder Players',
+    tournament_notify:  'Tournament Players',
     players_broadcast:  'All Players',
     player_message:     'Single Player',
     subscriber_confirm: 'Confirmation',
@@ -267,6 +328,11 @@
        que no sabe que hay una caché por medio, eso significa que el
        envío no quedó registrado. */
     if (cual === 'history') cargarEnvios(true);
+    /* Ajuste 16: la pestaña de rebotes y quejas (admin-delivery-problems.js). */
+    if (cual === 'problems') window.cargarProblemasDeEntrega?.(true);
+    /* §115: Send Text & WhatsApp y su historial (admin-text-whatsapp.js). */
+    if (cual === 'text') window.FerociaTexto?.alAbrir();
+    if (cual === 'texthistory') window.FerociaTexto?.historial();
   }
 
   // ── PESTAÑA HISTORIAL: LA LISTA ───────────────────────────
@@ -294,7 +360,14 @@
     const caja = document.getElementById('co-hist-table');
     if (desdeElPrincipio && caja) caja.innerHTML = cargando('Loading history...');
 
-    const filtro = _filtroTipo ? `&kind=eq.${encodeURIComponent(_filtroTipo)}` : '';
+    /* Ajuste 17: los envíos que llevan más de 30 minutos en "Sending…" sin
+       NINGUNA persona apuntada se pasan a Failed antes de leer la lista
+       (sql/81). No había nada que retomar: la lista a la que iban se
+       perdió. Si falla (o falta el SQL 81), la lista se lee igual. */
+    if (desdeElPrincipio) await cerrarColgados();
+
+    const filtro = (_filtroTipo ? `&kind=eq.${encodeURIComponent(_filtroTipo)}` : '')
+      + (_filtroAudiencia ? `&meta->audience->>id=eq.${encodeURIComponent(_filtroAudiencia)}` : '');
     const ruta = `communications?select=${COLS_LISTA}${filtro}`
                + `&order=created_at.desc&limit=${POR_PAGINA + 1}&offset=${_envios.length}`;
 
@@ -315,6 +388,14 @@
          cuenta de lo que se mandó. */
       const yaEstan = new Set(_envios.map((x) => String(x.id)));
       const nuevas = filas.slice(0, POR_PAGINA).filter((x) => !yaEstan.has(String(x.id)));
+      /* Las encuestas dicen cuántos contestaron (entregable 5). */
+      const [cuentas, problemas, rechazos] = await Promise.all(
+        [leerRespuestas(nuevas), leerProblemas(nuevas), leerRechazos(nuevas)]);
+      if (mia !== _vez) return;
+      if (desdeElPrincipio) { _respuestas = new Map(); _problemas = new Map(); _rechazos = new Map(); }
+      cuentas.forEach((v, k) => _respuestas.set(k, v));
+      problemas.forEach((v, k) => _problemas.set(k, v));
+      rechazos.forEach((v, k) => _rechazos.set(k, v));
       _envios = _envios.concat(nuevas);
       pintarEnvios();
     } catch (err) {
@@ -332,6 +413,18 @@
     }
   }
 
+  async function cerrarColgados() {
+    try {
+      const sb = window.supabase;
+      if (!sb || typeof sb.rpc !== 'function') return;
+      const { data, error } = await sb.rpc('cerrar_envios_colgados');
+      if (error) { console.warn('[communications] no se pudieron cerrar los envíos colgados:', error.message); return; }
+      if (data) console.log(`[communications] ${data} envío(s) colgado(s) pasado(s) a Failed`);
+    } catch (e) {
+      console.warn('[communications] no se pudieron cerrar los envíos colgados:', e);
+    }
+  }
+
   function pintarEnvios() {
     const caja = document.getElementById('co-hist-table');
     if (!caja) return;
@@ -342,7 +435,10 @@
          caso la base de datos contesta "cero filas", no "no puedes").
          Decir sólo lo primero sería tranquilizador y falso, así que se
          nombra la segunda posibilidad sin alarmar. */
-      caja.innerHTML = vacio(_filtroTipo
+      caja.innerHTML = vacio(_filtroAudiencia
+        ? `Nothing sent to this ${_filtroTipo === 'tournament_notify' ? 'tournament' : 'ladder'} from the Communications Hub yet. `
+          + `Emails sent before the Hub are not linked to one — choose "${_filtroTipo === 'tournament_notify' ? 'All tournaments' : 'All ladders'}" to see them.`
+        : _filtroTipo
         ? 'No sends of this type yet.'
         : 'Nothing has been sent yet. Anything you send from now on will show up here. '
           + '(If you were expecting to see past sends here, check that your admin access is still active.)');
@@ -379,6 +475,27 @@
             const fallos = e.failed_count
               ? `<div style="font-size:10px;font-weight:700;color:#c62828;margin-top:2px;">${e.failed_count} failed</div>`
               : '';
+            const cuenta = _respuestas.get(String(e.id));
+            const contestaron = cuenta
+              ? `<div class="co-hist-responded">${cuenta.responded}/${cuenta.recipients} responded</div>`
+              : '';
+            const encuesta = tipoEncuesta(e);
+            /* Ajuste 16: lo que avisó Resend después del envío. */
+            const prob = _problemas.get(String(e.id));
+            /* Ajuste 20: y los que rechazó el servidor del destinatario. */
+            const rech = _rechazos.get(String(e.id)) || 0;
+            const partes = [
+              prob && prob.rebotes ? `${prob.rebotes} bounced` : '',
+              prob && prob.quejas ? `${prob.quejas} marked as spam` : '',
+              rech ? `${rech} rejected` : '',
+            ].filter(Boolean);
+            const problemas = partes.length
+              ? `<div class="co-hist-problemas">${window.esc(partes.join(' · '))}</div>`
+              : '';
+            const alertaRechazos = hayQueAvisarRechazos(rech, e.sent_count)
+              ? '<div class="co-hist-alerta" role="note">Many emails of this send were rejected by the receiving '
+                + 'servers — this usually means a problem with the domain setup. Tell your developer.</div>'
+              : '';
             return `<tr ${FILA}>
               <td style="${TD}font-size:12px;color:var(--text-muted);white-space:nowrap;">${window.esc(cuando(e.sent_at || e.created_at))}</td>
               <td style="${TD}white-space:nowrap;">${pastillaTipo(e.kind)}${
@@ -387,9 +504,9 @@
                    como dos filas idénticas con el mismo asunto. */
                 (e.meta && e.meta.solo_admin)
                   ? ' ' + pastilla('Test', { bg: '#f4f5f8', fg: '#6b7a99' })
-                  : ''}</td>
+                  : ''}${encuesta ? ' ' + pastilla(encuesta, { bg: '#e8f0ff', fg: '#174CCC' }) : ''}</td>
               <td style="${TD}font-size:13px;font-weight:700;color:var(--text);">${window.esc(e.subject || '(no subject)')}</td>
-              <td style="${TD}font-size:12px;color:var(--text-muted);white-space:nowrap;">${window.esc(entrega)}${fallos}</td>
+              <td style="${TD}font-size:12px;color:var(--text-muted);white-space:nowrap;">${window.esc(entrega)}${fallos}${problemas}${alertaRechazos}${contestaron}</td>
               <td style="${TD}white-space:nowrap;">${pastillaEstado(e.status)}</td>
               <td style="${TD}text-align:right;white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" data-action="openCommDetail" data-commid="${e.id}"
@@ -424,36 +541,51 @@
   // ── PESTAÑA HISTORIAL: EL DETALLE ─────────────────────────
 
   /* ── EL CUERPO DEL CORREO, LIMPIO ANTES DE ENSEÑARLO ──────
-     Es la primera vez que un mensaje guardado se vuelve a pintar como
-     HTML vivo dentro de la sesión de un admin. El editor no limpia
-     nada: lo que se pega desde una página web se guarda tal cual, y
-     eso puede traer una imagen con un `onerror` que se ejecuta al
-     pintarla. `innerHTML` no corre un <script>, pero sí corre eso.
+     Un mensaje guardado se vuelve a pintar como HTML vivo dentro de la
+     sesión de un admin (aquí y en "Resend to…"). El editor no limpia
+     nada: lo que se pega desde una página web se guarda tal cual, y eso
+     puede traer piezas escondidas (una imagen con `onerror`, un enlace
+     `javascript:`…).
 
-     Se hace lo mínimo que cierra el agujero sin cambiar cómo se ve:
-     fuera los <script>/<style>/<iframe>, fuera cualquier atributo que
-     empiece por `on`, y fuera los enlaces que no sean http(s). */
+     Desde el 12 de octubre lo limpia DOMPurify (purify.min.js, guardado
+     en el sitio): una "lista de invitados" — sólo deja pasar lo que se
+     sabe seguro (texto, negritas, listas, enlaces, colores, imágenes) y
+     quita todo lo demás, también un truco que nadie conozca todavía.
+     Antes se quitaba sólo lo peligroso que se conocía.
+
+     Los enlaces y las imágenes: http(s), mailto, cid o relativos (y las
+     imágenes pegadas como data:, que DOMPurify permite sólo en <img>).
+     Nada de javascript:, ni otros esquemas. La regla es la de DOMPurify
+     con sólo esos esquemas: DOMPurify la aplica también a atributos
+     como color="#f00" o width="600", así que una más estricta les
+     quitaba el formato (lo vio la revisión del 12 de octubre).
+
+     Si purify.min.js no cargara, NO se pinta HTML: sólo el texto. Mejor
+     un mensaje sin formato que uno sin limpiar. */
+  const LIMPIEZA = {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select', 'option'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|cid):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  };
   function limpiarCuerpo(html) {
+    const crudo = String(html == null ? '' : html);
+    if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+      return window.DOMPurify.sanitize(crudo, LIMPIEZA);
+    }
+    console.error('[communications] purify.min.js no cargó: se enseña sólo el texto');
+    /* DOMParser no ejecuta nada ni carga imágenes. */
+    const texto = new DOMParser().parseFromString(crudo, 'text/html').body.textContent || '';
     const caja = document.createElement('div');
-    caja.innerHTML = String(html == null ? '' : html);
-    caja.querySelectorAll('script,style,iframe,object,embed,link,meta,form,base')
-        .forEach((n) => n.remove());
-    caja.querySelectorAll('*').forEach((n) => {
-      [...n.attributes].forEach((a) => {
-        const nom = a.name.toLowerCase();
-        if (nom.startsWith('on')) { n.removeAttribute(a.name); return; }
-        if ((nom === 'href' || nom === 'src' || nom === 'xlink:href')
-            && !/^(https?:|mailto:|cid:|data:image\/)/i.test(a.value.trim())) {
-          n.removeAttribute(a.name);
-        }
-      });
-    });
+    caja.textContent = texto;
     return caja.innerHTML;
   }
 
   /** Abre un envío: el mensaje que se escribió y a quién le llegó. */
-  async function abrirDetalle(id) {
-    const enLista = _envios.find((x) => String(x.id) === String(id));
+  /* `fila` la pasa el historial de una escalera o un torneo, en el
+     panel del Hub: ese envío no tiene por qué estar en la lista de la
+     pestaña History. Trae las mismas columnas (COLS_LISTA). */
+  async function abrirDetalle(id, fila) {
+    const enLista = _envios.find((x) => String(x.id) === String(id)) || fila;
     if (!enLista) { window.toast('That send is no longer on screen. Reload the list.', true); return; }
 
     const mia = ++_vez;
@@ -466,6 +598,10 @@
     document.getElementById('co-det-meta').innerHTML =
       `${pastillaTipo(enLista.kind)} <span style="font-size:11px;font-weight:600;color:var(--text-muted);margin-left:8px;">${window.esc(cuando(enLista.sent_at || enLista.created_at))}</span>`;
     document.getElementById('co-det-body').innerHTML = cargando('Loading message...');
+    document.getElementById('co-det-attach').hidden = true;
+    /* "Resend to…" (ajuste 12): sólo en campañas, y cuando ya llegó el
+       mensaje (se reenvía ESE texto). */
+    document.getElementById('co-det-resend').hidden = true;
 
     document.querySelectorAll('#co-det-filters .co-pfilter').forEach((b) => {
       b.classList.toggle('co-pfilter-on', (b.dataset.pf || '') === '');
@@ -473,6 +609,8 @@
 
     document.getElementById('co-det-people').innerHTML = cargando('Loading recipients...');
     document.getElementById('co-det-retry-row').style.display = 'none';
+    /* Los resultados, si es una encuesta (entregable 6, admin-comms-results.js). */
+    window.commPollMostrar?.(enLista);
     document.getElementById('communications-detail-modal').classList.add('open');
 
     /* El cuerpo NO viene en la lista (son megabytes por página), así que
@@ -496,6 +634,16 @@
       _abierto.body
         ? limpiarCuerpo(_abierto.body)
         : '<em style="color:var(--text-muted);">(no message body)</em>';
+    document.getElementById('co-det-resend').hidden = !(_abierto.kind === 'promo' && _abierto.body);
+
+    /* El PDF que fue adjunto, si lo hubo (entregable 4). */
+    const adj = _abierto.meta && _abierto.meta.attachment;
+    document.getElementById('co-det-attach').hidden = !adj;
+    if (adj) {
+      const mb = (Number(adj.size) || 0) / (1024 * 1024);
+      document.getElementById('co-det-attach-name').textContent =
+        `${adj.filename} · ${mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(mb * 1024))} KB`}`;
+    }
 
     await cargarPersonas(true);
   }
@@ -506,9 +654,41 @@
        un envío de otra pantalla dejaba a la persona encerrada aquí sin
        motivo. */
     _vez++;   // lo que venga en camino ya no se pinta
+    window.commPollOcultar?.();
     document.getElementById('communications-detail-modal').classList.remove('open');
     _abierto = null;
     _personas = [];
+    /* Se mandó un recordatorio desde los resultados: la lista se lee otra
+       vez para que aparezca. Se hace al cerrar, y no antes, porque la
+       lista y esta ventana comparten el contador de "lo que llega tarde"
+       (_vez): recargarla con la ventana abierta tiraría lo que la ventana
+       estuviera leyendo. */
+    if (_recargarAlCerrar) { _recargarAlCerrar = false; cargarEnvios(true); }
+  }
+
+  /* "Resend to…" (ajuste 12): abre el formulario de Campaign relleno con
+     ESTA campaña, para mandársela sólo a quien se elija. El mensaje va
+     limpio, como se enseña aquí (sin scripts ni on…); uno antiguo de
+     texto plano se pasa a HTML. */
+  function reenviarCampana() {
+    const c = _abierto;
+    if (!c || c.kind !== 'promo' || !c.body) return;
+    if (window.envioEnCurso && window.envioEnCurso('abrir')) return;
+    /* Sin el limpiador el mensaje sólo se ve como texto: reenviarlo así
+       mandaría la campaña sin formato. Mejor no dejar. */
+    if (!window.DOMPurify) {
+      window.toast('Could not load part of the page. Reload it and try again.', true);
+      return;
+    }
+    const html = c.meta && c.meta.cuerpo_html
+      ? limpiarCuerpo(c.body)
+      : window.FerociaEditor.textoAHTML(String(c.body));
+    const datos = { id: c.id, subject: c.subject, sent_at: c.sent_at, created_at: c.created_at, html, meta: c.meta || {} };
+    /* El cursor no se queda en un botón de la ventana que se cierra
+       (en el móvil no se lleva a ningún campo: el teclado taparía todo). */
+    document.activeElement?.blur?.();
+    cerrarDetalle();
+    window.campanaReenviar?.(datos);
   }
 
   /** Trae una página de destinatarios del envío abierto. */
@@ -520,9 +700,13 @@
     const mia = _vez;
     const deQuien = _abierto.id;
     if (desdeElPrincipio) { _personas = []; _personasMas = false; _personasOk = false; }
+    /* Ajuste 20: quién de este envío fue rechazado. Se lee una vez, al
+       abrir, en paralelo con la primera página. */
+    const rechazados = (desdeElPrincipio || _rechazadosDet.id !== deQuien)
+      ? leerRechazadosDe(deQuien) : null;
 
     const filtro = _filtroPersona ? `&status=eq.${encodeURIComponent(_filtroPersona)}` : '';
-    const ruta = `communication_recipients?select=${COLS_PERSONA}`
+    const ruta = (cols) => `communication_recipients?select=${cols}`
                + `&communication_id=eq.${encodeURIComponent(deQuien)}${filtro}`
                /* Los que fallaron primero: son los que hay que mirar.
                   Un listado alfabético obligaría a buscarlos a mano
@@ -531,12 +715,28 @@
                + `&limit=${PERSONAS_POR_PAGINA + 1}&offset=${_personas.length}`;
 
     try {
-      const filas = await window.api(ruta);
+      let filas;
+      try {
+        filas = await window.api(ruta(_colsPersona));
+      } catch (err) {
+        if (_colsPersona === COLS_PERSONA && /delivery_problem/i.test(String(err && err.message))) {
+          console.warn('[communications] falta el SQL 80: el detalle se enseña sin los rebotes');
+          _colsPersona = COLS_PERSONA_BASE.join(',');
+          filas = await window.api(ruta(_colsPersona));
+        } else {
+          throw err;
+        }
+      }
       /* Que siga abierto EL MISMO envío y que no se haya cambiado el
          filtro por el camino. Si no, esta respuesta pertenece a otra
          pregunta y pintarla sería mentir. */
       if (mia !== _vez || !_abierto || _abierto.id !== deQuien) return;
       if (!Array.isArray(filas)) throw new Error('unexpected_response');
+      if (rechazados) {
+        const set = await rechazados;
+        if (mia !== _vez || !_abierto || _abierto.id !== deQuien) return;
+        _rechazadosDet = { id: deQuien, emails: set };
+      }
 
       _personasMas = filas.length > PERSONAS_POR_PAGINA;
       /* Igual que arriba: un reintento cambia el estado de alguien, y
@@ -570,6 +770,17 @@
       pintarReintento();
     } finally {
       _cargandoPersonas = false;
+    }
+  }
+
+  /** Ajuste 20: las direcciones rechazadas de un envío (vacío si falla). */
+  async function leerRechazadosDe(id) {
+    try {
+      const r = await leerFilasRechazo(`&communication_id=eq.${encodeURIComponent(id)}`);
+      return new Set(r.map((x) => normal(x.email)));
+    } catch (err) {
+      console.error('[communications] no se pudieron leer los rechazados del envío:', err);
+      return new Set();
     }
   }
 
@@ -643,11 +854,20 @@
                verdad —que no se va a reintentar— y el caso reconocido
                añade el porqué. Si el reconocimiento falla, se degrada a
                algo feo pero cierto. */
-            const aviso = seDioDeBaja
+            /* Ajuste 16: salió bien, pero Resend avisó después. */
+            const despues = p.delivery_problem === 'complained'
+              ? '<div class="co-det-problema">Marked this email as spam — unsubscribed</div>'
+              : (p.delivery_problem === 'bounced' || p.delivery_problem === 'suppressed')
+                ? '<div class="co-det-problema">Bounced — this address does not receive email</div>'
+                /* Ajuste 20: rechazado por su servidor; la dirección no se marcó. */
+                : (_rechazadosDet.id === (_abierto && _abierto.id) && _rechazadosDet.emails.has(normal(p.email)))
+                  ? '<div class="co-det-rechazo">Rejected by their mail server — address not marked</div>'
+                  : '';
+            const aviso = despues + (seDioDeBaja
               ? '<div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-top:3px;">Not a bad address — they asked not to be emailed</div>'
               : agotada
                 ? '<div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-top:3px;">Will not be retried again</div>'
-                : '';
+                : '');
             return `<tr ${FILA}>
               <td style="${TD}font-size:12px;color:var(--text);">${window.esc(p.email)}</td>
               <td style="${TD}white-space:nowrap;">${pastillaPersona(p.status)}</td>
@@ -817,7 +1037,9 @@
       return;
     }
 
-    if (!_abierto.idempotency_key) {
+    /* El ensayo de una encuesta lleva llave (la necesita para guardar su
+       encuesta), pero sigue siendo un ensayo: no se reintenta desde aquí. */
+    if (!_abierto.idempotency_key || (_abierto.meta && _abierto.meta.solo_admin)) {
       /* Sin llave guardada no se puede retomar: el servidor abriría una
          campaña NUEVA y le volvería a escribir a quien ya la tenía.
 
@@ -894,6 +1116,7 @@
        propiedad de estilo. */
     if (_abierto && _abierto.kind === 'newsletter') return;
     if (!_abierto || !_abierto.idempotency_key) return;
+    if (_abierto.meta && _abierto.meta.solo_admin) return;
     if (window.envioEnCurso && window.envioEnCurso()) return;
 
     const btn = document.getElementById('co-det-retry-btn');
@@ -1001,7 +1224,7 @@
       } else {
         const d = r.data || {};
         /* `loQueFalto` y el motivo del corte también aquí: este reintento
-           usa el mismo motor que las cinco pantallas de envío y se corta
+           usa el mismo motor que las pantallas de envío y se corta
            por lo mismo. Sin esto, el reintento era la única puerta por la
            que esas dos cosas no se nombraban — y la peor, porque es la
            puerta a la que se llega justamente cuando algo ya falló. */
@@ -1048,17 +1271,141 @@
 
   // ── REGISTRO ──────────────────────────────────────────────
 
+  /* ── LAS ENCUESTAS (entregable 5) ──────────────────────────
+     Un envío con encuesta lleva su definición en `meta.poll`; cuántos
+     contestaron sale de la vista comm_poll_summary (sql/76), que sólo
+     deja leer a una administradora activa. */
+
+  /** "Availability · Oct 12" o "Poll" si el envío es una encuesta; '' si no. */
+  function tipoEncuesta(e) {
+    /* Un recordatorio a quien no contestó (entregable 7). */
+    if (e && e.meta && e.meta.reminder) return 'Reminder';
+    const p = e && e.meta && e.meta.poll;
+    if (!p) return '';
+    if (p.kind !== 'availability') return 'Poll';
+    const f = String(p.session_date || '');
+    return /^\d{4}-\d{2}-\d{2}$/.test(f)
+      ? `Availability · ${new Date(`${f}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })}`
+      : 'Availability';
+  }
+
+  /** Cuántos contestaron cada encuesta de la lista: id → { recipients,
+      responded }. Si no se puede leer, vacío: la lista se pinta igual. */
+  /* Ajuste 16: cuántos rebotaron o se quejaron en cada envío de la página.
+     Un fallo aquí no rompe la lista: se queda sin ese dato. */
+  async function leerProblemas(filas) {
+    const ids = (filas || []).filter((f) => !(f.meta && f.meta.solo_admin))
+      .map((f) => Number(f.id)).filter((x) => Number.isSafeInteger(x));
+    if (!ids.length) return new Map();
+    try {
+      const r = await window.api('communication_recipients?select=communication_id,delivery_problem'
+        + `&communication_id=in.(${ids.join(',')})&delivery_problem=not.is.null`);
+      const m = new Map();
+      for (const x of r || []) {
+        const k = String(x.communication_id);
+        const c = m.get(k) || { rebotes: 0, quejas: 0 };
+        if (x.delivery_problem === 'complained') c.quejas++; else c.rebotes++;
+        m.set(k, c);
+      }
+      return m;
+    } catch (err) {
+      console.error('[communications] no se pudieron leer los rebotes:', err);
+      return new Map();
+    }
+  }
+
+  /* Ajuste 20: cuántas direcciones DISTINTAS rechazó el servidor en cada
+     envío de la página. Un fallo aquí no rompe la lista. */
+  async function leerRechazos(filas) {
+    const ids = (filas || []).filter((f) => !(f.meta && f.meta.solo_admin))
+      .map((f) => Number(f.id)).filter((x) => Number.isSafeInteger(x));
+    if (!ids.length) return new Map();
+    try {
+      const r = await leerFilasRechazo(`&communication_id=in.(${ids.join(',')})`);
+      const porEnvio = new Map();
+      for (const x of r) {
+        const k = String(x.communication_id);
+        if (!porEnvio.has(k)) porEnvio.set(k, new Set());
+        porEnvio.get(k).add(normal(x.email));
+      }
+      const m = new Map();
+      porEnvio.forEach((emails, k) => m.set(k, emails.size));
+      return m;
+    } catch (err) {
+      console.error('[communications] no se pudieron leer los rechazados:', err);
+      return new Map();
+    }
+  }
+
+  async function leerRespuestas(filas) {
+    /* Los ensayos no: su encuesta sólo tiene la copia de muestra. */
+    const ids = (filas || []).filter((f) => f.meta && f.meta.poll && !f.meta.solo_admin)
+      .map((f) => Number(f.id)).filter((x) => Number.isSafeInteger(x));
+    if (!ids.length) return new Map();
+    try {
+      const r = await window.api('comm_poll_summary?select=communication_id,recipients,responded'
+        + `&communication_id=in.(${ids.join(',')})`);
+      return new Map((r || []).map((x) => [String(x.communication_id),
+        { recipients: Number(x.recipients) || 0, responded: Number(x.responded) || 0 }]));
+    } catch (err) {
+      console.error('[communications] no se pudo leer cuántos contestaron:', err);
+      return new Map();
+    }
+  }
+
   window.openCommunications = () => {
     /* Al abrir la pantalla se enseña SEND, que es lo que se viene a
        hacer la mayoría de las veces. El historial se carga cuando se
-       pincha su pestaña, no antes. */
+       pincha su pestaña, no antes.
+       Y el panel del Hub se cierra —una vista previa de destinatarios
+       de hace un rato puede no ser ya la de verdad— salvo que haya un
+       mensaje a medio escribir: entonces se queda, con la vista previa
+       pedida otra vez (admin-comms-hub.js, alVolver). */
+    window.hubAlVolver?.();
+    window.campanaAlVolver?.();
     mostrarTab('send');
   };
 
+  /* Descargar el PDF que se adjuntó: un enlace de un minuto, como los
+     archivos de la ficha del jugador. La carpeta es privada. */
+  async function descargarAdjunto() {
+    const adj = _abierto && _abierto.meta && _abierto.meta.attachment;
+    if (!adj) return;
+    /* La pestaña se abre YA, con el clic, y luego se le da la dirección:
+       abierta después de esperar al servidor, Safari la bloquea sin
+       avisar. */
+    const pestana = window.open('about:blank', '_blank');
+    if (pestana) pestana.opener = null;
+    try {
+      const { data, error } = await window.supabase.storage.from(adj.bucket).createSignedUrl(adj.path, 60);
+      if (error) throw error;
+      if (pestana) pestana.location.href = data.signedUrl;
+      else window.location.href = data.signedUrl;
+    } catch (e) {
+      if (pestana) pestana.close();
+      /* Los PDF se guardan 30 días después del envío (12 de octubre):
+         pasado ese tiempo ya no está, y se dice así. */
+      const yaNo = /not.?found/i.test(String(e && (e.message || e.error || '')));
+      window.toast(yaNo
+        ? 'This PDF is no longer available: attachments are kept for 30 days after sending.'
+        : `Could not open the PDF: ${e.message}`, true);
+    }
+  }
+
   Object.assign(window.CLICK_HANDLERS, {
-    commShowTab:        (btn) => mostrarTab(btn.dataset.tab),
+    commDownloadAttachment: () => descargarAdjunto(),
+    /* Send enseña siempre la pantalla de opciones; si hay un mensaje a
+       medio escribir, el Hub pregunta antes (hubIrAOpciones). */
+    commShowTab:        async (btn) => {
+      const cual = btn.dataset.tab;
+      if (cual === 'send' && window.hubIrAOpciones) await window.hubIrAOpciones();
+      /* La campaña (Campaign) igual que el Hub. */
+      if (cual === 'send' && window.campanaIrAOpciones) await window.campanaIrAOpciones();
+      mostrarTab(cual);
+    },
     openCommDetail:     (btn) => abrirDetalle(btn.dataset.commid),
     closeCommDetail:    () => cerrarDetalle(),
+    commResendCampaign: () => reenviarCampana(),
     loadMoreCommPeople: () => cargarPersonas(false),
     retryComm:          () => reintentar(),
     filterCommPeople:   (btn) => {
@@ -1072,8 +1419,74 @@
     },
   });
 
+  /* El segundo filtro: qué escalera o qué torneo. La lista se pide cada
+     vez que se elige el tipo, con lo vigente primero, como en el Hub. */
+  let _vezAudiencias = 0;
+  async function pintarFiltroAudiencia() {
+    const sel = document.getElementById('co-hist-aud-filter');
+    if (!sel) return;
+    const escalera = _filtroTipo === 'ladder_notify';
+    const torneo = _filtroTipo === 'tournament_notify';
+    sel.hidden = !escalera && !torneo;
+    /* La vez se cuenta SIEMPRE: una lista que llega tarde no rellena el
+       filtro después de haber cambiado a otro tipo. */
+    const mia = ++_vezAudiencias;
+    if (sel.hidden) return;
+    sel.setAttribute('aria-label', escalera ? 'Ladder' : 'Tournament');
+    const todas = new Option(escalera ? 'All ladders' : 'All tournaments', '');
+    sel.replaceChildren(todas);
+    sel.disabled = true;
+    let filas;
+    try {
+      filas = await window.api(escalera
+        ? 'ladders?select=id,name,status,start_date&order=start_date.desc'
+        : 'tournaments?select=id,name,date,status&order=date.desc');
+    } catch (err) {
+      if (mia !== _vezAudiencias) return;
+      console.error('[communications] no se pudo leer la lista para el filtro:', err);
+      /* Que se vea que falló; se vuelve a pedir al elegir otra vez el tipo. */
+      sel.replaceChildren(new Option(`Could not load the list — ${todas.textContent.toLowerCase()} shown`, ''));
+      sel.disabled = false;
+      return;
+    }
+    if (mia !== _vezAudiencias) return;
+    const vigente = (f) => (escalera ? f.status === 'active' : f.status === 'draft' || f.status === 'active');
+    const fecha = (f) => (escalera ? f.start_date : f.date);
+    const etiqueta = (f) => (fecha(f) ? `${f.name} · ${window.fmtDate(fecha(f))}` : f.name);
+    const grupos = escalera ? ['Active ladders', 'Past ladders'] : ['Current & upcoming', 'Past tournaments'];
+    const opciones = [todas];
+    [filas.filter(vigente), filas.filter((f) => !vigente(f))].forEach((lista, i) => {
+      if (!lista.length) return;
+      const g = document.createElement('optgroup');
+      g.label = grupos[i];
+      lista.forEach((f) => g.append(new Option(etiqueta(f), String(f.id))));
+      opciones.push(g);
+    });
+    sel.replaceChildren(...opciones);
+    sel.value = '';
+    sel.disabled = false;
+  }
+
+  /* Cuando cambias una respuesta en los resultados (entregable 6), la
+     cuenta "X/Y responded" de la lista se pone al día. */
+  window.commHistMarcarCambio = () => { _recargarAlCerrar = true; };
+
+  window.commPollCambio = async () => {
+    const cuentas = await leerRespuestas(_envios);
+    cuentas.forEach((v, k) => _respuestas.set(k, v));
+    pintarEnvios();
+  };
+
+  document.getElementById('co-hist-aud-filter')?.addEventListener('change', (ev) => {
+    _filtroAudiencia = ev.target.value || '';
+    cargarEnvios(true);
+  });
+
   document.getElementById('co-hist-type-filter')?.addEventListener('change', (ev) => {
     _filtroTipo = ev.target.value || '';
+    /* Otro tipo: el filtro de escalera o torneo vuelve a "todas". */
+    _filtroAudiencia = '';
+    pintarFiltroAudiencia();
     /* Sin guardia de `_cargando`: cargarEnvios se lleva su propio número
        de vez y descarta la respuesta anterior. Antes se abandonaba la
        petición nueva y se pintaba la vieja, así que el desplegable decía

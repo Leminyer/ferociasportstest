@@ -13,24 +13,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ferocia Pickleball Ladder</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="design-tokens.css?v=20260928b">
-<link rel="stylesheet" href="tournament.css?v=20260928b">
+<link rel="stylesheet" href="design-tokens.css?v=20261013a">
+<link rel="stylesheet" href="tournament.css?v=20261123a">
 <link rel="stylesheet" href="app.css?v=20260928b">
-<link rel="stylesheet" href="country-codes.css?v=20260928b">
+<link rel="stylesheet" href="country-codes.css?v=20261013a">
 <!-- Extracted from the four embedded CSS blocks that used to live in this
      file. ORDER MATTERS: later rules of equal specificity win, so these
      four must stay in this sequence. See the header of admin-layout.css. -->
-<link rel="stylesheet" href="admin-layout.css?v=20261001c">
-<link rel="stylesheet" href="admin-components.css?v=20261008a">
-<link rel="stylesheet" href="admin-pages.css?v=20261001c">
+<link rel="stylesheet" href="admin-layout.css?v=20261012a">
+<link rel="stylesheet" href="admin-components.css?v=20261110a">
+<link rel="stylesheet" href="admin-pages.css?v=20261106a">
 <link rel="stylesheet" href="admin-ftc.css?v=20260928b">
+<link rel="stylesheet" href="admin-comms-hub.css?v=20261013c">
+<link rel="stylesheet" href="admin-lessons.css?v=20261112a">
 
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="config.js?v=20260929j"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- SRI (§101): supabase-js fijo en 2.118.0; el navegador sólo lo ejecuta si es EXACTAMENTE ese archivo.
+     Si se cambia la versión, hay que poner la huella nueva al mismo tiempo (o la página no arranca). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="db.js?v=20261004c"></script>
-<script src="auth.js?v=20260928b"></script>
-<script src="assets.js?v=20260928b"></script>
+<!-- §117: un clic a la vez (antes que todo lo que tiene botones). -->
+<script src="ferocia-boton.js?v=20261110a"></script>
+<!-- Hito 5 del portal: el captcha de Cloudflare para entrar (lo usa auth.js). -->
+<script src="ferocia-captcha.js?v=20261017a"></script>
+<script src="auth.js?v=20261110a"></script>
+<script src="assets.js?v=20261013a"></script>
 <!-- En esta página no se carga ningún servicio de correo, y es a
      propósito: las pantallas que mandan correo lo hacen a través de las
      funciones del servidor (send-email, send-newsletter), donde vive la
@@ -113,6 +121,33 @@
 
   <div class="sb-divider"></div>
 
+  <!-- Player Portal (§86): todo lo del portal de los jugadores junto. -->
+  <div class="sb-section">
+    <div class="sb-section-label">Player Portal</div>
+    <!-- SQL 106: cómo va el portal (admin-portal-activity.js). -->
+    <button class="sb-item" id="sb-portal-activity" data-action="showPage" data-page="portal-activity">
+      <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></span>
+      <span class="sb-item-label">Portal activity</span>
+    </button>
+    <!-- Portal del Jugador (hitos 3 y 4): reclamos por revisar y mensajes de ayuda (admin-player-claims.js). -->
+    <button class="sb-item" id="sb-player-claims" data-action="showPage" data-page="player-claims">
+      <span class="sb-item-icon avp-ancla"><span class="avp-num avp-num-icono" id="pc-sb" hidden></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M3 21c0-4 3.1-7 7-7 1.4 0 2.6.3 3.7.9"/><path d="M16 18l2 2 4-4.5"/></svg></span>
+      <span class="sb-item-label">Player claims</span>
+    </button>
+    <!-- Matchmaking M-2a: los reportes de los jugadores (admin-player-safety.js). -->
+    <button class="sb-item" id="sb-player-safety" data-action="showPage" data-page="player-safety">
+      <span class="sb-item-icon avp-ancla"><span class="avp-num avp-num-icono" id="ps-sb" hidden></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
+      <span class="sb-item-label">Player Safety</span>
+    </button>
+    <!-- Matchmaking M-3a: los juegos de los jugadores y sus resultados (admin-play-games.js). -->
+    <button class="sb-item" id="sb-play-games" data-action="showPage" data-page="play-games">
+      <span class="sb-item-icon avp-ancla"><span class="avp-num avp-num-icono" id="pg-sb" hidden></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg></span>
+      <span class="sb-item-label">Play games</span>
+    </button>
+  </div>
+
+  <div class="sb-divider"></div>
+
   <div class="sb-section">
     <div class="sb-section-label">Management</div>
     <button class="sb-item" id="sb-add-player" data-action="showPage" data-page="add-player">
@@ -131,6 +166,11 @@
       <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
       <span class="sb-item-label">Events</span>
     </button>
+    <!-- §118: las clases con Leminyer (admin-lessons.js). -->
+    <button class="sb-item" id="sb-lessons" data-action="showPage" data-page="lessons">
+      <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M12 14v3l2 1"/></svg></span>
+      <span class="sb-item-label">Lessons</span>
+    </button>
     <button class="sb-item" id="sb-orders" data-action="showPage" data-page="orders">
       <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
       <span class="sb-item-label">Orders</span>
@@ -139,13 +179,21 @@
       <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
       <span class="sb-item-label">Promotions</span>
     </button>
-    <button class="sb-item" id="sb-newsletter" data-action="showPage" data-page="newsletter">
-      <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9h4"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg></span>
-      <span class="sb-item-label">Newsletter</span>
+    <!-- Ajuste 24: Videos ocupa el sitio de Newsletter. El Newsletter se
+         abre desde Communications (su tarjeta "Newsletter"). -->
+    <button class="sb-item" id="sb-videos" data-action="showPage" data-page="videos">
+      <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/></svg></span>
+      <span class="sb-item-label">Videos</span>
     </button>
     <button class="sb-item" id="sb-communications" data-action="showPage" data-page="communications">
-      <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
+      <!-- Ajuste 30: el contador rojo de problemas de entrega nuevos (admin-avisos-problemas.js). -->
+      <span class="sb-item-icon avp-ancla"><span class="avp-num avp-num-icono" id="avp-sb" hidden></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
       <span class="sb-item-label">Communications</span>
+    </button>
+    <!-- §113: las reviews de los jugadores y el contador de nuevas (admin-reviews.js). -->
+    <button class="sb-item" id="sb-reviews" data-action="showPage" data-page="reviews">
+      <span class="sb-item-icon avp-ancla"><span class="avp-num avp-num-icono" id="rv-sb" hidden></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+      <span class="sb-item-label">Reviews</span>
     </button>
     <button class="sb-item" id="sb-share" data-action="showPage" data-page="share">
       <span class="sb-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
@@ -315,7 +363,7 @@
       <div class="section-header">
         <div class="dash-section-title">Season Standings</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <button type="button" class="btn btn-teal btn-sm" data-action="openNotifyPlayers">Notify Players</button>
+          <button type="button" class="btn btn-teal btn-sm" data-action="hubNotifyLadder">Notify Players</button>
           <button type="button" class="btn btn-primary btn-sm" data-action="printStandings" style="display:flex;align-items:center;gap:6px;">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export Standings
@@ -464,9 +512,9 @@
           <option value="new">New Player</option>
           <option value="hot">Hot Streak</option>
         </select>
-        <!-- Email all active players. Sits next to the status filter so it
-             reads as an action on the list you are looking at. -->
-        <button type="button" data-action="openPlayersEmail" title="Email all active players"
+        <!-- Escribir a todos los jugadores activos: abre el Communications
+             Hub con "All Players". No usa el filtro de al lado. -->
+        <button type="button" data-action="hubEmailAllPlayers" title="Email all active players"
           style="display:flex;align-items:center;gap:7px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;padding:8px 15px;border:0.5px solid var(--border);border-radius:99px;background:white;color:var(--blue);cursor:pointer;flex-shrink:0;white-space:nowrap;"
           onmouseover="this.style.background='#e8f0ff';this.style.borderColor='var(--blue)'"
           onmouseout="this.style.background='white';this.style.borderColor='var(--border)'">
@@ -504,7 +552,7 @@
         <button class="pp-tab pp-tab-on" data-action="ppShowTab" data-pptab="overview"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Overview</button>
         <button class="pp-tab" data-action="ppShowTab" data-pptab="competition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M6 9a6 6 0 0 0 12 0V3H6v6z"/></svg> Competition</button>
         <button class="pp-tab" data-action="ppShowTab" data-pptab="reliability"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Reliability</button>
-        <button class="pp-tab" data-action="ppShowTab" data-pptab="dna"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4c4 3 12 3 16 0M4 20c4-3 12-3 16 0M4 4c4 8 12 8 16 0M4 20c4-8 12-8 16 0"/></svg> DNA <span class="pp-tab-soon">Soon</span></button>
+        <button class="pp-tab" data-action="ppShowTab" data-pptab="dna"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4c4 3 12 3 16 0M4 20c4-3 12-3 16 0M4 4c4 8 12 8 16 0M4 20c4-8 12-8 16 0"/></svg> DNA</button>
         <button class="pp-tab" data-action="ppShowTab" data-pptab="membership"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Membership <span class="pp-tab-soon">Soon</span></button>
         <button class="pp-tab" data-action="ppShowTab" data-pptab="history"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> History</button>
         <button class="pp-tab" data-action="ppShowTab" data-pptab="adminnotes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> Admin</button>
@@ -841,7 +889,7 @@
         <div style="display:flex;gap:8px;">
           <button class="ftc-nav-btn ftc-nav-back" id="ftc-btn-back" onclick="ftcWizardBack()" style="display:none;">Back</button>
           <button class="ftc-nav-btn ftc-nav-next" id="ftc-btn-next" onclick="ftcWizardNext()">Next →</button>
-          <button class="ftc-nav-btn ftc-nav-save" id="ftc-btn-save" onclick="ftcSaveTeam()" style="display:none;">
+          <button data-busy="Saving…" class="ftc-nav-btn ftc-nav-save" id="ftc-btn-save" onclick="ftcSaveTeam()" style="display:none;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px;"><polyline points="20 6 9 17 4 12"/></svg>
             Save Team
           </button>
@@ -982,11 +1030,11 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             Preview Schedule
           </button>
-          <button onclick="ftcDeleteSchedule()" id="ftc-delete-schedule-btn" style="display:none;padding:8px 18px;border:0.5px solid rgba(229,57,53,0.3);border-radius:99px;background:white;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#e53935;cursor:pointer;align-items:center;gap:6px;white-space:nowrap;">
+          <button data-busy="Deleting…" onclick="ftcDeleteSchedule()" id="ftc-delete-schedule-btn" style="display:none;padding:8px 18px;border:0.5px solid rgba(229,57,53,0.3);border-radius:99px;background:white;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#e53935;cursor:pointer;align-items:center;gap:6px;white-space:nowrap;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
             Delete Schedule
           </button>
-          <button onclick="ftcGenerateSchedule()" id="ftc-generate-schedule-btn" style="padding:8px 18px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
+          <button data-busy="Generating…" onclick="ftcGenerateSchedule()" id="ftc-generate-schedule-btn" style="padding:8px 18px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
             Generate &amp; Save
           </button>
@@ -1031,7 +1079,7 @@
         <div id="ftc-match-edit-body"></div>
       </div>
       <div style="padding:12px 20px;border-top:0.5px solid var(--divider-color);display:flex;justify-content:flex-end;">
-        <button id="ftc-match-edit-save" onclick="ftcSaveMatchEdit()" style="padding:7px 16px;border-radius:99px;border:none;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">Save Changes</button>
+        <button data-busy="Saving…" id="ftc-match-edit-save" onclick="ftcSaveMatchEdit()" style="padding:7px 16px;border-radius:99px;border:none;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">Save Changes</button>
       </div>
     </div>
   </div>
@@ -1097,7 +1145,7 @@
       </div>
       <!-- Save button -->
       <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;">
-        <button onclick="ftcSaveScore()" id="ftc-score-save-btn"
+        <button data-busy="Saving…" onclick="ftcSaveScore()" id="ftc-score-save-btn"
           style="padding:8px 24px;border:none;border-radius:99px;background:var(--blue);color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           Save Result
@@ -1153,7 +1201,7 @@
         </div>
       </div>
       <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;">
-        <button onclick="ftcSaveTiebreaker()" style="padding:8px 24px;border:none;border-radius:99px;background:var(--blue);color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+        <button data-busy="Saving…" onclick="ftcSaveTiebreaker()" style="padding:8px 24px;border:none;border-radius:99px;background:var(--blue);color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           Save Result
         </button>
@@ -1188,7 +1236,7 @@
         </div>
       </div>
       <div style="padding:12px 20px;border-top:0.5px solid var(--divider-color);display:flex;justify-content:flex-end;">
-        <button onclick="ftcSaveOverride()" style="padding:7px 16px;border-radius:99px;border:none;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">Save</button>
+        <button data-busy="Saving…" onclick="ftcSaveOverride()" style="padding:7px 16px;border-radius:99px;border:none;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;">Save</button>
       </div>
     </div>
   </div>
@@ -1466,7 +1514,7 @@
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <button onclick="importReset()" style="padding:8px 18px;border:0.5px solid var(--divider-color);border-radius:99px;background:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;color:var(--text-muted);cursor:pointer;">Clear</button>
-          <button id="import-confirm-btn" onclick="importConfirm()" style="display:inline-flex;align-items:center;gap:6px;padding:9px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+          <button data-busy="Saving…" id="import-confirm-btn" onclick="importConfirm()" style="display:inline-flex;align-items:center;gap:6px;padding:9px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             <span id="import-confirm-label">Import Players</span>
           </button>
@@ -1613,7 +1661,7 @@
             </div>
           </div>
 
-          <button type="submit" class="ap-submit-btn" id="add-player-btn">
+          <button data-busy="Saving…" type="submit" class="ap-submit-btn" id="add-player-btn">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             Create Player Profile
           </button>
@@ -1719,6 +1767,20 @@
                 <input type="date" id="event-end-date" class="ap-input">
               </div>
             </div>
+            <!-- §105: los días de una clínica (sólo se ve con Clinic; lo maneja admin-event-days.js). -->
+            <div class="ap-group ev-days-wrap" id="event-days-wrap" hidden>
+              <span class="ap-label" id="event-days-label">Days <span class="ev-days-req" aria-hidden="true">*</span><span class="ev-sr">(required)</span></span>
+              <div class="ev-days" id="event-days" role="group" aria-labelledby="event-days-label">
+                <label class="ev-day"><input type="checkbox" value="1"><span>Mon</span></label>
+                <label class="ev-day"><input type="checkbox" value="2"><span>Tue</span></label>
+                <label class="ev-day"><input type="checkbox" value="3"><span>Wed</span></label>
+                <label class="ev-day"><input type="checkbox" value="4"><span>Thu</span></label>
+                <label class="ev-day"><input type="checkbox" value="5"><span>Fri</span></label>
+                <label class="ev-day"><input type="checkbox" value="6"><span>Sat</span></label>
+                <label class="ev-day"><input type="checkbox" value="7"><span>Sun</span></label>
+              </div>
+              <p class="ev-days-hint">The website and the Player Portal show the day (for example "Tuesday") and the time, instead of a date. A clinic that hasn't started yet also says "Starts Nov 4".</p>
+            </div>
             <!-- Row 2: both times together. -->
             <div class="ap-grid" style="margin-top:12px;">
               <div class="ap-group">
@@ -1767,7 +1829,7 @@
             </div>
           </div>
 
-          <button type="submit" class="ap-submit-btn" id="create-event-btn">
+          <button data-busy="Saving…" type="submit" class="ap-submit-btn" id="create-event-btn">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             Create Event
           </button>
@@ -1839,6 +1901,20 @@
               <input type="date" id="edit-event-end-date" class="ap-input">
             </div>
           </div>
+          <!-- §105: los días de una clínica (sólo se ve con Clinic; lo maneja admin-event-days.js). -->
+          <div class="ap-group ev-days-wrap" id="edit-event-days-wrap" hidden>
+            <span class="ap-label" id="edit-event-days-label">Days <span class="ev-days-req" aria-hidden="true">*</span><span class="ev-sr">(required)</span></span>
+            <div class="ev-days" id="edit-event-days" role="group" aria-labelledby="edit-event-days-label">
+              <label class="ev-day"><input type="checkbox" value="1"><span>Mon</span></label>
+              <label class="ev-day"><input type="checkbox" value="2"><span>Tue</span></label>
+              <label class="ev-day"><input type="checkbox" value="3"><span>Wed</span></label>
+              <label class="ev-day"><input type="checkbox" value="4"><span>Thu</span></label>
+              <label class="ev-day"><input type="checkbox" value="5"><span>Fri</span></label>
+              <label class="ev-day"><input type="checkbox" value="6"><span>Sat</span></label>
+              <label class="ev-day"><input type="checkbox" value="7"><span>Sun</span></label>
+            </div>
+            <p class="ev-days-hint">The website and the Player Portal show the day (for example "Tuesday") and the time, instead of a date. A clinic that hasn't started yet also says "Starts Nov 4".</p>
+          </div>
           <div class="ap-grid" style="margin-bottom:12px;">
             <div class="ap-group">
               <label class="ap-label">Start Time <span style="font-size:9px;font-weight:600;color:#b0bbd6;text-transform:none;letter-spacing:0;">(optional)</span></label>
@@ -1887,7 +1963,7 @@
           </div>
         </div>
 
-        <button type="submit" class="ap-submit-btn" id="edit-event-btn">
+        <button data-busy="Saving…" type="submit" class="ap-submit-btn" id="edit-event-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           Save Changes
         </button>
@@ -1913,69 +1989,648 @@
     <div class="pp-tabs" id="co-tabs">
       <button class="pp-tab co-tab pp-tab-on" data-action="commShowTab" data-tab="send">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        Send
+        Send Email
+      </button>
+      <!-- §115: los avisos de última hora por texto o WhatsApp, desde el
+           teléfono de ella (admin-text-whatsapp.js). -->
+      <button class="pp-tab co-tab" data-action="commShowTab" data-tab="text">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg>
+        Send Text &amp; WhatsApp
       </button>
       <button class="pp-tab co-tab" data-action="commShowTab" data-tab="history">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
-        History
+        Email History
+      </button>
+      <button class="pp-tab co-tab" data-action="commShowTab" data-tab="texthistory">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        Text &amp; WhatsApp History
+      </button>
+      <!-- Ajuste 16: los rebotes y quejas de spam que avisa Resend
+           (admin-delivery-problems.js). -->
+      <button class="pp-tab co-tab" id="co-tab-problems" data-action="commShowTab" data-tab="problems">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Delivery problems<span class="avp-num avp-num-tab" id="avp-tab" hidden></span>
       </button>
     </div>
 
     <!-- ── PESTAÑA 1: SEND ──────────────────────────────────── -->
     <div class="co-tab-content" data-tab="send">
-      <div class="card">
-        <div class="card-title" style="margin-bottom:6px;">Where each email is sent from</div>
-        <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:20px;">
-          Every email below is sent by the server and recorded in History.
+      <div class="card" id="co-send-home">
+        <!-- Las opciones de la pestaña Send (diseño del 11 de octubre).
+             Los estilos, en admin-comms-hub.css (co-aud-). -->
+        <h2 class="co-aud-head">Choose your audience</h2>
+        <p class="co-aud-sub">Select who you want to communicate with.</p>
+
+        <div class="co-aud-grid">
+          <button type="button" class="co-aud" data-action="openSendPromo">
+            <span class="co-aud-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l15-6v14L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></span>
+            <span class="co-aud-t">Campaign</span>
+            <span class="co-aud-d">Subscribers and announcements</span>
+            <svg class="co-aud-go" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/></svg>
+          </button>
+          <button type="button" class="co-aud" data-action="hubOpen" data-audience="all_players">
+            <span class="co-aud-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <span class="co-aud-t">All Players</span>
+            <span class="co-aud-d">Your active player community</span>
+            <svg class="co-aud-go" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/></svg>
+          </button>
+          <button type="button" class="co-aud" data-action="hubOpen" data-audience="ladder">
+            <span class="co-aud-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 4.5l1-.5v4"/><path d="M4 8h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></span>
+            <span class="co-aud-t">Ladder Players</span>
+            <span class="co-aud-d">Schedules, polls and updates</span>
+            <svg class="co-aud-go" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/></svg>
+          </button>
+          <button type="button" class="co-aud" data-action="hubOpen" data-audience="tournament">
+            <span class="co-aud-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></span>
+            <span class="co-aud-t">Tournament Players</span>
+            <span class="co-aud-d">Divisions and event notices</span>
+            <svg class="co-aud-go" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/></svg>
+          </button>
+
+          <button type="button" class="co-aud co-aud-wide" data-action="showPage" data-page="newsletter">
+            <span class="co-aud-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6z"/></svg></span>
+            <span class="co-aud-text">
+              <span class="co-aud-t">Newsletter</span>
+              <span class="co-aud-d">Create and send FEROCIA MONTHLY.</span>
+            </span>
+            <svg class="co-aud-go" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CAMPAÑA a los suscriptores (antes una ventana encima de
+           Promotions; desde el 10 de octubre vive aquí, como los demás
+           canales). Diseño del 11 de octubre, el mismo que el del Hub:
+           "All channels" a la izquierda, fuera; a la derecha el encabezado
+           y dos columnas: el formulario (y debajo la casilla de ensayo con
+           el botón) y, al lado, "Recipient Preview", "Campaign
+           Intelligence", "Quick Tips" y "Message Checklist".
+           Lo maneja admin-promotions.js; los estilos, admin-comms-hub.css
+           (hub-layout). Los ids promo- son los de siempre. -->
+      <div class="hub-panel hub-layout promo-panel" id="promo-panel" hidden>
+        <div class="hub-aside">
+          <button type="button" class="hub-back" data-action="closePromoModal">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            All channels
+          </button>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px;">
+        <div class="hub-main">
+          <div class="hub-top">
+            <span class="hub-top-icon"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l15-6v14L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></span>
+            <div class="hub-top-text">
+              <h2 class="hub-title">Campaign</h2>
+              <p class="hub-sub">Reach your pickleball community with announcements, tournaments, ladders, and event updates.</p>
+            </div>
+          </div>
 
-          <button class="co-launch" data-action="showPage" data-page="promotions">
-            <span class="co-launch-t">Campaign</span>
-            <span class="co-launch-d">To your subscriber list</span>
+          <form id="promo-form" class="hub-grid">
+            <div class="hub-card hub-area-form">
+              <!-- Reenviar una campaña (ajuste 12): "Resend to…" en History
+                   abre este formulario ya relleno con esa campaña. El tipo y
+                   el flyer quedan fijos (los del original) y sólo se puede
+                   mandar a suscriptores elegidos. -->
+              <div class="promo-resend" id="promo-resend" hidden>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                <span class="promo-resend-text">
+                  <strong>Resending:</strong> &ldquo;<span id="promo-resend-subject"></span>&rdquo;<span id="promo-resend-when"></span>
+                  <span class="promo-resend-sub" id="promo-resend-sub"></span>
+                </span>
+                <button type="button" class="hub-attach-btn" data-action="promoResendExit">Start a new campaign</button>
+              </div>
+
+              <!-- A quién (ajuste 12): todos los suscriptores activos, o los
+                   que se elijan. Como "Recipients" del Hub. -->
+              <div class="hub-step" id="promo-step-recipients">
+                <h3 class="hub-card-title">Recipients</h3>
+                <p class="hub-card-sub">Choose who should receive this campaign.</p>
+                <div class="hub-chips" id="promo-segments" role="group" aria-label="Recipients">
+                  <button type="button" class="co-pfilter co-pfilter-on" aria-pressed="true" data-action="promoSegment" data-segment="all" id="promo-seg-all"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="8" r="3.2"/><circle cx="5" cy="9.6" r="2.4"/><circle cx="19" cy="9.6" r="2.4"/><path d="M6.5 19v-.5a5.5 5.5 0 0 1 11 0v.5z"/><path d="M.5 19v-.6c0-2 1.6-3.6 3.6-3.6h1.4a7 7 0 0 0-.7 3.6v.6z"/><path d="M23.5 19v-.6c0-2-1.6-3.6-3.6-3.6h-1.4a7 7 0 0 1 .7 3.6v.6z"/></svg>All Subscribers</button>
+                  <button type="button" class="co-pfilter" aria-pressed="false" data-action="promoSegment" data-segment="selected" id="promo-seg-selected"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Selected Subscribers</button>
+                </div>
+                <div class="hub-hint hub-hint-after" id="promo-seg-hint" hidden>A resend goes only to the subscribers you choose.</div>
+                <div class="hub-sub-step" id="promo-selected-wrap" hidden>
+                  <input type="search" class="hub-input" id="promo-search" placeholder="Search subscribers..." autocomplete="off" aria-label="Search subscribers">
+                  <!-- §114: marcar o desmarcar de una vez (los que se ven con la búsqueda). -->
+                  <div class="hub-pick-tools" id="promo-pick-tools" hidden>
+                    <button type="button" class="hub-attach-btn" data-action="promoPickAll">Select all</button>
+                    <button type="button" class="hub-attach-btn" data-action="promoPickNone">Clear</button>
+                    <span class="hub-pick-count" id="promo-pick-count" aria-live="polite"></span>
+                  </div>
+                  <div class="hub-pick-list" id="promo-pick-list"></div>
+                </div>
+              </div>
+
+              <div class="hub-field" id="promo-type-field">
+                <div class="hub-field-label" id="promo-type-label">Campaign Type</div>
+                <div class="hub-chips" id="promo-type-pills" role="group" aria-labelledby="promo-type-label">
+                  <button type="button" class="promo-type-pill active" aria-pressed="true" data-type="Tournament"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>Tournament</button>
+                  <button type="button" class="promo-type-pill" aria-pressed="false" data-type="Ladder"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 4.5l1-.5v4"/><path d="M4 8h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>Ladder</button>
+                  <button type="button" class="promo-type-pill" aria-pressed="false" data-type="Other"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l15-6v14L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>Other</button>
+                </div>
+                <input type="hidden" id="promo-campaign-type" value="Tournament">
+              </div>
+
+              <!-- Etiqueta que sale arriba a la derecha en la cabecera del
+                   correo. Se rellena sola al elegir el tipo de campaña;
+                   esto es solo para cambiarla en un caso suelto. -->
+              <div class="hub-field">
+                <label class="hub-field-label" for="promo-header-label">Header Label <span class="hub-attach-opt">(shown top-right in the email)</span></label>
+                <input type="text" class="hub-input promo-header-input" id="promo-header-label" maxlength="24" placeholder="TOURNAMENT" autocomplete="off">
+              </div>
+
+              <!-- Con Tournament o Ladder. admin-promotions.js lo enseña y
+                   lo esconde (con Other sale el de abajo, el del flyer). -->
+              <div class="hub-field" id="promo-event-selector-wrap">
+                <label class="hub-field-label" for="promo-event-select">Select Event <span class="hub-req">*</span></label>
+                <select class="hub-select" id="promo-event-select">
+                  <option value="">Loading events...</option>
+                </select>
+                <input type="hidden" id="promo-event-flyer-url" value="">
+              </div>
+
+              <!-- Con Other. -->
+              <div class="hub-field" id="promo-other-flyer-wrap" hidden>
+                <label class="hub-field-label" for="promo-other-flyer-url">Flyer URL <span class="hub-attach-opt">(optional)</span></label>
+                <input type="url" class="hub-input" id="promo-other-flyer-url" placeholder="https://example.com/flyer.jpg" autocomplete="off">
+              </div>
+
+              <div class="hub-field">
+                <div class="hub-field-row">
+                  <label class="hub-field-label" for="promo-subject">Subject Line <span class="hub-req">*</span></label>
+                  <span class="hub-count-chars" id="promo-subject-count">0/120</span>
+                </div>
+                <input type="text" class="hub-input" id="promo-subject" maxlength="120" autocomplete="off"
+                       placeholder="e.g. Spring Tournament 2026 — Registration Now Open">
+              </div>
+
+              <!-- Texto de vista previa: la linea que se lee en la bandeja de
+                   entrada junto al asunto, antes de abrir el correo. Si se
+                   deja vacio, el admin lo rellena con el principio del
+                   mensaje — nunca queda en blanco. -->
+              <div class="hub-field">
+                <div class="hub-field-row">
+                  <label class="hub-field-label" for="promo-preview-text">Preview Text <span class="hub-attach-opt">(optional — the line shown in the inbox next to the subject)</span></label>
+                  <span class="hub-count-chars" id="promo-preview-count">0/140</span>
+                </div>
+                <input type="text" class="hub-input" id="promo-preview-text" maxlength="140" autocomplete="off"
+                       placeholder="Leave empty to use the first line of your message">
+              </div>
+
+              <div class="hub-field hub-field-roomy">
+                <div class="hub-field-label" id="promo-message-label">Message <span class="hub-req">*</span></div>
+                <div class="hub-editor">
+                  <!-- La barra de formato la fabrica admin-rich-editor.js. -->
+                  <div class="promo-fmt-toolbar hub-toolbar" id="promo-fmt-bar"></div>
+                  <div class="hub-editor-area" id="promo-message" contenteditable="true" data-placeholder="Write your campaign message here..." role="textbox" aria-multiline="true" aria-labelledby="promo-message-label"></div>
+                </div>
+                <div class="hub-count-chars hub-count-after" id="promo-char-count">0/5000</div>
+              </div>
+            </div>
+
+            <!-- Ensayo de campaña.
+                 Marcada, el Launch pasa por el camino REAL completo — se
+                 registra en communications, se reserva el destinatario y
+                 sale por lotes — pero con una sola dirección: la del
+                 admin. Nadie de la lista lo recibe.
+                 admin-promotions.js la desmarca sola cada vez que se abre
+                 el formulario, y cambia la etiqueta del botón mientras está
+                 puesta, para que el botón nunca diga una cosa y haga otra. -->
+            <div class="hub-card hub-area-send">
+              <div class="hub-send-row">
+                <label class="hub-test" for="promo-only-me">
+                  <input type="checkbox" id="promo-only-me" aria-describedby="promo-only-me-ayuda">
+                  <span class="hub-test-icon"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v.4l-10 6.2L2 6.4z"/><path d="M2 8.7l10 6.2 10-6.2V18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/></svg></span>
+                  <span class="hub-test-text">
+                    Send only to me
+                    <span class="hub-test-help" id="promo-only-me-ayuda">Real send, fully logged &mdash; but only you receive it.</span>
+                  </span>
+                </label>
+                <button type="submit" class="hub-send-btn" id="promo-send-btn">
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Launch Campaign
+                </button>
+              </div>
+            </div>
+
+            <div class="hub-area-side">
+              <section class="hub-card" aria-labelledby="promo-preview-title">
+                <div class="hub-card-head">
+                  <span class="hub-mini-icon"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="8" r="3.2"/><circle cx="5" cy="9.6" r="2.4"/><circle cx="19" cy="9.6" r="2.4"/><path d="M6.5 19v-.5a5.5 5.5 0 0 1 11 0v.5z"/><path d="M.5 19v-.6c0-2 1.6-3.6 3.6-3.6h1.4a7 7 0 0 0-.7 3.6v.6z"/><path d="M23.5 19v-.6c0-2-1.6-3.6-3.6-3.6h-1.4a7 7 0 0 1 .7 3.6v.6z"/></svg></span>
+                  <h3 class="hub-card-title" id="promo-preview-title">Recipient Preview</h3>
+                </div>
+                <div class="hub-preview" aria-live="polite">
+                  <div class="hub-count"><span id="promo-audience-count">&mdash;</span> <span id="promo-audience-word">active subscribers</span></div>
+                </div>
+                <div class="hub-ok" id="promo-preview-ok" hidden>
+                  <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="7.5 12.5 10.5 15.5 16.5 9"/></svg>
+                  <span class="hub-ok-text">
+                    <strong id="promo-ok-title">All active subscribers selected</strong>
+                    <span id="promo-ok-sub">This campaign will be sent to all your active subscribers.</span>
+                  </span>
+                </div>
+              </section>
+
+              <section class="hub-card" aria-labelledby="promo-intel-title">
+                <div class="hub-card-head">
+                  <span class="hub-mini-icon"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+                  <h3 class="hub-card-title" id="promo-intel-title">Campaign Intelligence</h3>
+                </div>
+                <div class="promo-intel-row">
+                  <div class="promo-intel-k">Last Campaign</div>
+                  <div class="promo-intel-v" id="promo-last-sent">&mdash;</div>
+                  <div class="promo-intel-s" id="promo-last-type">No campaigns yet</div>
+                </div>
+                <div class="promo-intel-row">
+                  <div class="promo-intel-k">Selected Type</div>
+                  <div class="promo-intel-v" id="promo-selected-type">Tournament</div>
+                  <div class="promo-intel-s">Best open rate: Tues&ndash;Thurs 9&ndash;11am</div>
+                </div>
+              </section>
+
+              <section class="hub-card" aria-labelledby="promo-tips-title">
+                <div class="hub-card-head">
+                  <span class="hub-tips-icon"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg></span>
+                  <h3 class="hub-card-title" id="promo-tips-title">Quick Tips</h3>
+                </div>
+                <ul class="hub-tips">
+                  <li>Use a clear and specific subject line.</li>
+                  <li>Keep your message concise and easy to read.</li>
+                  <li>Include key details (dates, times, location).</li>
+                  <li>You can use links and emojis.</li>
+                </ul>
+              </section>
+
+              <section class="hub-card" aria-labelledby="promo-check-title">
+                <div class="hub-card-head">
+                  <span class="hub-check-icon"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></span>
+                  <h3 class="hub-card-title" id="promo-check-title">Message Checklist</h3>
+                </div>
+                <ul class="hub-checklist" id="promo-checklist">
+                  <li data-check="subject"><span class="hub-check-mark"></span>Subject line added</li>
+                  <li data-check="message"><span class="hub-check-mark"></span>Message content added</li>
+                  <li data-check="recipients"><span class="hub-check-mark"></span>Recipients selected</li>
+                  <li data-check="ready"><span class="hub-check-mark"></span>Ready to send</li>
+                </ul>
+              </section>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- COMMUNICATIONS HUB: a quién se le escribe.
+           Lo maneja admin-comms-hub.js; los estilos, admin-comms-hub.css.
+           Diseño del 11 de octubre: "All channels" a la izquierda, fuera;
+           a la derecha el encabezado y dos columnas: el formulario (y debajo
+           la casilla de ensayo con el botón) y, al lado, la vista previa,
+           "Quick Tips" y "Message Checklist". Los textos que cambian según
+           la audiencia los pone el script. -->
+      <div class="hub-panel hub-layout" id="hub-panel" hidden>
+        <div class="hub-aside">
+          <button type="button" class="hub-back" data-action="hubClose">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            All channels
           </button>
+        </div>
 
-          <button class="co-launch" data-action="showPage" data-page="players">
-            <span class="co-launch-t">All Players</span>
-            <span class="co-launch-d">To every active player</span>
+        <div class="hub-main">
+          <div class="hub-top">
+            <span class="hub-top-icon">
+              <span data-icon="all_players"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="8" r="3.2"/><circle cx="5" cy="9.6" r="2.4"/><circle cx="19" cy="9.6" r="2.4"/><path d="M6.5 19v-.5a5.5 5.5 0 0 1 11 0v.5z"/><path d="M.5 19v-.6c0-2 1.6-3.6 3.6-3.6h1.4a7 7 0 0 0-.7 3.6v.6z"/><path d="M23.5 19v-.6c0-2-1.6-3.6-3.6-3.6h-1.4a7 7 0 0 1 .7 3.6v.6z"/></svg></span>
+              <span data-icon="ladder" hidden><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 4.5l1-.5v4"/><path d="M4 8h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></span>
+              <span data-icon="tournament" hidden><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></span>
+            </span>
+            <div class="hub-top-text">
+              <h2 class="hub-title" id="hub-title"></h2>
+              <p class="hub-sub" id="hub-sub"></p>
+            </div>
+          </div>
+
+          <div class="hub-grid">
+            <div class="hub-card hub-area-form">
+              <div class="hub-step" id="hub-step-audience">
+                <label class="hub-label" for="hub-audience-select"><span id="hub-audience-label"></span></label>
+                <select class="hub-select" id="hub-audience-select"></select>
+              </div>
+
+              <div class="hub-step" id="hub-step-recipients" hidden>
+                <h3 class="hub-card-title">Recipients</h3>
+                <p class="hub-card-sub">Choose who should receive this message.</p>
+                <div class="hub-chips" id="hub-segments" role="group" aria-label="Recipients">
+                  <button type="button" class="co-pfilter" aria-pressed="false" data-action="hubSegment" data-segment="all" id="hub-seg-all"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="8" r="3.2"/><circle cx="5" cy="9.6" r="2.4"/><circle cx="19" cy="9.6" r="2.4"/><path d="M6.5 19v-.5a5.5 5.5 0 0 1 11 0v.5z"/><path d="M.5 19v-.6c0-2 1.6-3.6 3.6-3.6h1.4a7 7 0 0 0-.7 3.6v.6z"/><path d="M23.5 19v-.6c0-2-1.6-3.6-3.6-3.6h-1.4a7 7 0 0 1 .7 3.6v.6z"/></svg><span id="hub-seg-all-text"></span></button>
+                  <button type="button" class="co-pfilter" aria-pressed="false" data-action="hubSegment" data-segment="divisions" id="hub-seg-divisions"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>Specific Divisions</button>
+                  <button type="button" class="co-pfilter" aria-pressed="false" data-action="hubSegment" data-segment="poll" id="hub-seg-poll" hidden><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>By Poll Answer</button>
+                  <button type="button" class="co-pfilter" aria-pressed="false" data-action="hubSegment" data-segment="selected" id="hub-seg-selected"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Selected Players</button>
+                </div>
+
+                <div class="hub-sub-step" id="hub-divisions-wrap" hidden>
+                  <div class="hub-hint">Choose one or more divisions.</div>
+                  <div class="hub-chips" id="hub-divisions" role="group" aria-label="Divisions"></div>
+                </div>
+
+                <!-- Los grupos por respuesta (entregable 7): sólo en escaleras con
+                     alguna encuesta enviada. admin-comms-hub.js rellena la lista
+                     de encuestas y sus respuestas. -->
+                <div class="hub-sub-step" id="hub-seg-poll-wrap" hidden>
+                  <div class="hub-field">
+                    <label class="hub-field-label" for="hub-seg-poll-select">Poll</label>
+                    <select class="hub-select" id="hub-seg-poll-select"></select>
+                  </div>
+                  <div class="hub-field-label" id="hub-seg-answers-label">Answer</div>
+                  <div class="hub-chips" id="hub-seg-answers" role="group" aria-labelledby="hub-seg-answers-label"></div>
+                </div>
+
+                <div class="hub-sub-step" id="hub-selected-wrap" hidden>
+                  <input type="search" class="hub-input" id="hub-search" placeholder="Search players..." autocomplete="off" aria-label="Search players">
+                  <!-- §114: marcar o desmarcar de una vez (los que se ven con la búsqueda). -->
+                  <div class="hub-pick-tools" id="hub-pick-tools" hidden>
+                    <button type="button" class="hub-attach-btn" data-action="hubPickAll">Select all</button>
+                    <button type="button" class="hub-attach-btn" data-action="hubPickNone">Clear</button>
+                    <span class="hub-pick-count" id="hub-pick-count" aria-live="polite"></span>
+                  </div>
+                  <div class="hub-pick-list" id="hub-pick-list"></div>
+                </div>
+              </div>
+
+              <div class="hub-step" id="hub-step-compose" hidden>
+                <!-- Qué se manda: un anuncio o una encuesta (entregable 5). Sólo
+                     en escaleras y torneos; la disponibilidad, sólo en escaleras.
+                     admin-comms-hub.js enseña los que tocan. -->
+                <div class="hub-field" id="hub-kind-wrap" hidden>
+                  <div class="hub-field-label" id="hub-kind-label">Type</div>
+                  <div class="hub-chips" id="hub-kinds" role="group" aria-labelledby="hub-kind-label">
+                    <button type="button" class="co-pfilter" aria-pressed="false" data-action="hubKind" data-kind="announcement">Announcement</button>
+                    <button type="button" class="co-pfilter" aria-pressed="false" data-action="hubKind" data-kind="availability" id="hub-kind-availability">Weekly Availability</button>
+                    <button type="button" class="co-pfilter" aria-pressed="false" data-action="hubKind" data-kind="custom">Custom Poll</button>
+                    <!-- §113: pedir una review. Sólo con la escalera o el torneo
+                         completado; si no, el botón se ve apagado con el porqué. -->
+                    <button type="button" class="co-pfilter" aria-pressed="false" data-action="hubKind" data-kind="review" id="hub-kind-review" aria-describedby="hub-kind-review-hint">&#x2B50; Review Request</button>
+                  </div>
+                  <div class="hub-hint hub-hint-after" id="hub-kind-review-hint" hidden></div>
+                </div>
+
+                <div class="hub-field" id="hub-preset-wrap" hidden>
+                  <label class="hub-field-label" for="hub-preset">Notification Type</label>
+                  <!-- Las opciones dependen de la audiencia: las pone admin-comms-hub.js. -->
+                  <select class="hub-select" id="hub-preset"></select>
+                </div>
+
+                <div class="hub-field">
+                  <div class="hub-field-row">
+                    <label class="hub-field-label" for="hub-subject">Email Subject <span class="hub-req">*</span></label>
+                    <span class="hub-count-chars" id="hub-subject-count">0/120</span>
+                  </div>
+                  <input type="text" class="hub-input" id="hub-subject" maxlength="120" autocomplete="off"
+                         placeholder="Write a clear and engaging subject...">
+                </div>
+
+                <!-- La encuesta: sólo con Weekly Availability o Custom Poll. -->
+                <div id="hub-poll-wrap" hidden>
+                  <div class="hub-field" id="hub-session-wrap">
+                    <label class="hub-field-label" for="hub-session">Session Date <span class="hub-req">*</span></label>
+                    <input type="date" class="hub-input hub-input-short" id="hub-session">
+                  </div>
+                  <div class="hub-field">
+                    <label class="hub-field-label" for="hub-question">Question <span class="hub-req">*</span></label>
+                    <input type="text" class="hub-input" id="hub-question" maxlength="300" autocomplete="off">
+                  </div>
+                  <div class="hub-field">
+                    <div class="hub-field-label" id="hub-options-label">Answers</div>
+                    <!-- Las de la disponibilidad son fijas; las de una encuesta
+                         propia se escriben aquí (de 2 a 6). -->
+                    <div class="hub-poll-fixed" id="hub-options-fixed">Yesss!!! I&rsquo;ll be playing &#x1F60E;&#x1F44D;&#x1F929;&#x1F4AA; &middot; Nahhh, I can&rsquo;t make it &#x1F61E;&#x1F61E;&#x1F61E;</div>
+                    <div class="hub-options" id="hub-options" role="group" aria-labelledby="hub-options-label"></div>
+                    <button type="button" class="hub-attach-btn" id="hub-option-add" data-action="hubOptionAdd">+ Add answer</button>
+                    <div class="hub-hint hub-hint-after" id="hub-options-hint">From 2 to 6 answers. Players choose one.</div>
+                  </div>
+                  <div class="hub-field">
+                    <label class="hub-field-label" for="hub-deadline">Response Deadline <span class="hub-req">*</span></label>
+                    <input type="datetime-local" class="hub-input hub-input-short" id="hub-deadline" aria-describedby="hub-deadline-hint">
+                    <div class="hub-hint hub-hint-after" id="hub-deadline-hint">Florida time. Players can change their answer until then.</div>
+                  </div>
+                </div>
+
+                <!-- §113: la review. La pregunta, las estrellas y los 30 días los
+                     pone el servidor; aquí sólo se enseña lo que recibirán. -->
+                <div class="hub-field" id="hub-review-wrap" hidden>
+                  <div class="hub-field-label">What players will get</div>
+                  <div class="hub-poll-fixed hub-review-box">
+                    <p><strong id="hub-review-question"></strong></p>
+                    <p>&#x2B50;&#x2B50;&#x2B50;&#x2B50;&#x2B50; 5 stars to tap in the email, then a private page with two optional questions: &ldquo;Tell us about it&rdquo; and &ldquo;What could we do better?&rdquo; (private, only for the FEROCIA team).</p>
+                    <p>Sent to everyone who played, or only to the players you select (subs are not included). Players who already received it for this event are left out automatically. Players can share or update their review for 30 days.</p>
+                  </div>
+                </div>
+
+                <!-- hub-field-roomy: más aire debajo de la nota del mensaje,
+                     antes de "Attachment" (pedido el 10 de octubre). -->
+                <div class="hub-field hub-field-roomy">
+                  <div class="hub-field-label" id="hub-message-label">Message <span class="hub-req" id="hub-message-req">*</span><span class="hub-attach-opt" id="hub-message-opt" hidden>(optional)</span></div>
+                  <div class="hub-editor">
+                    <!-- La barra de formato la fabrica admin-rich-editor.js. -->
+                    <div class="promo-fmt-toolbar hub-toolbar" id="hub-fmt-bar"></div>
+                    <div class="hub-editor-area" id="hub-message" contenteditable="true" data-placeholder="Write your message here..." role="textbox" aria-multiline="true" aria-labelledby="hub-message-label" aria-describedby="hub-message-hint"></div>
+                  </div>
+                  <div class="hub-count-chars hub-count-after" id="hub-message-count">0/5000</div>
+                  <div class="hub-info"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span id="hub-message-hint"></span></div>
+                </div>
+
+                <!-- El PDF adjunto: sólo en escaleras y torneos. -->
+                <div class="hub-field" id="hub-attach-wrap" hidden>
+                  <div class="hub-field-label" id="hub-attach-label">Attachment <span class="hub-attach-opt">(optional · PDF, max 10 MB)</span></div>
+                  <input type="file" id="hub-attach-input" accept="application/pdf,.pdf" aria-labelledby="hub-attach-label" hidden>
+                  <button type="button" class="hub-attach-btn" id="hub-attach-btn" data-action="hubAttachPick">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                    <span id="hub-attach-btn-text">Attach PDF</span>
+                  </button>
+                  <div class="hub-attach-file" id="hub-attach-file" hidden>
+                    <span class="hub-attach-icon">PDF</span>
+                    <span class="hub-attach-text">
+                      <span class="hub-attach-name" id="hub-attach-name"></span>
+                      <span class="hub-attach-size" id="hub-attach-size"></span>
+                    </span>
+                    <button type="button" class="hub-attach-remove" data-action="hubAttachRemove">Remove</button>
+                  </div>
+                  <div class="hub-hint hub-hint-after" id="hub-attach-hint" hidden>With an attachment, the emails go out one by one — about a second each.</div>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="hub-card hub-area-send" id="hub-step-send" hidden>
+                <div class="hub-send-row">
+                  <label class="hub-test" for="hub-only-me">
+                    <input type="checkbox" id="hub-only-me" aria-describedby="hub-only-me-help">
+                    <span class="hub-test-icon"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v.4l-10 6.2L2 6.4z"/><path d="M2 8.7l10 6.2 10-6.2V18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/></svg></span>
+                    <span class="hub-test-text">
+                      Send only to me
+                      <span class="hub-test-help" id="hub-only-me-help">Real send, fully logged &mdash; but only you receive it.</span>
+                    </span>
+                  </label>
+                  <button type="button" class="hub-send-btn" id="hub-send-btn" data-action="hubSend">
+                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Send Email
+                  </button>
+                </div>
+            </div>
+
+            <div class="hub-area-side">
+              <section class="hub-card" id="hub-step-preview" hidden aria-labelledby="hub-preview-title">
+                <div class="hub-card-head">
+                  <span class="hub-mini-icon"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="8" r="3.2"/><circle cx="5" cy="9.6" r="2.4"/><circle cx="19" cy="9.6" r="2.4"/><path d="M6.5 19v-.5a5.5 5.5 0 0 1 11 0v.5z"/><path d="M.5 19v-.6c0-2 1.6-3.6 3.6-3.6h1.4a7 7 0 0 0-.7 3.6v.6z"/><path d="M23.5 19v-.6c0-2-1.6-3.6-3.6-3.6h-1.4a7 7 0 0 1 .7 3.6v.6z"/></svg></span>
+                  <h3 class="hub-card-title" id="hub-preview-title">Recipient Preview</h3>
+                </div>
+                <div class="hub-preview" id="hub-preview" aria-live="polite"></div>
+                <button type="button" class="hub-view-btn" id="hub-view-btn" data-action="hubTogglePeople" aria-haspopup="dialog" hidden>
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  <span>View recipients</span>
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <div class="hub-ok" id="hub-preview-ok" hidden>
+                  <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="7.5 12.5 10.5 15.5 16.5 9"/></svg>
+                  <span class="hub-ok-text">
+                    <strong id="hub-ok-title"></strong>
+                    <span id="hub-ok-sub"></span>
+                  </span>
+                </div>
+              </section>
+
+              <section class="hub-card" aria-labelledby="hub-tips-title">
+                <div class="hub-card-head">
+                  <span class="hub-tips-icon"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg></span>
+                  <h3 class="hub-card-title" id="hub-tips-title">Quick Tips</h3>
+                </div>
+                <ul class="hub-tips">
+                  <li>Use a clear and specific subject line.</li>
+                  <li>Keep your message concise and easy to read.</li>
+                  <li>Include key details (dates, times, location).</li>
+                  <li>You can use links and emojis.</li>
+                </ul>
+              </section>
+
+              <section class="hub-card" aria-labelledby="hub-check-title">
+                <div class="hub-card-head">
+                  <span class="hub-check-icon"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></span>
+                  <h3 class="hub-card-title" id="hub-check-title">Message Checklist</h3>
+                </div>
+                <ul class="hub-checklist" id="hub-checklist">
+                  <li data-check="subject"><span class="hub-check-mark"></span>Subject line added</li>
+                  <li data-check="message"><span class="hub-check-mark"></span>Message content added</li>
+                  <li data-check="recipients"><span class="hub-check-mark"></span>Recipients selected</li>
+                  <li data-check="ready"><span class="hub-check-mark"></span>Ready to send</li>
+                </ul>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── PESTAÑA 2: HISTORY ───────────────────────────────── -->
+    <!-- ── PESTAÑA: SEND TEXT & WHATSAPP (§115) ─────────────────
+         Nada se manda desde aquí: cada botón abre WhatsApp o Mensajes en
+         el teléfono de ella, con su número. Lo maneja admin-text-whatsapp.js;
+         los estilos, admin-pages.css (tw-). -->
+    <div class="co-tab-content" data-tab="text" style="display:none;">
+      <div class="card" id="tw-home">
+        <h2 class="co-aud-head">Choose your audience</h2>
+        <p class="co-aud-sub">Send a last-minute text or WhatsApp message from your phone, with your own number.</p>
+        <div class="co-aud-grid">
+          <button type="button" class="co-aud" data-action="twOpen" data-audience="all_players">
+            <span class="co-aud-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <span class="co-aud-t">All Players</span>
+            <span class="co-aud-d">Your active player community</span>
+            <svg class="co-aud-go" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/></svg>
           </button>
-
-          <button class="co-launch" data-action="showPage" data-page="ladders">
-            <span class="co-launch-t">Ladder Update</span>
-            <span class="co-launch-d">To one ladder&rsquo;s players</span>
+          <button type="button" class="co-aud" data-action="twOpen" data-audience="ladder">
+            <span class="co-aud-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 4.5l1-.5v4"/><path d="M4 8h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></span>
+            <span class="co-aud-t">Ladder Players</span>
+            <span class="co-aud-d">One ladder's players</span>
+            <svg class="co-aud-go" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/></svg>
           </button>
-
-          <button class="co-launch" data-action="showPage" data-page="t-tournaments">
-            <span class="co-launch-t">Tournament Update</span>
-            <span class="co-launch-d">To one tournament&rsquo;s players</span>
+          <button type="button" class="co-aud" data-action="twOpen" data-audience="tournament">
+            <span class="co-aud-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></span>
+            <span class="co-aud-t">Tournament Players</span>
+            <span class="co-aud-d">One tournament's players</span>
+            <svg class="co-aud-go" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/></svg>
           </button>
+        </div>
+      </div>
 
-          <button class="co-launch" data-action="showPage" data-page="newsletter">
-            <span class="co-launch-t">Newsletter</span>
-            <span class="co-launch-d">The monthly newsletter</span>
-          </button>
+      <div class="card tw-panel" id="tw-panel" hidden>
+        <button type="button" class="hub-back" data-action="twClose">&lsaquo; All channels</button>
+        <h2 class="tw-title" id="tw-title"></h2>
+        <p class="co-aud-sub" id="tw-sub"></p>
 
+        <div class="hub-field" id="tw-aud-wrap" hidden>
+          <label class="hub-field-label" for="tw-aud-select" id="tw-aud-label">Ladder</label>
+          <select class="hub-select" id="tw-aud-select"></select>
+        </div>
+
+        <div id="tw-resto" hidden>
+          <div class="hub-field">
+            <label class="hub-field-label" for="tw-plantilla">Template</label>
+            <select class="hub-select" id="tw-plantilla"></select>
+          </div>
+          <div class="hub-field">
+            <div class="hub-field-row">
+              <label class="hub-field-label" for="tw-mensaje">Message <span class="hub-req">*</span></label>
+              <span class="hub-count-chars" id="tw-mensaje-count">0/1000</span>
+            </div>
+            <textarea class="hub-input tw-mensaje" id="tw-mensaje" rows="4" maxlength="1000" placeholder="Write your message…"></textarea>
+            <div class="hub-hint hub-hint-after">Messages sent one by one start with &ldquo;Hi [first name],&rdquo; automatically.</div>
+          </div>
+
+          <div class="tw-wa-box">
+            <div class="tw-wa-title">WhatsApp broadcast list</div>
+            <p class="tw-wa-text">Copy the message and paste it in your WhatsApp broadcast list: everyone gets it privately, from your number. Only people who saved your number receive it.</p>
+            <div class="tw-wa-btns">
+              <button type="button" class="hub-attach-btn" data-action="twCopy">Copy message</button>
+              <button type="button" class="hub-attach-btn" data-action="twContacts">Download contacts</button>
+            </div>
+            <p class="tw-wa-text tw-wa-small">&ldquo;Download contacts&rdquo; saves this list as contacts for your phone (&ldquo;Ana Uno &middot; FEROCIA&rdquo;), to build the broadcast list once per season.</p>
+          </div>
+
+          <div class="tw-list-head">
+            <div class="hub-field-label">Players</div>
+            <label class="tw-filter"><input type="checkbox" id="tw-solo-sin-wa"> Only players without WhatsApp</label>
+            <span class="tw-count" id="tw-count" aria-live="polite"></span>
+          </div>
+          <p class="tw-excluded" id="tw-excluded"></p>
+          <div class="tw-list" id="tw-list"></div>
+          <p class="tw-note">Tap WhatsApp or Text to open the conversation on your phone with the message ready. &ldquo;✓&rdquo; marks the ones you tapped. Text works best from your phone (or a Mac linked to your iPhone).</p>
         </div>
       </div>
     </div>
 
-    <!-- ── PESTAÑA 2: HISTORY ───────────────────────────────── -->
+    <!-- ── PESTAÑA: TEXT & WHATSAPP HISTORY (§115) ────────────── -->
+    <div class="co-tab-content" data-tab="texthistory" style="display:none;">
+      <div class="card">
+        <div class="card-title" style="margin:0 0 12px;">Text &amp; WhatsApp messages</div>
+        <div id="twh-body"><div class="tw-empty">Loading...</div></div>
+      </div>
+    </div>
+
     <div class="co-tab-content" data-tab="history" style="display:none;">
       <div class="card" style="padding:0;overflow:hidden;">
 
         <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:0.5px solid var(--divider-color);flex-wrap:wrap;gap:10px;">
           <div class="card-title" style="margin:0;">Sent emails</div>
+          <!-- Los dos filtros: el tipo y, con Ladder Players o Tournament
+               Players, qué escalera o qué torneo (admin-communications.js). -->
+          <div class="co-hist-filters">
           <select id="co-hist-type-filter" style="font-size:12px;padding:8px 14px;font-family:'Inter',sans-serif;font-weight:700;border:0.5px solid var(--border);border-radius:99px;outline:none;">
             <option value="">All types</option>
             <option value="promo">Campaign</option>
             <option value="players_broadcast">All Players</option>
-            <option value="ladder_notify">Ladder Update</option>
-            <option value="tournament_notify">Tournament Update</option>
+            <option value="ladder_notify">Ladder Players</option>
+            <option value="tournament_notify">Tournament Players</option>
             <option value="player_message">Single Player</option>
             <option value="subscriber_confirm">Confirmation</option>
             <option value="newsletter">Newsletter</option>
           </select>
+          <select id="co-hist-aud-filter" class="co-hist-filter" aria-label="Ladder or tournament" hidden></select>
+          </div>
         </div>
 
         <div id="co-hist-table"><div class="loading" style="padding:20px;">Loading history...</div></div>
@@ -1984,6 +2639,33 @@
         <div id="co-hist-more-row" style="display:none;padding:14px 20px;border-top:0.5px solid var(--divider-color);align-items:center;justify-content:space-between;">
           <span id="co-hist-info" style="font-size:11px;font-weight:600;color:var(--text-muted);"></span>
           <button id="co-hist-more-btn" style="font-size:10px;font-weight:700;padding:7px 18px;border-radius:99px;border:0.5px solid #c5d6f5;background:white;color:var(--blue);cursor:pointer;">Load 25 more</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PESTAÑA 3: DELIVERY PROBLEMS (ajuste 16) ──────────── -->
+    <!-- El style="display:none" lo pide el cambio de pestaña (mostrarTab),
+         igual que las otras dos. Lo demás, en admin-pages.css (dp-). -->
+    <div class="co-tab-content" data-tab="problems" style="display:none;">
+      <div class="card dp-card">
+        <div class="dp-head">
+          <div>
+            <div class="card-title dp-title">Delivery problems</div>
+            <p class="dp-sub">Emails that bounced or were marked as spam, as reported by Resend.
+              Subscribers who mark an email as spam are unsubscribed; addresses that bounce
+              are marked Bounced and skipped. Players are only flagged so you can fix their email.</p>
+          </div>
+          <select id="dp-filter" class="co-hist-filter" aria-label="Kind of problem">
+            <option value="">All problems</option>
+            <option value="bounced">Bounced</option>
+            <option value="complained">Marked as spam</option>
+            <option value="temporary">Temporary</option>
+          </select>
+        </div>
+        <div id="dp-table"></div>
+        <div id="dp-more-row" class="dp-more-row" hidden>
+          <span id="dp-info" class="dp-info"></span>
+          <button type="button" class="dp-more" data-action="dpLoadMore">Load 25 more</button>
         </div>
       </div>
     </div>
@@ -2151,7 +2833,14 @@
                  un valor real de la columna `status`.
                  La lógica está en _renderSubsTable, admin-promotions.js. -->
             <option value="__frenadas">Pending — no email sent</option>
+            <!-- Ajuste 23: tampoco es un estado — las fichas cuyo correo
+                 comparten varias (familias). Lógica en _renderSubsTable. -->
+            <option value="__compartidos">Shared email</option>
             <option value="unsubscribed">Unsubscribed</option>
+            <!-- Ajuste 16: el email rebotó (Resend). Es un estado de
+                 verdad: las campañas, el newsletter y los recordatorios
+                 se lo saltan. -->
+            <option value="bounced">Bounced</option>
           </select>
           <svg style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="10" height="6" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="var(--text-muted)"/></svg>
         </div>
@@ -2384,6 +3073,205 @@
   </div>
 
 
+<!-- ══ Ajuste 24: VIDEOS (Ferocia Pickleball Academy) ══════════
+     Los videos de la sección "Play Smarter." de ferociasports.com. Lo
+     maneja admin-videos.js; los estilos, admin-pages.css (av-). -->
+<div id="page-videos" class="page">
+  <div class="av-cabecera">
+    <div class="av-titulo">Videos</div>
+    <div class="av-sub">Ferocia Pickleball Academy — the videos on ferociasports.com. Every video opens on
+      <a href="https://www.youtube.com/@ferociasports" target="_blank" rel="noopener">YouTube</a>.</div>
+  </div>
+
+  <div class="card av-card">
+    <div class="ap-section-title" id="av-form-titulo">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span id="av-form-titulo-txt">Add a video</span>
+    </div>
+    <form id="av-form" class="av-form" novalidate>
+      <div class="av-form-cols">
+        <div class="av-form-campos">
+          <!-- §109: los videos del canal que todavía no están en el sitio
+               (función youtube-videos). Se esconde al editar. -->
+          <div class="ap-group av-yt" id="av-yt-grupo">
+            <label class="ap-label" for="av-yt">From YouTube — not on the website yet</label>
+            <div class="av-yt-fila">
+              <select id="av-yt" class="ap-input" disabled><option value="">Looking for new videos on YouTube…</option></select>
+              <button type="button" class="av-btn av-btn-sec av-yt-btn" id="av-yt-refrescar" data-action="avYtRefrescar" title="Look again on YouTube">Refresh</button>
+              <button type="button" class="av-btn av-btn-sec av-yt-btn" id="av-yt-descartar" data-action="avYtDescartar" disabled title="Take it out of this list for good (it stays on YouTube)">Not for the website</button>
+            </div>
+            <div class="av-ayuda" id="av-yt-ayuda" aria-live="polite"></div>
+            <details class="av-yt-ocultos" id="av-yt-ocultos" hidden>
+              <summary>Not for the website <span id="av-yt-ocultos-n"></span></summary>
+              <div id="av-yt-ocultos-lista"></div>
+            </details>
+          </div>
+          <div class="ap-group">
+            <label class="ap-label" for="av-link">YouTube link <span class="av-req">*</span></label>
+            <input type="text" id="av-link" class="ap-input" placeholder="https://www.youtube.com/watch?v=… or https://youtu.be/…" autocomplete="off">
+            <div class="av-ayuda" id="av-link-ayuda">Paste the link of a video from your channel.</div>
+          </div>
+          <div class="ap-group">
+            <label class="ap-label" for="av-title">Title <span class="av-req">*</span></label>
+            <input type="text" id="av-title" class="ap-input" maxlength="120" autocomplete="off">
+          </div>
+          <div class="av-fila">
+            <!-- §109: uno o varios tópicos (las casillas las pinta admin-videos.js). -->
+            <div class="ap-group av-temas-grupo">
+              <span class="ap-label" id="av-topics-label">Topics <span class="av-req" aria-hidden="true">*</span><span class="ev-sr">(choose one or more)</span></span>
+              <div class="ev-days av-temas" id="av-topics" role="group" aria-labelledby="av-topics-label"></div>
+              <div class="av-ayuda">Choose one or more. On the website, the video shows under each of them.</div>
+            </div>
+            <label class="av-check"><input type="checkbox" id="av-featured"> <span>Make it the <strong>Video of the Month</strong></span></label>
+          </div>
+          <div class="ap-group">
+            <label class="ap-label" for="av-desc">One line about it <span class="av-opc">(optional)</span></label>
+            <input type="text" id="av-desc" class="ap-input" maxlength="200" autocomplete="off" placeholder="What they will learn">
+          </div>
+          <div class="av-botones">
+            <button type="button" class="av-btn av-btn-sec" id="av-cancel" data-action="avCancelar" hidden>Cancel</button>
+            <button data-busy="Saving…" type="submit" class="av-btn av-btn-pri" id="av-save">Add video</button>
+          </div>
+        </div>
+        <div class="av-vista" id="av-vista" aria-live="polite">
+          <div class="av-vista-vacia">The video preview shows up here.</div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="card av-card">
+    <div class="av-lista-cab">
+      <div class="card-title av-lista-titulo">On the website <span class="av-cuenta" id="av-count"></span></div>
+    </div>
+    <div id="av-list"><div class="loading">Loading videos...</div></div>
+  </div>
+</div>
+
+<!-- ══ Portal del Jugador (hitos 3 y 4): PLAYER CLAIMS ══════════
+     Las cuentas del portal que hay que unir a mano a una ficha, y los
+     mensajes de "Need help?". Lo maneja admin-player-claims.js; los
+     estilos, admin-pages.css (pc-). -->
+<!-- Matchmaking M-2a: PLAYER SAFETY. Los reportes de los jugadores (de un
+     juego o de la tarjeta de un jugador) y las suspensiones del
+     matchmaking. Lo maneja admin-player-safety.js; los estilos,
+     admin-pages.css (pc- de Player claims, pp-perf- y ps-). -->
+<div id="page-player-safety" class="page">
+  <div class="av-cabecera">
+    <div class="av-titulo">Player Safety</div>
+    <div class="av-sub">Reports from players about games and behavior. Only admins see this — the reported player never knows who reported.</div>
+  </div>
+  <div class="pc-tabs" role="tablist" aria-label="Player Safety">
+    <button type="button" role="tab" class="pc-tab active" data-action="psTab" data-tab="open" aria-selected="true">Open<span class="avp-num avp-num-tab" id="ps-n-open" hidden></span></button>
+    <button type="button" role="tab" class="pc-tab" data-action="psTab" data-tab="resolved" aria-selected="false">Resolved</button>
+    <button type="button" role="tab" class="pc-tab" data-action="psTab" data-tab="suspended" aria-selected="false">Suspended players</button>
+  </div>
+  <div id="ps-body"><div class="loading">Loading...</div></div>
+</div>
+
+<!-- Matchmaking M-3a: PLAY GAMES. Los juegos que organizan los jugadores
+     en el portal y sus resultados (los que hay que decidir, los que
+     esperan a los jugadores, los verificados y los juegos que vienen).
+     Lo maneja admin-play-games.js; los estilos, admin-pages.css (pc-,
+     pp-perf-, ps- y pg-). -->
+<!-- §118: LESSONS. Las clases con Leminyer: su semana (con lo ocupado de
+     su Google Calendar), las reservas y los ajustes. Lo maneja
+     admin-lessons.js; los estilos, admin-lessons.css (lsn-). -->
+<div id="page-lessons" class="page">
+  <div class="av-cabecera lsn-cabecera">
+    <div>
+      <div class="av-titulo">Lessons</div>
+      <div class="av-sub">Lessons players book with you in the Player Portal. Times are Florida time (ET).</div>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" data-action="lsnAnadir">+ Add a lesson</button>
+  </div>
+  <div class="lsn-google-aviso" id="lsn-google-aviso" role="status" hidden></div>
+  <div class="pc-tabs" role="tablist" aria-label="Lessons">
+    <button type="button" role="tab" class="pc-tab active" data-action="lsnTab" data-tab="schedule" aria-selected="true">Schedule</button>
+    <button type="button" role="tab" class="pc-tab" data-action="lsnTab" data-tab="bookings" aria-selected="false">Bookings</button>
+    <button type="button" role="tab" class="pc-tab" data-action="lsnTab" data-tab="settings" aria-selected="false">Settings</button>
+  </div>
+  <div id="lsn-body"><div class="loading">Loading...</div></div>
+</div>
+<div class="modal-bg lsn-modal" id="lsn-modal" role="dialog" aria-modal="true" aria-label="Lesson">
+  <div class="modal" id="lsn-modal-box"></div>
+</div>
+
+<div id="page-play-games" class="page">
+  <div class="av-cabecera">
+    <div class="av-titulo">Play games</div>
+    <div class="av-sub">Games organized by players in the Player Portal, and their results. Ladder standings never change from here.</div>
+  </div>
+  <div class="pc-tabs" role="tablist" aria-label="Play games">
+    <button type="button" role="tab" class="pc-tab active" data-action="pgTab" data-tab="review" aria-selected="true">In review<span class="avp-num avp-num-tab" id="pg-n-review" hidden></span></button>
+    <button type="button" role="tab" class="pc-tab" data-action="pgTab" data-tab="waiting" aria-selected="false">Waiting (48 h)</button>
+    <button type="button" role="tab" class="pc-tab" data-action="pgTab" data-tab="verified" aria-selected="false">Verified</button>
+    <button type="button" role="tab" class="pc-tab" data-action="pgTab" data-tab="active" aria-selected="false">Active games</button>
+  </div>
+  <div class="pg-stats" id="pg-stats"></div>
+  <div id="pg-body"><div class="loading">Loading...</div></div>
+</div>
+
+<!-- Player Portal → Portal activity (SQL 106, §86). Lo maneja admin-portal-activity.js; los estilos, admin-pages.css (pa-). -->
+<div id="page-portal-activity" class="page">
+  <div class="av-cabecera pa-cabecera">
+    <div>
+      <div class="av-titulo">Portal activity</div>
+      <div class="av-sub">How the Player Portal is growing: accounts, claims and what players do. Only the Admin sees this page.</div>
+    </div>
+    <div class="pa-seg" id="pa-rangos" role="group" aria-label="Period"></div>
+  </div>
+  <span class="pa-sr" id="pa-estado" aria-live="polite"></span>
+  <div id="pa-body"><div class="loading">Loading...</div></div>
+</div>
+
+<div id="page-player-claims" class="page">
+  <div class="av-cabecera">
+    <div class="av-titulo">Player claims</div>
+    <div class="av-sub">Player Portal accounts waiting to be connected to a FEROCIA player record, and help messages from the portal.</div>
+  </div>
+  <div class="pc-tabs" role="tablist" aria-label="Player claims">
+    <button type="button" role="tab" class="pc-tab active" id="pc-tab-review" data-action="pcTab" data-tab="review" aria-selected="true">To review<span class="avp-num avp-num-tab" id="pc-n-review" hidden></span></button>
+    <button type="button" role="tab" class="pc-tab" id="pc-tab-help" data-action="pcTab" data-tab="help" aria-selected="false">Help messages<span class="avp-num avp-num-tab" id="pc-n-help" hidden></span></button>
+    <button type="button" role="tab" class="pc-tab" id="pc-tab-resolved" data-action="pcTab" data-tab="resolved" aria-selected="false">Resolved</button>
+  </div>
+  <div id="pc-body"><div class="loading">Loading...</div></div>
+</div>
+
+<!-- §113: REVIEWS. Lo que dijeron los jugadores después de cada escalera
+     o torneo (se piden desde el Communications Hub, "Review Request").
+     Lo maneja admin-reviews.js; los estilos, admin-pages.css (rvw-). -->
+<div id="page-reviews" class="page">
+  <div class="av-cabecera">
+    <div class="av-titulo">Reviews</div>
+    <div class="av-sub">What players said after each ladder and tournament. Only the reviews you mark &ldquo;Show on website&rdquo; appear on ferociasports.com, with the player&rsquo;s first name and last initial.</div>
+  </div>
+  <div class="rvw-filtros" id="rvw-filtros" hidden>
+    <label class="rvw-filtro">Event
+      <select class="hub-select" id="rvw-f-evento"><option value="">All events</option></select>
+    </label>
+    <label class="rvw-filtro">Rating
+      <select class="hub-select" id="rvw-f-estrellas">
+        <option value="">All ratings</option>
+        <option value="5">5 stars</option><option value="4">4 stars</option><option value="3">3 stars</option>
+        <option value="2">2 stars</option><option value="1">1 star</option>
+      </select>
+    </label>
+    <label class="rvw-filtro">Show
+      <select class="hub-select" id="rvw-f-ver">
+        <option value="">All reviews</option>
+        <option value="new">New</option>
+        <option value="public">On the website</option>
+        <option value="comment">With a comment</option>
+        <option value="improve">With a suggestion</option>
+      </select>
+    </label>
+  </div>
+  <span class="pa-sr" id="rvw-estado" aria-live="polite"></span>
+  <div id="rvw-resumen" class="rvw-resumen" hidden></div>
+  <div id="rvw-body"><div class="loading">Loading...</div></div>
+</div>
+
 <div id="page-newsletter" class="page">
   <div style="padding:24px 28px;max-width:1100px;">
 
@@ -2494,7 +3382,7 @@
     </button>
     <button class="bn-item" id="bn-more" data-action="sbToggleMore">
       <div class="bn-dot"></div>
-      <div class="bn-icon">⋯</div>
+      <div class="bn-icon avp-ancla">⋯<span class="avp-num avp-num-icono" id="avp-bn" hidden></span></div>
       <div class="bn-label">More</div>
     </button>
   </div>
@@ -2503,6 +3391,20 @@
 <!-- ── MORE DRAWER ───────────────────────────────────────── -->
 <div class="drawer-backdrop" id="drawer-backdrop" data-action="sbToggleMore"></div>
 <div class="more-drawer" id="more-drawer">
+  <div class="more-drawer-label">Player Portal</div>
+  <button class="more-drawer-item" id="md-portal-activity" data-action="showPage" data-page="portal-activity">
+    <span class="more-drawer-icon more-drawer-svg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></span>Portal activity
+  </button>
+  <button class="more-drawer-item" id="md-player-claims" data-action="showPage" data-page="player-claims">
+    <span class="more-drawer-icon more-drawer-svg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M3 21c0-4 3.1-7 7-7 1.4 0 2.6.3 3.7.9"/><path d="M16 18l2 2 4-4.5"/></svg></span>Player claims<span class="avp-num avp-num-fila" id="pc-md" hidden></span>
+  </button>
+  <button class="more-drawer-item" id="md-player-safety" data-action="showPage" data-page="player-safety">
+    <span class="more-drawer-icon more-drawer-svg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>Player Safety<span class="avp-num avp-num-fila" id="ps-md" hidden></span>
+  </button>
+  <button class="more-drawer-item" id="md-play-games" data-action="showPage" data-page="play-games">
+    <span class="more-drawer-icon more-drawer-svg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg></span>Play games<span class="avp-num avp-num-fila" id="pg-md" hidden></span>
+  </button>
+  <div class="more-drawer-label">Club</div>
   <button class="more-drawer-item" id="md-ladders" data-action="showPage" data-page="ladders">
     <span class="more-drawer-icon">🏓</span>Ladders
   </button>
@@ -2512,17 +3414,23 @@
   <button class="more-drawer-item" id="md-events" data-action="showPage" data-page="events">
     <span class="more-drawer-icon">📅</span>Events
   </button>
+  <button class="more-drawer-item" id="md-lessons" data-action="showPage" data-page="lessons">
+    <span class="more-drawer-icon">🏓</span>Lessons
+  </button>
   <button class="more-drawer-item" id="md-orders" data-action="showPage" data-page="orders">
     <span class="more-drawer-icon">🛒</span>Orders
   </button>
   <button class="more-drawer-item" id="md-promotions" data-action="showPage" data-page="promotions">
     <span class="more-drawer-icon">📣</span>Promotions
   </button>
-  <button class="more-drawer-item" id="md-newsletter" data-action="showPage" data-page="newsletter">
-    <span class="more-drawer-icon">📰</span>Newsletter
+  <button class="more-drawer-item" id="md-videos" data-action="showPage" data-page="videos">
+    <span class="more-drawer-icon more-drawer-svg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/></svg></span>Videos
   </button>
   <button class="more-drawer-item" id="md-communications" data-action="showPage" data-page="communications">
-    <span class="more-drawer-icon">✉️</span>Communications
+    <span class="more-drawer-icon">✉️</span>Communications<span class="avp-num avp-num-fila" id="avp-md" hidden></span>
+  </button>
+  <button class="more-drawer-item" id="md-reviews" data-action="showPage" data-page="reviews">
+    <span class="more-drawer-icon more-drawer-svg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>Reviews<span class="avp-num avp-num-fila" id="rv-md" hidden></span>
   </button>
   <button class="more-drawer-item" id="md-share" data-action="showPage" data-page="share">
     <span class="more-drawer-icon">🔗</span>Share Links
@@ -2649,6 +3557,23 @@
           </select>
         </div>
       </div>
+      <!-- §112 (SQL 124): fuera de todos los correos del Communications Hub, sin dejar de ser jugador. -->
+      <label class="pl-nomail" for="edit-do-not-email">
+        <input type="checkbox" id="edit-do-not-email">
+        <span><strong>Do not email</strong> — this player gets no email from the Communications Hub
+          (All Players, ladders, tournaments, Selected Players, polls and their reminders). They stay an
+          active player. The newsletter and campaigns follow the subscriber list (Unsubscribe). They are
+          also left out of Send Text &amp; WhatsApp.</span>
+      </label>
+      <!-- §115 (SQL 129): si usa WhatsApp. Lo usa Send Text & WhatsApp. -->
+      <div class="form-group" id="edit-whatsapp-group" hidden>
+        <label for="edit-whatsapp">WhatsApp</label>
+        <select id="edit-whatsapp">
+          <option value="unknown">Unknown</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </div>
       <div class="form-group" id="edit-reason-group" style="display:none;">
         <label>Reason for inactivating <span style="color:var(--orange);">*</span></label>
         <textarea id="edit-reason" rows="3" placeholder="Why is this player inactive? (required)"
@@ -2752,7 +3677,7 @@
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger btn-sm" data-action="closeEditSessionModal">Cancel</button>
-        <button type="submit" class="btn btn-primary btn-sm" id="es-save-btn">Save changes</button>
+        <button data-busy="Saving…" type="submit" class="btn btn-primary btn-sm" id="es-save-btn">Save changes</button>
       </div>
     </form>
   </div>
@@ -2786,10 +3711,53 @@
     <!-- CUERPO -->
     <div style="padding:16px 24px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:18px;">
 
+      <!-- Los resultados de una encuesta (entregable 6). Los pinta
+           admin-comms-results.js; los estilos, admin-comms-hub.css. -->
+      <div class="co-poll" id="co-det-poll" hidden>
+        <div class="co-poll-head">
+          <div class="co-poll-titles">
+            <div class="co-poll-label">Poll results</div>
+            <div class="co-poll-question" id="co-poll-question"></div>
+            <div class="co-poll-status" id="co-poll-status"></div>
+            <div class="co-poll-status co-poll-reminder" id="co-poll-reminder" hidden></div>
+          </div>
+          <div class="co-poll-actions">
+            <button type="button" class="hub-attach-btn" id="co-poll-remind-btn" data-action="commPollRemind">Send reminder to non-responders</button>
+            <button type="button" class="hub-attach-btn" id="co-poll-roster-btn" data-action="commPollRoster">Use responses for roster</button>
+            <button type="button" class="co-poll-close" id="co-poll-close-btn" data-action="commPollClose">Close poll</button>
+          </div>
+        </div>
+        <div class="co-poll-groups" id="co-poll-groups"></div>
+        <div class="co-roster" id="co-poll-roster" hidden>
+          <div class="co-roster-head">
+            <div>
+              <div class="co-poll-label">Roster preparation</div>
+              <div class="co-roster-title" id="co-roster-title"></div>
+            </div>
+            <button type="button" class="hub-attach-btn" data-action="commPollPrint">Print</button>
+          </div>
+          <div class="co-roster-cols" id="co-roster-cols"></div>
+        </div>
+      </div>
+
+      <!-- Reenviar una campaña a quien no la recibió (ajuste 12). Sólo
+           en las campañas; lo enseña admin-communications.js cuando ya
+           llegó el mensaje. -->
+      <div class="co-det-resend" id="co-det-resend" hidden>
+        <span class="co-det-resend-text">Someone didn&rsquo;t get it? Send this campaign again only to them.</span>
+        <button type="button" class="hub-attach-btn" id="co-det-resend-btn" data-action="commResendCampaign">Resend to&hellip;</button>
+      </div>
+
       <!-- El mensaje que se escribió -->
       <div>
         <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Message</div>
         <div id="co-det-body" style="background:#fafbff;border:0.5px solid var(--divider-color);border-radius:10px;padding:16px 18px;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;max-height:220px;overflow-y:auto;word-break:break-word;"></div>
+        <!-- El PDF que fue adjunto, si lo hubo. -->
+        <div class="co-det-attach" id="co-det-attach" hidden>
+          <span class="hub-attach-icon">PDF</span>
+          <span class="co-det-attach-name" id="co-det-attach-name"></span>
+          <button type="button" class="hub-attach-btn" data-action="commDownloadAttachment">Download</button>
+        </div>
       </div>
 
       <!-- Quién lo recibió -->
@@ -2817,222 +3785,6 @@
       </div>
 
     </div>
-  </div>
-</div>
-
-<div class="modal-bg" id="notify-modal">
-  <div class="modal" style="max-width:680px;max-height:88vh;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
-
-    <!-- HEADER -->
-    <div style="padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
-      <div>
-        <div style="font-family:'Inter',sans-serif;font-size:24px;color:var(--text);letter-spacing:1px;line-height:1;margin-bottom:3px;">Send Ladder Update</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);" id="notify-recipient-count"></div>
-      </div>
-      <button type="button" data-action="closeNotifyModal"
-        style="width:30px;height:30px;border-radius:8px;border:0.5px solid var(--divider-color);background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"
-        onmouseover="this.style.background='var(--orange-light)';this.style.borderColor='rgba(229,57,53,0.3)'"
-        onmouseout="this.style.background='white';this.style.borderColor='var(--divider-color)'">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div style="border-top:0.5px solid var(--divider-color);margin:14px 24px 0;"></div>
-
-    <!-- BODY -->
-    <form id="notify-form" style="padding:16px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;">
-
-      <!-- SECTION 1: Ladder Context -->
-      <div>
-        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span style="width:3px;height:13px;border-radius:99px;background:var(--blue);display:inline-block;flex-shrink:0;"></span>Ladder Context
-        </div>
-        <div style="background:#f8f9ff;border:0.5px solid var(--divider-color);border-radius:10px;padding:14px 16px;">
-          <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:8px;" id="notify-ladder-name"></div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;" id="notify-context-pills"></div>
-        </div>
-      </div>
-
-      <!-- Notification type -->
-      <div>
-        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span style="width:3px;height:13px;border-radius:99px;background:var(--blue);display:inline-block;flex-shrink:0;"></span>Notification Type
-        </div>
-        <select id="notify-type"
-          style="width:100%;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--text);outline:none;background:white;"
-          onfocus="this.style.borderColor='var(--blue)';this.style.boxShadow='0 0 0 3px rgba(23,76,204,0.08)'"
-          onblur="this.style.borderColor='var(--divider-color)';this.style.boxShadow='none'">
-          <option value="welcome">👋 Welcome &amp; Guidelines</option>
-          <option value="scores">📊 Scores Updated</option>
-          <option value="reminder">⏰ Session Reminder</option>
-          <option value="end">🏆 End of Ladder</option>
-          <option value="custom">✏️ Custom Message</option>
-        </select>
-      </div>
-
-      <!-- SECTION 2: Email Content -->
-      <div>
-        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span style="width:3px;height:13px;border-radius:99px;background:var(--blue);display:inline-block;flex-shrink:0;"></span>Email Content
-        </div>
-        <div style="margin-bottom:12px;">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Email Subject <span style="color:#e53935;">*</span></div>
-          <input type="text" id="notify-subject"
-            style="width:100%;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--text);outline:none;"
-            onfocus="this.style.borderColor='var(--blue)';this.style.boxShadow='0 0 0 3px rgba(23,76,204,0.08)'"
-            onblur="this.style.borderColor='var(--divider-color)';this.style.boxShadow='none'">
-        </div>
-        <div>
-          <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Message <span style="color:#e53935;">*</span></div>
-          <div style="border:1px solid var(--divider-color);border-radius:10px;overflow:hidden;">
-            <div style="padding:7px 12px;background:#f8f9ff;border-bottom:0.5px solid var(--divider-color);display:flex;align-items:center;gap:6px;">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              <span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);">Message Preview</span>
-            </div>
-            <!-- La barra de formato la fabrica admin-rich-editor.js. -->
-            <div class="promo-fmt-toolbar" id="notify-fmt-bar" style="padding:6px 8px;background:#fcfdff;border-bottom:0.5px solid var(--divider-color);display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
-            <div id="notify-message" contenteditable="true" style="width:100%;min-height:160px;padding:14px;border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;background:white;overflow-y:auto;max-height:340px;"></div>
-          </div>
-          <div style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:5px;">Results and standings links will be automatically added to every email.</div>
-        </div>
-      </div>
-
-      <!-- SECTION 3: Delivery Info -->
-      <div>
-        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span style="width:3px;height:13px;border-radius:99px;background:var(--blue);display:inline-block;flex-shrink:0;"></span>Delivery Info
-        </div>
-        <div style="background:#f0f4ff;border:1px solid #c5d6f5;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          <div style="font-size:11px;font-weight:600;color:var(--blue);line-height:1.4;">The leaderboard link will be included automatically.</div>
-        </div>
-      </div>
-
-      <!-- FOOTER -->
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding-top:4px;border-top:0.5px solid var(--divider-color);margin-top:2px;">
-        <label for="notify-only-me" style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-right:auto;border:1px solid var(--divider-color);border-radius:10px;background:#f8f9ff;cursor:pointer;flex:0 1 auto;max-width:330px;min-width:0;text-transform:none;letter-spacing:normal;">
-          <input type="checkbox" id="notify-only-me" aria-describedby="notify-only-me-ayuda" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
-          <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;text-transform:none;letter-spacing:normal;">
-            Send only to me
-            <span id="notify-only-me-ayuda" style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;text-transform:none;letter-spacing:normal;">
-              Real send, fully logged &mdash; but only you receive it.
-            </span>
-          </span>
-        </label>
-        <button type="submit" id="notify-send-btn"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Send Update
-        </button>
-      </div>
-
-    </form>
-  </div>
-</div>
-
-<!-- Player Profile — Send Email Modal -->
-<div class="modal-bg" id="pp-email-modal">
-  <div class="modal" style="max-width:520px;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
-
-    <!-- HEADER -->
-    <div style="padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
-      <div>
-        <div style="font-family:'Inter',sans-serif;font-size:24px;color:var(--text);letter-spacing:1px;line-height:1;margin-bottom:3px;">Send Email</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);" id="pp-email-recipient"></div>
-      </div>
-      <button type="button" data-action="ppCloseEmailModal"
-        style="width:30px;height:30px;border-radius:8px;border:0.5px solid var(--divider-color);background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div style="border-top:0.5px solid var(--divider-color);margin:14px 24px 0;"></div>
-
-    <!-- BODY -->
-    <form id="pp-email-form" style="padding:16px 24px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;">
-      <div>
-        <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Subject <span style="color:#e53935;">*</span></div>
-        <input type="text" id="pp-email-subject"
-          style="width:100%;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--text);outline:none;">
-      </div>
-      <div>
-        <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Message <span style="color:#e53935;">*</span></div>
-        <!-- La barra de formato la fabrica admin-rich-editor.js. -->
-          <div class="promo-fmt-toolbar" id="pp-fmt-bar" style="padding:6px 8px;background:#fcfdff;border:1px solid var(--divider-color);border-radius:10px 10px 0 0;display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
-          <div id="pp-email-message" contenteditable="true" style="width:100%;min-height:180px;max-height:340px;overflow-y:auto;padding:12px;border:1px solid var(--divider-color);border-top:none;border-radius:0 0 10px 10px;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;background:white;"></div>
-      </div>
-
-      <!-- FOOTER -->
-      <div style="display:flex;justify-content:flex-end;padding-top:4px;border-top:0.5px solid var(--divider-color);margin-top:2px;">
-        <button type="submit" id="pp-email-send-btn"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Send Email
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Email All Players Modal -->
-<div class="modal-bg" id="players-email-modal">
-  <div class="modal" style="max-width:680px;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:88vh;">
-
-    <!-- HEADER -->
-    <div style="padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
-      <div>
-        <div style="font-family:'Inter',sans-serif;font-size:24px;color:var(--text);letter-spacing:1px;line-height:1;margin-bottom:3px;">Email All Players</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);" id="pe-recipient-count"></div>
-      </div>
-      <button type="button" data-action="closePlayersEmail"
-        style="width:30px;height:30px;border-radius:8px;border:0.5px solid var(--divider-color);background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div style="border-top:0.5px solid var(--divider-color);margin:14px 24px 0;"></div>
-
-    <!-- BODY -->
-    <form id="players-email-form" style="padding:16px 24px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;">
-
-      <!-- Recipient summary: who gets it, who is skipped, how long it takes -->
-      <div id="pe-summary" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-
-      <div>
-        <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Subject <span style="color:#e53935;">*</span></div>
-        <input type="text" id="pe-subject"
-          style="width:100%;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--text);outline:none;">
-      </div>
-      <div>
-        <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Message <span style="color:#e53935;">*</span></div>
-        <!-- La barra de formato la fabrica admin-rich-editor.js. -->
-          <div class="promo-fmt-toolbar" id="pe-fmt-bar" style="padding:6px 8px;background:#fcfdff;border:1px solid var(--divider-color);border-radius:10px 10px 0 0;display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
-          <div id="pe-message" contenteditable="true" style="width:100%;min-height:180px;max-height:340px;overflow-y:auto;padding:12px;border:1px solid var(--divider-color);border-top:none;border-radius:0 0 10px 10px;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;background:white;"></div>
-        <!-- Ya no se pide escribir {{player_name}}: la plantilla del
-             correo saluda por el nombre ella sola, encima del mensaje.
-             Poner la variable a mano solo conseguia que el nombre
-             saliera dos veces. Si alguien la escribe igualmente, el
-             servidor la sigue sustituyendo. -->
-        <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-top:5px;">
-          Each player is greeted by name automatically &mdash; just write your message.
-        </div>
-      </div>
-
-      <!-- FOOTER -->
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding-top:8px;border-top:0.5px solid var(--divider-color);">
-        <label for="pe-only-me" style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-right:auto;border:1px solid var(--divider-color);border-radius:10px;background:#f8f9ff;cursor:pointer;flex:0 1 auto;max-width:330px;min-width:0;text-transform:none;letter-spacing:normal;">
-          <input type="checkbox" id="pe-only-me" aria-describedby="pe-only-me-ayuda" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
-          <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;text-transform:none;letter-spacing:normal;">
-            Send only to me
-            <span id="pe-only-me-ayuda" style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;text-transform:none;letter-spacing:normal;">
-              Real send, fully logged &mdash; but only you receive it.
-            </span>
-          </span>
-        </label>
-        <button type="submit" id="pe-send-btn"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Send to All Players
-        </button>
-      </div>
-    </form>
   </div>
 </div>
 
@@ -3237,275 +3989,8 @@
       <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px;">
         <button type="button" data-action="closeIncidentReportModal"
           style="padding:10px 20px;border:1px solid var(--divider-color);border-radius:99px;background:white;color:var(--text-muted);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Cancel</button>
-        <button type="submit" id="ir-save-btn"
+        <button data-busy="Saving…" type="submit" id="ir-save-btn"
           style="padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Report Incident</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Tournament Notify Modal -->
-<div class="modal-bg" id="tournament-notify-modal">
-  <div class="modal" style="max-width:680px;max-height:88vh;border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
-
-    <!-- HEADER -->
-    <div style="padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
-      <div>
-        <div style="font-family:'Inter',sans-serif;font-size:24px;color:var(--text);letter-spacing:1px;line-height:1;margin-bottom:3px;">Send Tournament Update</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);" id="t-notify-recipient-count"></div>
-      </div>
-      <button type="button" data-action="closeTournamentNotifyModal"
-        style="width:30px;height:30px;border-radius:8px;border:0.5px solid var(--divider-color);background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"
-        onmouseover="this.style.background='var(--orange-light)';this.style.borderColor='rgba(229,57,53,0.3)'"
-        onmouseout="this.style.background='white';this.style.borderColor='var(--divider-color)'">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div style="border-top:0.5px solid var(--divider-color);margin:14px 24px 0;"></div>
-
-    <!-- BODY -->
-    <form id="t-notify-form" style="padding:16px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;">
-
-      <!-- SECTION 1: Tournament Context -->
-      <div>
-        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span style="width:3px;height:13px;border-radius:99px;background:var(--blue);display:inline-block;flex-shrink:0;"></span>Tournament Context
-        </div>
-        <div style="background:#f8f9ff;border:0.5px solid var(--divider-color);border-radius:10px;padding:14px 16px;">
-          <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:8px;" id="t-notify-tournament-name"></div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;" id="t-notify-context-pills"></div>
-        </div>
-      </div>
-
-      <!-- SECTION 2: Email Content -->
-      <div>
-        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span style="width:3px;height:13px;border-radius:99px;background:var(--blue);display:inline-block;flex-shrink:0;"></span>Email Content
-        </div>
-        <div style="margin-bottom:12px;">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Email Subject <span style="color:#e53935;">*</span></div>
-          <input type="text" id="t-notify-subject" placeholder="e.g. 🏆 Check your tournament results!"
-            style="width:100%;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--text);outline:none;"
-            onfocus="this.style.borderColor='var(--blue)';this.style.boxShadow='0 0 0 3px rgba(23,76,204,0.08)'"
-            onblur="this.style.borderColor='var(--divider-color)';this.style.boxShadow='none'">
-        </div>
-        <div>
-          <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Message <span style="color:#e53935;">*</span></div>
-          <div style="border:1px solid var(--divider-color);border-radius:10px;overflow:hidden;">
-            <div style="padding:7px 12px;background:#f8f9ff;border-bottom:0.5px solid var(--divider-color);display:flex;align-items:center;gap:6px;">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              <span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);">Message Preview</span>
-            </div>
-            <!-- La barra de formato la fabrica admin-rich-editor.js. -->
-            <div class="promo-fmt-toolbar" id="t-notify-fmt-bar" style="padding:6px 8px;background:#fcfdff;border-bottom:0.5px solid var(--divider-color);display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
-            <div id="t-notify-message" contenteditable="true" style="width:100%;min-height:160px;padding:14px;border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);line-height:1.7;background:white;overflow-y:auto;max-height:340px;"></div>
-          </div>
-          <div style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:5px;">Results and standings links will be automatically added to every email.</div>
-        </div>
-      </div>
-
-      <!-- SECTION 3: Delivery Info -->
-      <div>
-        <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-          <span style="width:3px;height:13px;border-radius:99px;background:var(--blue);display:inline-block;flex-shrink:0;"></span>Delivery Info
-        </div>
-        <div style="background:#f0f4ff;border:1px solid #c5d6f5;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          <div style="font-size:11px;font-weight:600;color:var(--blue);line-height:1.4;">Tournament results link will be included automatically.</div>
-        </div>
-      </div>
-
-      <!-- FOOTER inside form -->
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding-top:4px;border-top:0.5px solid var(--divider-color);margin-top:2px;">
-        <label for="t-notify-only-me" style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-right:auto;border:1px solid var(--divider-color);border-radius:10px;background:#f8f9ff;cursor:pointer;flex:0 1 auto;max-width:330px;min-width:0;text-transform:none;letter-spacing:normal;">
-          <input type="checkbox" id="t-notify-only-me" aria-describedby="t-notify-only-me-ayuda" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
-          <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;text-transform:none;letter-spacing:normal;">
-            Send only to me
-            <span id="t-notify-only-me-ayuda" style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;text-transform:none;letter-spacing:normal;">
-              Real send, fully logged &mdash; but only you receive it.
-            </span>
-          </span>
-        </label>
-        <button type="submit" id="t-notify-send-btn"
-          style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Send Update
-        </button>
-      </div>
-
-    </form>
-  </div>
-</div>
-
-<!-- Launch Campaign Modal -->
-<div id="promo-modal" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(8,15,46,.65);align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);">
-  <div style="background:white;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(8,15,46,.18);width:100%;max-width:900px;max-height:90vh;overflow-y:auto;">
-
-    <!-- Modal header -->
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:22px 28px 18px;border-bottom:0.5px solid #e8edf8;background:linear-gradient(180deg,#fafbff 0%,white 100%);">
-      <div>
-        <div style="font-family:'Inter',sans-serif;font-size:26px;color:var(--text);letter-spacing:1px;line-height:1;margin-bottom:3px;">Launch Campaign</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);max-width:480px;line-height:1.5;">Reach your pickleball community with announcements, tournaments, ladders, and event updates.</div>
-      </div>
-      <button data-action="closePromoModal"
-        style="width:30px;height:30px;border-radius:8px;border:0.5px solid var(--divider-color);background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"
-        onmouseover="this.style.background='var(--orange-light)';this.style.borderColor='rgba(229,57,53,0.3)'"
-        onmouseout="this.style.background='white';this.style.borderColor='var(--divider-color)'">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-
-    <!-- Two-column body -->
-    <form id="promo-form">
-      <div style="display:grid;grid-template-columns:1fr 260px;min-height:460px;">
-
-        <!-- LEFT: Composer -->
-        <div style="padding:22px 24px;border-right:0.5px solid #e8edf8;display:flex;flex-direction:column;gap:16px;background:#fafbff;">
-
-          <!-- Campaign type pills -->
-          <div>
-            <div class="promo-comp-label">Campaign Type</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;" id="promo-type-pills">
-              <button type="button" class="promo-type-pill active" data-type="Tournament">Tournament</button>
-              <button type="button" class="promo-type-pill" data-type="Ladder">Ladder</button>
-              <button type="button" class="promo-type-pill" data-type="Other">Other</button>
-            </div>
-            <input type="hidden" id="promo-campaign-type" value="Tournament">
-            <!-- Etiqueta que sale arriba a la derecha en la cabecera del
-                 correo. Se rellena sola al elegir el tipo de campaña;
-                 esto es solo para cambiarla en un caso suelto. -->
-            <div style="margin-top:10px;">
-              <div class="promo-comp-label">Header Label <span style="font-size:9px;font-weight:600;color:#b0bbd6;text-transform:none;letter-spacing:0;">(shown top-right in the email)</span></div>
-              <!-- 11px, mas pequeno que los campos vecinos (13px) a
-                   proposito: al ir en mayusculas y con espaciado, a 13px
-                   pesaba mucho mas que el asunto de al lado. -->
-              <input type="text" id="promo-header-label" maxlength="24" placeholder="TOURNAMENT"
-                style="width:100%;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--text);outline:none;"
-                onfocus="this.style.borderColor='var(--blue)';this.style.boxShadow='0 0 0 3px rgba(23,76,204,0.08)'"
-                onblur="this.style.borderColor='var(--divider-color)';this.style.boxShadow='none'">
-            </div>
-          </div>
-
-          <!-- Event selector — shown for Tournament/Ladder -->
-          <div id="promo-event-selector-wrap">
-            <div class="promo-comp-label">Select Event <span style="color:var(--orange);">*</span></div>
-            <select id="promo-event-select"
-              style="width:100%;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--text);outline:none;background:white;"
-              onfocus="this.style.borderColor='var(--blue)';this.style.boxShadow='0 0 0 3px rgba(23,76,204,0.08)'"
-              onblur="this.style.borderColor='var(--divider-color)';this.style.boxShadow='none'">
-              <option value="">Loading events...</option>
-            </select>
-            <input type="hidden" id="promo-event-flyer-url" value="">
-          </div>
-
-          <!-- Other flyer URL — shown for Other type -->
-          <div id="promo-other-flyer-wrap" style="display:none;">
-            <div class="promo-comp-label">Flyer URL <span style="font-size:9px;font-weight:600;color:#b0bbd6;text-transform:none;letter-spacing:0;">(optional)</span></div>
-            <input type="url" id="promo-other-flyer-url" placeholder="https://example.com/flyer.jpg"
-              style="width:100%;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--text);outline:none;"
-              onfocus="this.style.borderColor='var(--blue)';this.style.boxShadow='0 0 0 3px rgba(23,76,204,0.08)'"
-              onblur="this.style.borderColor='var(--divider-color)';this.style.boxShadow='none'">
-          </div>
-
-          <!-- Subject -->
-          <div>
-            <div class="promo-comp-label">Subject Line</div>
-            <div class="promo-subject-wrap">
-              <input type="text" id="promo-subject" class="promo-subject-input" placeholder="e.g. Spring Tournament 2026 — Registration Now Open">
-            </div>
-          </div>
-
-          <!-- Texto de vista previa: la linea que se lee en la bandeja de
-               entrada junto al asunto, antes de abrir el correo. Si se
-               deja vacio, el admin lo rellena con el principio del
-               mensaje — nunca queda en blanco. -->
-          <div>
-            <div class="promo-comp-label">Preview Text <span style="font-size:9px;font-weight:600;color:#b0bbd6;text-transform:none;letter-spacing:0;">(optional — the line shown in the inbox next to the subject)</span></div>
-            <input type="text" id="promo-preview-text" maxlength="140"
-              placeholder="Leave empty to use the first line of your message"
-              style="width:100%;padding:9px 12px;border:1px solid var(--divider-color);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--text);outline:none;"
-              onfocus="this.style.borderColor='var(--blue)';this.style.boxShadow='0 0 0 3px rgba(23,76,204,0.08)'"
-              onblur="this.style.borderColor='var(--divider-color)';this.style.boxShadow='none'">
-            <div id="promo-preview-count" style="font-size:10px;font-weight:600;color:#b0bbd6;margin-top:4px;">0 / 140</div>
-          </div>
-
-          <!-- Message -->
-          <div style="flex:1;display:flex;flex-direction:column;">
-            <div class="promo-comp-label">Message</div>
-            <div class="promo-message-card">
-              <!-- Barra de formato.
-                   La fabrica admin-rich-editor.js, el mismo módulo que
-                   la pone en las otras cuatro pantallas que escriben
-                   correos. Antes estaba escrita a mano aquí; con cinco
-                   editores eso eran cinco copias del mismo HTML. -->
-              <div class="promo-fmt-toolbar" id="promo-fmt-bar">
-                <div style="flex:1;"></div>
-                <span id="promo-char-count" style="font-size:9px;font-weight:700;color:#b0bbd6;">0 / 2000</span>
-              </div>
-              <div id="promo-message" contenteditable="true" class="promo-message-editor" data-placeholder="Write your campaign message here..."></div>
-              <div style="padding:6px 12px;background:#f8f9ff;border-top:0.5px solid #e8edf8;display:flex;justify-content:flex-end;">
-                <span id="promo-char-count2" style="font-size:10px;font-weight:700;color:#b0bbd6;"></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Ensayo de campaña.
-               Marcada, el Launch pasa por el camino REAL completo — se
-               registra en communications, se reserva el destinatario y
-               sale por lotes — pero con una sola dirección: la del
-               admin. Nadie de la lista lo recibe.
-               admin-promotions.js la desmarca sola cada vez que se abre
-               el modal, y cambia la etiqueta del botón mientras está
-               puesta, para que el botón nunca diga una cosa y haga otra. -->
-          <label for="promo-only-me" style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--divider-color);border-radius:10px;background:#f8f9ff;cursor:pointer;text-transform:none;letter-spacing:normal;">
-            <input type="checkbox" id="promo-only-me" aria-describedby="promo-only-me-ayuda" style="margin:1px 0 0;width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
-            <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;text-transform:none;letter-spacing:normal;">
-              Send only to me
-              <span id="promo-only-me-ayuda" style="display:block;font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;text-transform:none;letter-spacing:normal;">
-                Real send, fully logged &mdash; but only you receive it.
-              </span>
-            </span>
-          </label>
-
-          <!-- Launch button -->
-          <button type="submit" id="promo-send-btn" style="width:100%;padding:12px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,var(--blue) 100%);color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-            Launch Campaign
-          </button>
-        </div>
-
-        <!-- RIGHT: Intelligence Panel -->
-        <div style="padding:22px 20px;background:white;display:flex;flex-direction:column;gap:14px;">
-          <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--text);display:flex;align-items:center;gap:6px;">
-            <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block;"></span>
-            Campaign Intelligence
-          </div>
-
-          <!-- Audience card -->
-          <div class="promo-intel-card" style="border-left:3px solid var(--teal);">
-            <div class="promo-intel-label">Audience</div>
-            <div class="promo-intel-val" id="promo-audience-count">—</div>
-            <div class="promo-intel-sub">Active subscribers will receive this</div>
-          </div>
-
-          <!-- Last campaign card -->
-          <div class="promo-intel-card" style="border-left:3px solid var(--blue);">
-            <div class="promo-intel-label">Last Campaign</div>
-            <div class="promo-intel-val-text" id="promo-last-sent">—</div>
-            <div class="promo-intel-sub" id="promo-last-type">No campaigns yet</div>
-          </div>
-
-          <!-- Selected type card -->
-          <div class="promo-intel-card" style="border-left:3px solid var(--orange);">
-            <div class="promo-intel-label">Selected Type</div>
-            <div class="promo-intel-val-text" id="promo-selected-type">Tournament</div>
-            <div class="promo-intel-sub">Best open rate: Tues–Thurs 9–11am</div>
-          </div>
-
-          <!-- Recipient count kept hidden for JS compat -->
-          <span id="promo-recipient-count" style="display:none;"></span>
-        </div>
-
       </div>
     </form>
   </div>
@@ -3522,6 +4007,21 @@
         <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- La lista completa de destinatarios ("View recipients") del Communications Hub.
+     Va aquí, con las demás ventanas, y no dentro de la pestaña Send. -->
+<div class="modal-bg" id="hub-people-modal">
+  <div class="modal hub-people-modal" role="dialog" aria-modal="true" aria-labelledby="hub-people-title">
+    <div class="hub-people-head">
+      <h3 class="hub-card-title" id="hub-people-title">Recipients</h3>
+      <button type="button" class="hub-people-close" data-action="hubPeopleClose" aria-label="Close">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <p class="hub-card-sub" id="hub-people-sub"></p>
+    <div class="hub-people" id="hub-people"></div>
   </div>
 </div>
 
@@ -3719,7 +4219,7 @@
       <div class="lm-footer-hint">All required fields must be completed</div>
       <div style="display:flex;gap:8px;">
         <button class="lm-btn-cancel" onclick="closeLogMatchModal()">Cancel</button>
-        <button class="lm-btn-save" onclick="lmSaveMatch()">
+        <button data-busy="Saving…" class="lm-btn-save" onclick="lmSaveMatch()">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           Save Match
         </button>
@@ -3752,41 +4252,69 @@
 
 <!-- Loaded before every admin-* module: three of them call
      FerociaPhone.format() when rendering. -->
-<script src="country-codes.js?v=20260928b"></script>
+<script src="country-codes.js?v=20261013a"></script>
 <script src="location-fields.js?v=20260929a"></script>
 <!-- Etiquetas y colores del origen. Compartido por Promotions y la
      ficha del jugador, y cargado antes que los dos. -->
 <script src="source-labels.js?v=20260928b"></script>
 <script src="admin-state.js?v=20260928b"></script>
-<script src="admin-incident-reports.js?v=20260928b"></script>
+<script src="admin-incident-reports.js?v=20261110a"></script>
 <script src="admin-ladder-selector.js?v=20260928b"></script>
 <script src="admin-orders.js?v=20260928b"></script>
-<script src="admin-email-utils.js?v=20261005b"></script>
-<script src="admin-rich-editor.js?v=20260929a"></script>
-<script src="admin-share.js?v=20260928b"></script>
-<script src="admin-tournament-notify.js?v=20261005a"></script>
+<!-- Ajuste 24: los videos de la Academy (lo común, y la pantalla). -->
+<script src="videos-common.js?v=20261027a"></script>
+<script src="admin-videos.js?v=20261110a"></script>
+<script src="admin-email-utils.js?v=20261103c"></script>
+<script src="admin-rich-editor.js?v=20261009b"></script>
+<script src="admin-share.js?v=20261123a"></script>
 <script src="admin-player-status-history.js?v=20260928b"></script>
-<script src="admin-player-profile.js?v=20261004c"></script>
-<script src="admin-email-notifications.js?v=20261005a"></script>
+<script src="admin-player-profile.js?v=20261106a"></script>
 <script src="admin-ladder-standings.js?v=20260930a"></script>
-<script src="admin-sessions.js?v=20260928b"></script>
+<script src="admin-sessions.js?v=20261110a"></script>
 <script src="admin-print-roster.js?v=20260928b"></script>
-<script src="admin-ladder-management.js?v=20261008a"></script>
-<script src="admin-communications.js?v=20261005a"></script>
-<script src="admin-promotions.js?v=20261006a"></script>
+<script src="admin-ladder-management.js?v=20261110a"></script>
+<!-- El limpiador de los mensajes guardados (DOMPurify 3.4.16, Apache-2.0 / MPL-2.0), copiado en el sitio. -->
+<script src="purify.min.js?v=3.4.16"></script>
+<script src="admin-communications.js?v=20261103d"></script>
+<!-- §115: Send Text & WhatsApp (también los botones de la ficha del jugador). -->
+<script src="admin-text-whatsapp.js?v=20261106a"></script>
+<script src="admin-delivery-problems.js?v=20261014a"></script>
+<script src="admin-comms-hub.js?v=20261103c"></script>
+<script src="admin-comms-results.js?v=20261011d"></script>
+<script src="admin-promotions.js?v=20261110a"></script>
 <script src="admin-subscriber-reminder.js?v=20261005a"></script>
-<script src="admin-newsletter.js?v=20261005b"></script>
+<script src="admin-newsletter.js?v=20261028a"></script>
 <!-- TEMPORARY: fills in missing dates of birth from a CSV import.
      Delete this line and temp-dob-backfill.js once every player has one.
      See the header of that file. -->
 <script src="temp-dob-backfill.js?v=20260928b"></script>
-<script src="admin-players.js?v=20261008a"></script>
-<script src="admin-players-email.js?v=20261005a"></script>
+<script src="admin-players.js?v=20261110a"></script>
 <script src="admin-ftc-standings.js?v=20260928b"></script>
-<script src="admin-ftc-playoffs-schedule.js?v=20260928b"></script>
-<script src="admin-ftc-teams.js?v=20260928b"></script>
-<script src="app.js?v=20261004c"></script>
-<script src="tournament.js?v=20261004c"></script>
+<script src="admin-ftc-playoffs-schedule.js?v=20261110a"></script>
+<script src="admin-ftc-teams.js?v=20261110a"></script>
+<!-- §105: los días de las clínicas (antes de app.js, que los usa al guardar). -->
+<script src="event-days.js?v=20261020a"></script>
+<script src="admin-event-days.js?v=20261020a"></script>
+<script src="app.js?v=20261111a"></script>
+
+<script src="tournament.js?v=20261123a"></script>
+<!-- §116 Auto Courts (SQL 131): las canchas automáticas del round robin. Después de tournament.js. -->
+<script src="admin-auto-courts.js?v=20261123a"></script>
+<script src="admin-checkin.js?v=20261123a"></script>
+<!-- Ajuste 30: después de app.js, porque espera a window.app.authReady. -->
+<script src="admin-avisos-problemas.js?v=20261014a"></script>
+<!-- Portal del Jugador (hitos 3 y 4): Player claims. Después de app.js, como el
+     contador de arriba: necesita window.app.authReady para su círculo rojo. -->
+<script src="admin-player-claims.js?v=20261014e"></script>
+<!-- Matchmaking M-2a: Player Safety (también después de app.js, por su círculo rojo). -->
+<script src="admin-player-safety.js?v=20261015b"></script>
+<script src="admin-play-games.js?v=20261016b"></script>
+<!-- §118: Lessons (SQL 134 + función "lessons"). -->
+<script src="admin-lessons.js?v=20261112a"></script>
+<!-- SQL 106: Player Portal → Portal activity (después de app.js). -->
+<script src="admin-portal-activity.js?v=20261017a"></script>
+<!-- §113: Reviews (después de app.js, por su círculo rojo). -->
+<script src="admin-reviews.js?v=20261102a"></script>
 <script>
   // ── Sidebar toggle — persisted in localStorage ──────────────────────
   (function() {

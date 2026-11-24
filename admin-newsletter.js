@@ -134,6 +134,13 @@
     if (file.size > 5 * 1024 * 1024)     { setStatus('Image must be under 5MB.', true); return; }
 
     setStatus('Uploading...');
+    /* §106: el flyer de un evento vive en una lista ("upcoming.2.image_url").
+       Si mientras sube se quita un evento, las posiciones cambian: se recuerda
+       el evento mismo (y el correo abierto) y, al terminar, la imagen va a
+       donde esté ahora ese evento; si ya no está, no se guarda. */
+    const edicion = _current;
+    const enLista = /^([a-z_]+)\.(\d+)\.([a-z_]+)$/i.exec(path);
+    const item = enLista && Array.isArray(get(enLista[1], null)) ? get(enLista[1], [])[Number(enLista[2])] : null;
     try {
       const ext  = file.name.split('.').pop().toLowerCase();
       const name = `${Date.now()}_${path.replace(/[^a-z0-9]/gi, '_')}.${ext}`;
@@ -147,7 +154,14 @@
         const e = await res.json().catch(() => ({}));
         throw new Error(e.message || `Upload failed (${res.status})`);
       }
-      set(path, `${CFG.SUPABASE_URL}/storage/v1/object/public/newsletter-images/${name}`);
+      if (_current !== edicion) return;   // se abrió otro correo mientras subía
+      let destino = path;
+      if (item) {
+        const ahora = get(enLista[1], []).indexOf(item);
+        if (ahora < 0) { toast('The event was removed before its image finished uploading.', true); return; }
+        destino = `${enLista[1]}.${ahora}.${enLista[3]}`;
+      }
+      set(destino, `${CFG.SUPABASE_URL}/storage/v1/object/public/newsletter-images/${name}`);
       setStatus('');
       renderSections();
       toast('Image uploaded.');
@@ -249,6 +263,11 @@
       </div>`)
       + items.map((_, i) => itemBox(
         field('Name', `upcoming.${i}.title`) +
+        /* §106 (opción B): el flyer lo sube la persona aquí, evento por
+           evento. "Add from Events" no lo trae. Con flyer, el correo enseña
+           la imagen a lo ancho en vez de la tarjeta del calendario. */
+        imageField('Flyer image', `upcoming.${i}.image_url`,
+          'Optional. With a flyer, the email shows the image full width (instead of the calendar card), then the short description and the button.') +
         field('Date', `upcoming.${i}.date`, { placeholder: 'Starts October 2, 2026' }) +
         field('Time', `upcoming.${i}.time`, { placeholder: '8:30 AM – 10:30 AM' }) +
         field('Location', `upcoming.${i}.location`) +
@@ -306,9 +325,16 @@
       // something to edit. Importing fills the name in, so an empty field
       // and an "Add division" button up front asked the admin to do work
       // the importer was about to do for them.
-      + (items.length
+      /* §108: con un collage y sin divisiones la sección sale igual (con su
+         nombre), así que el nombre del torneo se enseña también entonces. */
+      + (items.length || get('champions_image')
           ? field('Tournament name', 'champions_sub', { placeholder: 'Mamba Day 2026 · Sunday, August 23, 2026' })
           : '')
+      /* §108: el collage de los ganadores (una sola imagen, la hace la dueña).
+         En el correo va a lo ancho, debajo del nombre y antes de las tarjetas.
+         Sin collage, nada: ni hueco. */
+      + imageField('Champions collage', 'champions_image',
+          'Optional. One image with the winners\' photos — it shows full width under the tournament name, above the divisions. Landscape, about 1200 px wide, looks best.')
       + items.map((_, i) => {
         const pod = get(`champions.${i}.podium`, ['', '', '']);
         return itemBox(
@@ -328,7 +354,134 @@
     ${field('Signature', 'coach.author', { placeholder: 'Coach Leminyer' })}
     ${field("This month's challenge", 'coach.challenge', { textarea: true, rows: 3 })}`);
 
-  const secPick = () => sectionCard(5, 'FEROCIA Pick of the Month', 'One product — never a carousel', `
+  /* ─── VIDEO OF THE MONTH (ajuste 29, decisiones §38) ─────────
+     The Academy video marked as "Video of the Month" in the Videos screen,
+     brought in with one click — like "Add from Events". It is a COPY:
+     what the preview shows is what is sent, even if the Video of the Month
+     changes later. Only the 11-character YouTube code is kept; the email
+     builds the link and the picture from it (send-newsletter/template.ts),
+     always towards youtube.com and i.ytimg.com. */
+  const FV = window.FerociaVideos;
+  let _videoAviso = '';   // the line under the button: "looking…", "none marked", errors
+  let _trayendoVideo = null;   // the edition whose video is being looked up, if any
+
+  /* Wrapped in its own box so it can be redrawn ALONE: redrawing every
+     section would take the cursor out of whatever field she is typing in
+     while the video loads. */
+  const secVideo = () => `<div id="nlv-seccion">${secVideoDentro()}</div>`;
+  const pintarVideo = () => {
+    const caja = document.getElementById('nlv-seccion');
+    if (caja) caja.innerHTML = secVideoDentro(); else renderSections();
+  };
+
+  const secVideoDentro = () => {
+    const v = get('video', null);
+    const ocupado = _trayendoVideo !== null && _trayendoVideo === _current;
+    const dis = ocupado ? ' disabled' : '';
+    const hay = !!(v && FV && FV.idValido(v.youtube_id));
+    const aviso = _videoAviso ? `<div class="nlv-aviso" role="status">${esc(_videoAviso)}</div>` : '';
+    if (!hay) {
+      return sectionCard(5, 'Video of the Month', 'The Academy video of the month — readers watch it on YouTube',
+        (isSent()
+          ? '<div class="nlv-vacio">This edition went out without a video.</div>'
+          : `<button type="button" class="nlv-traer" data-action="nlAddVideo"${dis}>
+               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/></svg>
+               Add Video of the Month
+             </button>
+             <div class="nlv-ayuda">Brings in the video marked with the star in Videos. Leave it out and the section is not shown.</div>`)
+        + aviso);
+    }
+    return sectionCard(5, 'Video of the Month', 'The Academy video of the month — readers watch it on YouTube', `
+      <div class="nlv-ficha">
+        <img class="nlv-imagen" src="${esc(FV.imagen(v.youtube_id, 'mq'))}" alt="">
+        <div class="nlv-ficha-txt">
+          <div class="nlv-codigo">youtube.com/watch?v=${esc(v.youtube_id)}</div>
+          ${isSent() ? '' : `
+          <div class="nlv-botones">
+            <button type="button" class="nlv-enlace" data-action="nlAddVideo"${dis}>Bring in the current one again</button>
+            <button type="button" class="nlv-quitar" data-action="nlRemoveVideo"${dis}>Remove</button>
+          </div>`}
+        </div>
+      </div>
+      ${aviso}
+      ${field('Title', 'video.title')}
+      ${field('Short description', 'video.description', { textarea: true, rows: 2,
+         hint: 'Optional. Copied from Videos — changing it here only changes this email.' })}`);
+  };
+
+  /* maxresdefault does not exist for every video: YouTube then answers
+     with a 120px grey picture (or an error). The email cannot check that
+     when it is opened, so it is checked here, once, and the size is kept. */
+  const tamanoImagen = (id) => new Promise((resolve) => {
+    const img = new Image();
+    const fin = (t) => { clearTimeout(reloj); img.onload = img.onerror = null; resolve(t); };
+    const reloj = setTimeout(() => fin('mq'), 6000);
+    img.onload = () => fin(img.naturalWidth > 120 ? 'max' : 'mq');
+    img.onerror = () => fin('mq');
+    img.src = FV.imagen(id, 'max');
+  });
+
+  window.nlAddVideo = async () => {
+    if (isSent() || !FV || (_trayendoVideo && _trayendoVideo === _current)) return;
+    const edicion = _current;
+    /* Bringing it in again replaces the title and the line she may have
+       rewritten here, so it asks first — like Remove. */
+    if (get('video', null)) {
+      const ok = await confirmModal({
+        title: 'Bring in the Video of the Month again?',
+        focusCancel: true,
+        message: 'The title and the line in this email go back to what is in Videos.',
+        okLabel: 'Bring it in', cancelLabel: 'Cancel',
+      });
+      if (!ok || _current !== edicion) return;
+    }
+    _trayendoVideo = edicion;
+    _videoAviso = 'Looking for the Video of the Month…';
+    pintarVideo();
+    try {
+      const filas = await window.api('videos?select=youtube_id,title,description,topic,topics'
+        + '&is_featured=eq.true&is_visible=eq.true&limit=1');
+      const v = Array.isArray(filas) ? filas[0] : null;
+      if (_current !== edicion) return;            // another edition was opened meanwhile
+      if (!v || !FV.idValido(v.youtube_id)) {
+        _videoAviso = 'No video is marked as Video of the Month. Mark one with the star in Videos, then try again.';
+        return;
+      }
+      const tam = await tamanoImagen(v.youtube_id);
+      if (_current !== edicion) return;
+      set('video', {
+        youtube_id: v.youtube_id,
+        title: String(v.title || ''),
+        description: String(v.description || ''),
+        // §109: todos los tópicos del video ("Serve & Return · Mistakes").
+        topic_label: FV.etiquetas(v),
+        thumb: tam,
+      });
+      _videoAviso = '';
+    } catch (err) {
+      console.warn('[newsletter] Video of the Month:', err);
+      if (_current === edicion) _videoAviso = 'The video could not be loaded. Check the connection and try again.';
+    } finally {
+      if (_trayendoVideo === edicion) _trayendoVideo = null;
+      if (_current === edicion) pintarVideo();
+    }
+  };
+
+  window.nlRemoveVideo = async () => {
+    if (isSent()) return;
+    const ok = await confirmModal({
+      title: 'Remove the video from this edition?',
+      focusCancel: true,
+      message: 'Only this email changes. The video stays in Videos and on YouTube.',
+      okLabel: 'Remove', cancelLabel: 'Cancel',
+    });
+    if (!ok || (_trayendoVideo && _trayendoVideo === _current)) return;
+    set('video', null);
+    _videoAviso = '';
+    pintarVideo();
+  };
+
+  const secPick = () => sectionCard(6, 'FEROCIA Pick of the Month', 'One product — never a carousel', `
     ${field('Product name', 'pick.name')}
     ${imageField('Product photo', 'pick.image_url',
        'Optional. A photo of the product — the email still reads fine without one.')}
@@ -338,7 +491,7 @@
 
   const secNumbers = () => {
     const items = get('numbers.items', []);
-    return sectionCard(6, 'Around FEROCIA', 'Monthly activity — only the metrics worth showing',
+    return sectionCard(7, 'Around FEROCIA', 'Monthly activity — only the metrics worth showing',
       field('Subtitle', 'numbers.subtitle', { placeholder: 'September by the numbers' })
       + items.map((_, i) => `
         <div style="display:flex;gap:8px;align-items:flex-start;">
@@ -354,7 +507,7 @@
     const el = document.getElementById('nl-sections');
     if (!el || !_current) return;
     el.innerHTML = secHeader() + secUpcoming() + secSpotlight() + secChampions()
-                 + secCoach() + secPick() + secNumbers();
+                 + secCoach() + secVideo() + secPick() + secNumbers();
   };
 
   // One delegated listener rather than one per field: the sections are
@@ -580,18 +733,60 @@
         return;
       }
       const catIds = cats.map((c) => c.id).join(',');
-      const [teams, matches] = await Promise.all([
-        api(`tournament_teams?category_id=in.(${catIds})&select=id,category_id,name`),
+      const [teams, matches, bracket] = await Promise.all([
+        api(`tournament_teams?category_id=in.(${catIds})&select=id,category_id,name,player1_id,player2_id,player3_id,player4_id`),
         api(`tournament_rr_matches?category_id=in.(${catIds})`
           + `&select=category_id,status,team_a_id,team_b_id,score_a,score_b,winner_id,forfeit_team_id`),
+        /* §110: la fase final, para que el podio sea el de la página de resultados. */
+        api(`tournament_bracket_matches?category_id=in.(${catIds})&select=category_id,round_name,status,team_a_id,team_b_id,winner_id`),
       ]);
+
+      /* §110 (1 A): los nombres de los jugadores de cada equipo, "Nombre Apellido & Nombre Apellido",
+         como en la página de resultados. Se piden de 150 en 150 (la dirección no puede ser infinita). */
+      const miembros = (tm) => [tm.player1_id, tm.player2_id, tm.player3_id, tm.player4_id].filter(Boolean);
+      const ids = [...new Set((teams || []).flatMap(miembros))];
+      const nombres = new Map();
+      try {
+        for (let k = 0; k < ids.length; k += 150) {
+          const filas = await api(`players?id=in.(${ids.slice(k, k + 150).join(',')})&select=id,first_name,last_name`);
+          (filas || []).forEach((p) => nombres.set(p.id, [p.first_name, p.last_name].map((x) => String(x || '').trim()).filter(Boolean).join(' ')));
+        }
+      } catch (e) {
+        /* Si los nombres no se pueden leer, se importa igual, con los nombres de equipo. */
+        console.warn('[newsletter] no se pudieron leer los jugadores:', e);
+        nombres.clear();
+      }
+      /* Si un equipo no tiene jugadores (o no se encuentran), queda su nombre de equipo, como antes. */
+      const nombreDe = (tm) => {
+        if (!tm) return '';
+        const n = miembros(tm).map((id) => nombres.get(id)).filter(Boolean);
+        return n.length ? n.join(' & ') : String(tm.name || '');
+      };
+      const equipo = new Map((teams || []).map((tm) => [tm.id, tm]));
+
+      /* §110 (2 A): con fase final, el podio sale de la Final (campeón y 2.º) y del partido
+         por el 3.er puesto, igual que la página de resultados. Sin Final terminada, de la
+         fase de grupos, como antes. */
+      const podioDeLaFinal = (cb) => {
+        const fin = cb.find((m) => m.round_name === 'Final' && m.status === 'completed' && m.winner_id);
+        if (!fin) return null;
+        const segundo = fin.team_a_id === fin.winner_id ? fin.team_b_id : fin.team_a_id;
+        const tercero = cb.find((m) => m.round_name === '3rd Place' && m.status === 'completed' && m.winner_id);
+        /* Si el campeón no se encuentra, no se sube a nadie de puesto: fase de grupos. */
+        if (!equipo.get(fin.winner_id)) return null;
+        /* Cada puesto en su sitio (un hueco se queda vacío, no se corre). */
+        return [fin.winner_id, segundo, tercero && tercero.winner_id].map((id) => (id && equipo.get(id)) || null);
+      };
 
       const added = [];
       (cats || []).forEach((c) => {
         const ct = (teams || []).filter((x) => x.category_id === c.id);
         const cm = (matches || []).filter((m) => m.category_id === c.id);
         if (!ct.length) return;
-        const podium = calcPodium(ct, cm).slice(0, 3).map((r) => r.team.name);
+        const cb = (bracket || []).filter((m) => m.category_id === c.id);
+        const podium = (podioDeLaFinal(cb) || calcPodium(ct, cm).slice(0, 3).map((r) => r.team)).map(nombreDe);
+        /* Siempre los tres campos (Champion, 2nd, 3rd) en el editor, aunque uno quede vacío. */
+        while (podium.length < 3) podium.push('');
         // A division with no completed matches produces no real podium.
         if (!podium.length) return;
         // tournament_categories has no skill/level column — the level is
@@ -809,6 +1004,7 @@
     const n = preloaded || _issues.find((x) => String(x.id) === String(id));
     if (!n) { toast('Edition not found.', true); return; }
     _current = { ...n, content: n.content || {} };
+    _videoAviso = '';
     setDirty(false);
 
     document.getElementById('nl-list-view').style.display = 'none';
@@ -1040,6 +1236,12 @@
      El aviso nombra lo que está en juego: que lo que saldría NO es lo
      que ella está viendo. */
   const guardarAntesDe = async (queIba) => {
+    /* Ajuste 29: the video arrives a few seconds after the click. Going
+       ahead now would save — and use — the edition without it. */
+    if (_trayendoVideo && _trayendoVideo === _current) {
+      toast(`The Video of the Month is still loading, so ${queIba} was not started. Try again in a moment.`, true);
+      return false;
+    }
     if (!_dirty) return true;
     const ok = await window.nlSave();
     /* Sólo se añade el aviso cuando la escritura FALLÓ. Si se guardó y lo
@@ -1297,7 +1499,9 @@
            terminado, "on this attempt" frente a "in total" deja ver que
            pueden ser los mismos. */
         (data.failed && !data.complete) ? `${data.failed} failed on this attempt` : '',
-        data.skipped           ? `${data.skipped} already had it` : '',
+        /* `already_sent` desde el ajuste 18 (antes `skipped`, el único
+           envío que lo llamaba distinto). */
+        (data.already_sent ?? data.skipped) ? `${data.already_sent ?? data.skipped} already had it` : '',
         /* ── LOS QUE YA NO VAN A RECIBIRLO ────────────────────────
            El servidor manda estos dos números desde que existe el motor
            compartido, y esta pantalla no leía ninguno. Era el agujero
@@ -1413,10 +1617,12 @@
     nlPickConfirm:     () => window.nlPickConfirm(),
     nlLadderChoose:    (btn) => window.nlLadderChoose(parseInt(btn.dataset.i, 10)),
     nlTournamentChoose:(btn) => window.nlTournamentChoose(parseInt(btn.dataset.i, 10)),
-    nlAddUpcoming:     () => listAdd('upcoming',  { title: '', date: '', time: '', url: '', cta_label: 'Register Now' }),
+    nlAddUpcoming:     () => listAdd('upcoming',  { title: '', image_url: '', date: '', time: '', url: '', cta_label: 'Register Now' }),
     nlAddSpotlight:    () => listAdd('spotlight', { ladder: '', period: '', top_men: [], top_women: [] }),
     nlAddChampion:     () => listAdd('champions', { division: '', level: '', podium: ['', '', ''] }),
     nlAddMetric:       () => listAdd('numbers.items', { value: '', label: '' }),
     nlAddPlayer:       (btn) => listAdd(btn.dataset.path, { name: '', detail: '' }),
+    nlAddVideo:        () => window.nlAddVideo(),
+    nlRemoveVideo:     () => window.nlRemoveVideo(),
   });
 })();

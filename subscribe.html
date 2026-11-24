@@ -17,18 +17,27 @@
   <meta name="twitter:description"content="Subscribe to get event invites, tournament news, ladder updates and member-only promos from Ferocia Sports Center.">
   <meta name="twitter:image"      content="https://ferociasports.com/og-preview.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="design-tokens.css?v=20260926a">
-<link rel="stylesheet" href="country-codes.css?v=20260926a">
+<link rel="stylesheet" href="design-tokens.css?v=20261013a">
+<link rel="stylesheet" href="country-codes.css?v=20261013a">
+<link rel="stylesheet" href="subscribe-turnstile.css?v=20261013d">
 <!-- Primero de todos y sin dependencias: cuanto antes corra, antes queda
      capturado de dónde viene la visita. También se carga en index.html,
      que es donde de verdad aterriza la gente que viene de un anuncio. -->
 <script src="attribution.js?v=20260926a"></script>
 <script src="config.js?v=20260929j"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- SRI (§101): supabase-js fijo en 2.118.0; el navegador sólo lo ejecuta si es EXACTAMENTE ese archivo.
+     Si se cambia la versión, hay que poner la huella nueva al mismo tiempo (o la página no arranca). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="db.js?v=20261004c"></script>
-<script src="assets.js?v=20260926a"></script>
-<script src="country-codes.js?v=20260926a"></script>
-<script src="location-fields.js?v=20260929a"></script>
+<script src="assets.js?v=20261013a"></script>
+<script src="country-codes.js?v=20261013a"></script>
+<script src="location-fields.js?v=20261018a"></script>
+<!-- Ajuste 21: Turnstile (Cloudflare) comprueba que quien rellena esto es
+     una persona. Este archivo carga el de Cloudflare y lleva la clave
+     PÚBLICA; la secreta vive sólo en el servidor. -->
+<script src="subscribe-turnstile.js?v=20261013d"></script>
+<!-- §107: al suscribirse bien, a la portada con el mensaje en un popup. -->
+<script src="alta-hecha.js?v=20261022a"></script>
 <!-- Esta página es pública: cualquiera puede leer su código fuente. Por
      eso no carga ningún servicio de correo ni lleva ninguna credencial.
      El correo de confirmación lo manda la función `subscribe-confirm`
@@ -382,6 +391,10 @@
           </div>
         </div>
 
+        <!-- Ajuste 21: la verificación de Turnstile. Casi siempre invisible;
+             si Cloudflare pide marcar la casilla, aparece aquí. -->
+        <div id="s-turnstile" class="turnstile-box"></div>
+        <div class="error-msg turnstile-error" id="err-turnstile" role="alert"></div>
         <button type="submit" class="btn" id="subscribe-btn">Subscribe Now</button>
         <!-- Honeypot: hidden from humans, bots fill this automatically -->
         <div style="position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;overflow:hidden;" aria-hidden="true">
@@ -397,7 +410,7 @@
       <div class="success-body" id="success-normal">
         We sent a confirmation email to:<br>
         <span class="success-email" id="confirm-email-shown"></span>
-        Please check your inbox and click the confirmation link to complete your subscription.
+        Please check your inbox — including your spam folder — and click the confirmation link to complete your subscription.
       </div>
       <!-- El servidor guardó a la persona pero NO pudo mandarle el
            correo. Antes se le enseñaba igualmente "te hemos enviado un
@@ -614,6 +627,8 @@
       document.getElementById('form-section').style.display = 'none';
       document.getElementById('confirm-email-shown').textContent = email;
       document.getElementById('success-screen').style.display = 'block';
+      // §107: lo mismo que una suscripción buena, para no darle pistas a un robot.
+      try { if (window.FerociaSubscribeDone) window.FerociaSubscribeDone.go('sent', email); } catch (_) {}
       return;
     }
 
@@ -674,6 +689,29 @@
     btn.disabled = true;
     btn.textContent = 'Processing...';
 
+    /* SQL 109 (§93): la ciudad tiene que estar en el estado elegido.
+       Si no, el aviso con el botón para arreglarlo queda bajo los campos. */
+    if (!(await FerociaLocation.comprobarLugar('s-city', 's-state', cityVal.value, stateVal.value))) {
+      btn.disabled = false;
+      btn.textContent = 'Subscribe Now';
+      return;
+    }
+
+    /* Ajuste 21: la verificación de Turnstile (subscribe-turnstile.js).
+       Si el archivo no cargó, se manda sin ella: el servidor guarda la
+       ficha pero no manda el correo, y la persona ve a quién escribir. */
+    const Turnstile = window.FerociaTurnstile || null;
+    if (Turnstile) Turnstile.ocultarError();
+    const verif = Turnstile ? await Turnstile.obtener() : { token: null };
+    if (verif.necesitaClic || verif.esperar) {
+      Turnstile.mostrarError(verif.esperar
+        ? 'Still checking that you are a person. Please wait a few seconds and press Subscribe Now again.'
+        : 'Please complete the quick check above, then press Subscribe Now again.');
+      btn.disabled = false;
+      btn.textContent = 'Subscribe Now';
+      return;
+    }
+
     try {
       /* ── EL ALTA LA HACE EL SERVIDOR ─────────────────────────────
          Las dos cosas —guardar a la persona y mandarle el correo de
@@ -706,8 +744,13 @@
           // Dato blando: lo que la persona dice.
           heard_about: heardVal.heard,
           heard_about_other: heardVal.other,
+          // Ajuste 21: la prueba de que es una persona (o null).
+          turnstile_token: verif.token || null,
         },
       });
+      /* Cada verificación vale UNA vez: si hay que volver a intentarlo
+         (un error, "ya existe"…), se necesita otra. */
+      if (Turnstile && verif.token) Turnstile.usado();
       /* supabase-js SÍ trata un 400/500 como fallo: pone `fnError` y
          deja `result` en null. Pero el mensaje que trae es siempre el
          mismo texto genérico ("Edge Function returned a non-2xx status
@@ -784,6 +827,11 @@
              hace es decirle la verdad y darle a dónde escribir — y ahora
              hay un botón en el admin para atenderla cuando escriba. */
           showFieldError('s-email', 'err-email', 'You unsubscribed from this list. To start receiving our emails again, write to contact@ferociasports.com and we will add you back.');
+        } else if (status === 'bounced') {
+          /* Ajuste 16: el correo a esta dirección rebotó (no existe o no
+             recibe). Decirle "ya estás registrada" sería decirle que le
+             van a llegar correos que no le llegan. */
+          showFieldError('s-email', 'err-email', 'Our emails to this address could not be delivered. Please sign up with a different email, or write to contact@ferociasports.com.');
         } else {
           showFieldError('s-email', 'err-email', 'This name and email are already registered.');
         }
@@ -811,9 +859,16 @@
       document.getElementById('success-normal').style.display = salioElCorreo ? '' : 'none';
       document.getElementById('success-sin-correo').style.display = salioElCorreo ? 'none' : '';
       document.getElementById('success-screen').style.display = 'block';
+      /* §107: a la portada, con este mismo mensaje en un popup. La pantalla
+         de arriba queda de respaldo por si el archivo no cargara. */
+      /* Ya está suscrita: si el salto fallara, NO debe caer en el "error" de abajo. */
+      try { if (window.FerociaSubscribeDone) window.FerociaSubscribeDone.go(salioElCorreo ? 'sent' : 'no_email', email); }
+      catch (e) { console.error('[Ferocia subscribe] No se pudo ir a la portada:', e); }
 
     } catch (err) {
       console.error('[Ferocia subscribe] Error:', err);
+      /* Si la petición se cortó, la verificación pudo gastarse igual. */
+      if (Turnstile && verif.token) Turnstile.usado();
       /* Los códigos del servidor, traducidos. Sin esto la persona veía
          literalmente "Something went wrong: falta_nombre", que no
          significa nada para nadie que no haya escrito este código. */
@@ -828,8 +883,18 @@
         unexpected_response: 'We could not reach the subscription service. Please try again in a moment.',
         method_not_allowed:  'Something went wrong. Please try again.',
       };
+      /* Ajuste 21: lo de Turnstile se dice debajo de su casilla, no
+         debajo del email (el email está bien). */
+      const MENSAJES_VERIFICACION = {
+        verificacion_fallida:  'We could not verify that you are a person. Please reload the page and try again, or write to contact@ferociasports.com.',
+        verificacion_caducada: 'The security check expired. Please press Subscribe Now again.',
+      };
       const m = (err && err.message) || '';
-      if (MENSAJES[m]) {
+      if (MENSAJES_VERIFICACION[m] && Turnstile) {
+        Turnstile.mostrarError(MENSAJES_VERIFICACION[m]);
+      } else if (MENSAJES_VERIFICACION[m]) {
+        showFieldError('s-email', 'err-email', MENSAJES_VERIFICACION[m]);
+      } else if (MENSAJES[m]) {
         showFieldError('s-email', 'err-email', MENSAJES[m]);
       } else if (m.toLowerCase().includes('duplicate')) {
         showFieldError('s-email', 'err-email', 'This email is already registered.');

@@ -19,17 +19,21 @@
   <meta name="twitter:image"      content="https://ferociasports.com/og-preview.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="design-tokens.css?v=20260826g">
+<link rel="stylesheet" href="design-tokens.css?v=20261013a">
 <!-- Ésta es la página donde de verdad aterriza quien viene de un anuncio.
      Sin este archivo aquí, la etiqueta de la campaña se perdería en
      cuanto la persona hiciera clic en "Subscribe Now", porque eso ya es
      otra página. Va primero y no depende de nada. -->
 <script src="attribution.js?v=20260926a"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- SRI (§101): supabase-js fijo en 2.118.0; el navegador sólo lo ejecuta si es EXACTAMENTE ese archivo.
+     Si se cambia la versión, hay que poner la huella nueva al mismo tiempo (o la página no arranca). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="config.js?v=20260929j"></script>
 <script src="db.js?v=20261004c"></script>
-<script src="assets.js?v=20260826g"></script>
+<script src="assets.js?v=20261013a"></script>
+<!-- §105: las clínicas enseñan el día y la hora, no una fecha. -->
+<script src="event-days.js?v=20261020a"></script>
 <style>
 :root {
   /* Dark-theme override — this page uses a dark hero background with
@@ -300,6 +304,15 @@ footer{
   .footer-links{gap:16px;}
 }
 </style>
+<!-- Ajuste 24: la franja de programas y la Ferocia Pickleball Academy.
+     Después del <style> de arriba a propósito: sus reglas de la franja
+     mandan sobre las de allí. -->
+<link rel="stylesheet" href="index-academy.css?v=20261014c">
+<!-- Ajuste 29: "PICKLEBALL" cabe en el teléfono. -->
+<link rel="stylesheet" href="index-portada.css?v=20261014a">
+<!-- §107: el popup "Almost Done!" después de suscribirse. -->
+<link rel="stylesheet" href="alta-aviso.css?v=20261022a">
+<link rel="stylesheet" href="index-resenas.css?v=20261102a">
 </head>
 <body>
 
@@ -325,36 +338,94 @@ footer{
 </section>
 
 <!-- PROGRAMS STRIP -->
-<div class="strip">
-  <div class="pill">
-    <span class="pill-icon">🏓</span>
-    <div><div class="pill-label">Ladders</div><div class="pill-sub">Competitive weekly play</div></div>
-  </div>
-  <div class="pill">
-    <span class="pill-icon">🏆</span>
-    <div><div class="pill-label">Tournaments</div><div class="pill-sub">Monthly events</div></div>
-  </div>
-  <div class="pill">
-    <span class="pill-icon">📚</span>
-    <div><div class="pill-label">Clinics</div><div class="pill-sub">10 adult programs</div></div>
-  </div>
-  <div class="pill">
-    <span class="pill-icon">🎾</span>
-    <div><div class="pill-label">Junior Programs</div><div class="pill-sub">Development & drills</div></div>
-  </div>
-  <div class="pill" style="cursor:pointer;" onclick="window.location.href='store.html'">
-    <span class="pill-icon">🛒</span>
-    <div><div class="pill-label">Ferocia Gear</div><div class="pill-sub">Shop our store</div></div>
-  </div>
-</div>
+<!-- Ajuste 24: iconos SVG, y cada píldora hace algo. Ladders, Tournaments
+     y Clinics filtran Upcoming Events (index-programs.js); Junior Programs
+     abre un correo; Videos baja a la Academy; Gear, la tienda. -->
+<nav class="strip" aria-label="Programs">
+  <button type="button" class="pill" data-programa="ladder" aria-pressed="false">
+    <span class="pill-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></span>
+    <span><span class="pill-label">Ladders</span><span class="pill-sub">Competitive weekly play</span></span>
+  </button>
+  <button type="button" class="pill" data-programa="tournament" aria-pressed="false">
+    <span class="pill-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
+    <span><span class="pill-label">Tournaments</span><span class="pill-sub">Monthly events</span></span>
+  </button>
+  <button type="button" class="pill" data-programa="clinic" aria-pressed="false">
+    <span class="pill-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10v6"/><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></span>
+    <span><span class="pill-label">Clinics</span><span class="pill-sub">10 adult programs</span></span>
+  </button>
+  <a class="pill" href="mailto:contact@ferociasports.com?subject=Junior%20Programs">
+    <span class="pill-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v6"/><path d="m8.5 21 3.5-7 3.5 7"/><path d="M7.5 11h9"/></svg></span>
+    <span><span class="pill-label">Junior Programs</span><span class="pill-sub">Development &amp; drills</span></span>
+  </a>
+  <a class="pill" href="#academy" id="pill-videos" hidden>
+    <span class="pill-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/></svg></span>
+    <span><span class="pill-label">Videos</span><span class="pill-sub">Technique &amp; tips</span></span>
+  </a>
+  <a class="pill" href="store.html">
+    <span class="pill-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
+    <span><span class="pill-label">Ferocia Gear</span><span class="pill-sub">Shop our store</span></span>
+  </a>
+</nav>
 
 <!-- EVENTS -->
 <section class="sec" id="events">
   <div class="sec-eyebrow">What's Coming</div>
   <div class="sec-title">UPCOMING EVENTS</div>
+  <!-- Ajuste 24: qué programa se está mirando (index-programs.js). -->
+  <div class="ev-filtro" id="ev-filtro" hidden>
+    <span>Showing <strong id="ev-filtro-nombre"></strong></span>
+    <button type="button" class="ev-filtro-todos" id="ev-filtro-todos">Show all events</button>
+  </div>
   <div class="events-grid" id="events-grid">
     <div class="events-empty">Loading events...</div>
   </div>
+</section>
+
+<!-- FEROCIA PICKLEBALL ACADEMY (ajuste 24) — la rellena index-videos.js
+     con los videos del panel. Escondida hasta que haya alguno. Todo abre
+     YouTube en una pestaña nueva. -->
+<section class="sec academy" id="academy" hidden>
+  <!-- Ajuste 26: el nombre grande, en lima (como "Ferocia Sports Center"
+       en la portada); el lema más pequeño, debajo. -->
+  <h2 class="ac-nombre-seccion">Ferocia Pickleball Academy</h2>
+  <div class="ac-cabecera">
+    <div class="ac-cabecera-txt">
+      <p class="ac-titulo">Play Smarter.</p>
+      <p class="ac-lead">Free technique videos from the Ferocia coaches — dinks, drops, returns and doubles strategy. A new video every month on our YouTube channel.</p>
+    </div>
+  </div>
+  <!-- Ajuste 27: el video del mes a la izquierda y, a la derecha, la caja
+       para suscribirse (antes estaba al final). En el móvil, una debajo de
+       la otra. Ya no hay lista de videos al lado: se repetían abajo. -->
+  <div class="ac-principal">
+    <div id="ac-destacado" class="ac-destacado-caja"></div>
+    <div class="ac-cierre">
+      <div class="ac-cierre-txt">
+        <div class="ac-cierre-titulo">A new technique every month. <span>Don't miss one.</span></div>
+        <div class="ac-cierre-sub">Subscribe on YouTube and get notified when the next one drops.</div>
+      </div>
+      <div class="ac-cierre-btns">
+        <a class="ac-btn ac-btn-lima" href="https://www.youtube.com/@ferociasports?sub_confirmation=1" target="_blank" rel="noopener">Subscribe on YouTube</a>
+        <a class="ac-btn ac-btn-borde" href="https://www.youtube.com/@ferociasports/videos" target="_blank" rel="noopener">All videos</a>
+      </div>
+    </div>
+  </div>
+  <!-- Los demás videos (sin el del mes), con filtros por tema. -->
+  <div class="ac-mas" id="ac-mas" hidden>
+    <div class="ac-rotulo">More videos</div>
+    <div class="ac-chips" id="ac-chips" role="group" aria-label="Filter videos by topic" hidden></div>
+    <div class="ac-grid" id="ac-grid"></div>
+  </div>
+</section>
+
+<!-- §113: WHAT PLAYERS SAY — la rellena index-resenas.js con las reviews
+     que se marcaron "Show on website" en el panel. Escondida hasta que haya
+     alguna. Nombre e inicial del apellido; sin promedio de estrellas. -->
+<section class="sec rvs" id="reviews" hidden>
+  <div class="sec-eyebrow">Player Reviews</div>
+  <h2 class="sec-title">WHAT PLAYERS SAY</h2>
+  <div class="rvs-grid" id="rvs-grid"></div>
 </section>
 
 <!-- SUBSCRIBE -->
@@ -381,6 +452,8 @@ footer{
     <a href="subscribe.html" class="footer-link">Subscribe</a>
     <a href="https://instagram.com/ferociasports" class="footer-link" target="_blank" rel="noopener">@ferociasports</a>
     <a href="mailto:contact@ferociasports.com" class="footer-link">contact@ferociasports.com</a>
+    <a href="terms.html" class="footer-link">Terms</a>
+    <a href="privacy.html" class="footer-link">Privacy</a>
   </div>
   <div class="footer-copy">© 2026 Ferocia Sports Center. All rights reserved.</div>
 </footer>
@@ -422,7 +495,9 @@ footer{
   });
 
   // ── Load upcoming events ──────────────────────────────────
-  const today = new Date().toISOString().split('T')[0];
+  /* "Hoy" en la hora del club (Florida). toISOString() da la fecha de
+     Londres: después de las 8 de la noche ya era "mañana" (ajuste 2). */
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
   let events = [];
   /* WHICH EVENTS ARE STILL SHOWN
      event_date means different things per type: for a tournament it is the
@@ -431,15 +506,15 @@ footer{
      began, even though it runs every week.
 
        · tournament / other  → hidden once their date has passed
-       · ladder              → shown until end_date (or forever if unset,
-                               so an older ladder never silently disappears)
+       · ladder              → hidden the day after it STARTS (registration
+                               is closed by then) — portal ajuste 2, §52
        · clinic / private    → always shown; they recur with no end
 
      Order by date, then time. nullslast matters twice: PostgREST puts
      nulls FIRST by default, which would push an event with no time ahead
      of one starting at 8am the same day. */
   try {
-    events = await api(`events?or=(event_date.gte.${today},and(event_type.eq.ladder,or(end_date.gte.${today},end_date.is.null)),event_type.in.(clinic,private_session))&select=*&order=event_date.asc,event_time.asc.nullslast`);
+    events = await api(`events?or=(event_date.gte.${today},event_type.in.(clinic,private_session))&select=*&order=event_date.asc,event_time.asc.nullslast`);
   } catch(_) {}
 
   /* Recurring events last. A clinic that started in July would otherwise
@@ -462,7 +537,13 @@ footer{
       .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     grid.innerHTML = events.map((ev) => {
       const d = new Date(ev.event_date + 'T00:00:00');
-      const dateLabel = d.toLocaleDateString('en-US', { weekday:'short', month:'long', day:'numeric', year:'numeric' });
+      /* §105: una clínica se repite cada semana. En vez de su fecha de inicio
+         (que parecía vencida) dice el día: "Tuesday", "Tue & Thu". Si todavía
+         no empezó, además "Starts Nov 4". */
+      const DIAS = window.FerociaEventDays;
+      const dateLabel = (ev.event_type === 'clinic' && DIAS && DIAS.days(ev).length)
+        ? [DIAS.label(DIAS.days(ev)), DIAS.startsLabel(ev, today)].filter(Boolean).join(' · ')
+        : d.toLocaleDateString('en-US', { weekday:'short', month:'long', day:'numeric', year:'numeric' });
       const img = ev.flyer_url
         ? `<img class="ecard-img" src="${esc(ev.flyer_url)}" alt="${esc(ev.title)}" loading="lazy">`
         : `<div class="ecard-placeholder">🏓</div>`;
@@ -485,7 +566,7 @@ footer{
               onclick="event.stopPropagation();" class="ecard-reg">
              <span>Register Now</span>
            </a>` : '';
-      return `<div class="ecard" data-flyer="${esc(ev.flyer_url||'')}" data-reg="${esc(ev.registration_url||'')}" onclick="openFlyer(this)">
+      return `<div class="ecard" data-type="${esc(ev.event_type || '')}" data-flyer="${esc(ev.flyer_url||'')}" data-reg="${esc(ev.registration_url||'')}" onclick="openFlyer(this)">
         ${img}
         <div class="ecard-body">
           <div class="ecard-date">📅 ${dateLabel}</div>
@@ -517,7 +598,16 @@ footer{
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
   });
 
+  /* Ajuste 24: los eventos ya están pintados; la franja puede filtrarlos. */
+  window.__ferociaEventosListos = true;
+  document.dispatchEvent(new Event('ferocia:eventos'));
 })();
 </script>
+<!-- Ajuste 24: la franja de programas y la Academy. -->
+<script src="videos-common.js?v=20261027a"></script>
+<script src="index-programs.js?v=20261013g"></script>
+<script src="index-videos.js?v=20261027a"></script>
+<script src="index-resenas.js?v=20261102a"></script>
+<script src="alta-aviso.js?v=20261022a"></script>
 </body>
 </html>

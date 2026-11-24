@@ -13,6 +13,9 @@
    SCOPE OF THIS DELIVERY — only "Overview" has a finished design from
    the founder's team, so only it is built with real content. The other
    6 tabs render a "Coming Soon" placeholder until designs arrive.
+   (Player DNA, etapa DNA-1 — 15 de octubre: la pestaña DNA ya enseña lo
+   que el jugador dijo en el portal, lo que FEROCIA ve en sus juegos y
+   sus reconocimientos, con admin_dna_jugador() del SQL 92.)
 
    HONEST DATA NOTES (flagged and approved as temporary/estimated):
      - No player photos — initials avatar only (matches the rest of
@@ -450,9 +453,54 @@
     const p = d.p;
     const age = ageFromDOB(p.date_of_birth);
 
-    const quickInfoHTML = `
+    /* Ajuste 16: Resend avisó de que su email rebota o de que marcó un
+       correo como spam. Nosotros no le quitamos nada (los jugadores no se
+       dan de baja), pero RESEND deja de entregar a esa dirección, así que
+       tampoco le llega lo del ladder ni los torneos: se dice tal cual. La
+       marca se quita sola al cambiar el email (sql/80). */
+    /* Ajuste 17: quitar la marca a mano (y sacar la dirección de la lista
+       de bloqueos de Resend). Estilos en admin-pages.css. */
+    const _botonQuitarMarca = '<div class="pp-aviso-email-pie"><button type="button" '
+      + 'class="pp-aviso-email-btn" data-action="ppClearEmailProblem">Clear</button></div>';
+    const problemaEmail = p.email_problem === 'complained'
+      ? `<div class="pp-aviso-email">This player marked one of our emails as spam`
+        + `${p.email_problem_at ? ` on ${esc(fmtDate(p.email_problem_at))}` : ''}. `
+        + 'Resend now blocks this address, so ladder and tournament emails will not '
+        + 'reach them either. Talk to the player.'
+        + _botonQuitarMarca + '</div>'
+      : p.email_problem === 'bounced'
+        ? `<div class="pp-aviso-email">Emails to this address bounce`
+          + `${p.email_problem_at ? ` (since ${esc(fmtDate(p.email_problem_at))})` : ''}, `
+          + 'so ladder and tournament emails are not reaching them. Check the address '
+          + 'with the player and edit it.'
+          + _botonQuitarMarca + '</div>'
+        : '';
+
+    /* §115: WhatsApp y Text, desde el teléfono de ella, con "Hi Ana, " ya
+       escrito (decisión 5A). Sin un número que se pueda usar no salen;
+       marcado "No WhatsApp", sólo Text; marcado "Do not email", ninguno
+       (igual que "Send Email" desde la ficha). */
+    function filaMensajes(j) {
+      const C = window.FerociaContacto;
+      if (!C) return '';
+      const n = C.numero(j.country_code, j.phone);
+      if (!n.ok) return '';
+      const contenido = j.do_not_email
+        ? '<span class="pp-msg-off">Marked &ldquo;Do not email&rdquo;: uncheck it in Edit Player to message them.</span>'
+        : [
+            /* Iconos (6 nov, 3A): los mismos de Send Text & WhatsApp. */
+            j.whatsapp !== 'no'
+              ? `<a class="tw-ico tw-ico-wa" href="${esc(C.enlaceWhatsApp(n.completo, C.conSaludo(j.first_name, '')))}" target="_blank" rel="noopener noreferrer" title="WhatsApp" aria-label="WhatsApp ${esc(j.first_name || '')}">${C.iconoHTML ? C.iconoHTML('wa') : 'WhatsApp'}</a>` : '',
+            `<a class="tw-ico tw-ico-sms" href="${esc(C.enlaceTexto(n.completo, C.conSaludo(j.first_name, '')))}" title="Text" aria-label="Text ${esc(j.first_name || '')}">${C.iconoHTML ? C.iconoHTML('sms') : 'Text'}</a>`,
+            j.whatsapp === 'no' ? `<span class="tw-ico tw-ico-no tw-ico-on tw-ico-static" title="No WhatsApp (change it in Edit Player)">${C.iconoHTML ? C.iconoHTML('no') : 'No WhatsApp'}</span>` : '',
+          ].join(' ');
+      return `<div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.phone)} Message</div><div class="pp-quick-val pp-msg">${contenido}</div></div>`;
+    }
+
+    const quickInfoHTML = `${problemaEmail}
       <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.mail)} Email</div><div class="pp-quick-val">${p.email ? esc(p.email) : '—'} ${p.email ? `<span class="${p.email_verified ? 'pp-pill-verified' : 'pp-pill-unverified'}">${p.email_verified ? 'Verified' : 'Unverified'}</span>` : ''}</div></div>
       <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.phone)} Phone</div><div class="pp-quick-val">${p.phone ? esc(FerociaPhone.format(p.country_code, p.phone)) : '—'} ${p.phone ? `<span class="${p.phone_verified ? 'pp-pill-verified' : 'pp-pill-unverified'}">${p.phone_verified ? 'Verified' : 'Unverified'}</span>` : ''}</div></div>
+      ${filaMensajes(p)}
       <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.skill)} Skill Level</div><div class="pp-quick-val">${p.skill_level ? esc(p.skill_level) : '—'}</div></div>
       <div class="pp-quick-row"><div class="pp-quick-lbl">${ppSVG(ICONS.star)} Coach Rating</div><div class="pp-quick-val">${
         p.coach_rating !== null && p.coach_rating !== undefined
@@ -2121,6 +2169,115 @@
     </div>`;
   };
 
+  // ── DNA tab (Player DNA, etapa DNA-1 — 15 de octubre, §62 y §63) ─────
+  // Lo que el jugador dijo en el portal, lo que FEROCIA ve en sus juegos
+  // y sus reconocimientos (sólo cuántos: nunca quién los dio). Lo lee
+  // admin_dna_jugador() (sólo administradores). La fiabilidad sigue en su
+  // propia pestaña. Todo lo que viene de la base pasa por esc().
+  const DNA_TXT = {
+    style: { aggressive: 'Aggressive / Banger', control: 'Control Player', patient: 'Patient', strategic: 'Strategic',
+      fast_hands: 'Fast Hands', soft_game: 'Soft Game / Dinker', balanced: 'Balanced' },
+    side: { right: 'Right side', left: 'Left side', either: 'Either side' },
+    format: { singles: 'Singles', doubles: 'Doubles', mixed: 'Mixed doubles' },
+    competition: { recreational: 'Recreational', social: 'Social', friendly_competitive: 'Friendly Competitive',
+      league: 'League Player', tournament_focused: 'Tournament Focused', practice: 'Practice Oriented' },
+    when: { weekday_morning: 'Weekday mornings', weekday_afternoon: 'Weekday afternoons', weekday_evening: 'Weekday evenings',
+      weekend_morning: 'Weekend mornings', weekend_afternoon: 'Weekend afternoons', weekend_evening: 'Weekend evenings',
+      flexible: 'Flexible', last_minute: 'Last-minute games' },
+    venue: { indoor: 'Indoor', outdoor: 'Outdoor', both: 'Indoor & outdoor' },
+    intent: { tournament_practice: 'Tournament practice', friendly_doubles: 'Friendly doubles', need_tonight: 'Need one player tonight',
+      singles_training: 'Singles training', weekend_social: 'Social games this weekend' },
+    rec: { great_partner: 'Great Partner', great_communication: 'Great Communication', reliable: 'Reliable',
+      positive_energy: 'Positive Energy', competitive: 'Competitive', encouraging: 'Encouraging', respectful: 'Respectful',
+      would_play_again: 'Would Play Again' },
+  };
+  const dnaList = (map, codes) => Object.keys(map).filter((k) => (codes || []).includes(k)).map((k) => map[k]);
+  const dnaDate = (iso, withDay) => (iso ? new Date(iso).toLocaleDateString('en-US', Object.assign(
+    { timeZone: 'America/New_York', month: 'short', day: 'numeric' }, withDay ? { weekday: 'short' } : { year: 'numeric' })) : '—');
+  const dnaPlural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const DNA_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const renderDNA = async (d) => {
+    const el = document.getElementById('pp-tab-dna');
+    if (!el || el.dataset.rendered) return;
+    el.dataset.rendered = '1';
+    el.innerHTML = '<div class="loading pp-dna-loading">Loading Player DNA...</div>';
+    const playerIdAtStart = d.p.id;
+    let x = null;
+    try {
+      const { data, error } = await supabase.rpc('admin_dna_jugador', { p_player_id: d.p.id });
+      if (error) throw error;
+      x = data || null;
+    } catch (e) { console.warn('[dna] failed:', e.message); }
+    if (!_ppCurrent || _ppCurrent.p.id !== playerIdAtStart) return;
+    if (!x) { el.innerHTML = '<div class="pp-perf-card"><div class="pp-empty">Player DNA data unavailable.</div></div>'; return; }
+
+    const dec = x.declared;
+    const der = x.derived || {};
+    const social = x.social || [];
+    const row = (lbl, val) => `<div class="pp-perf-row"><span class="pp-perf-lbl">${esc(lbl)}</span><span class="pp-perf-val">${val}</span></div>`;
+    const tags = (list) => (list.length ? list.map((t) => `<span class="pp-dna-tag">${esc(t)}</span>`).join('') : '—');
+    const kpi = (lbl, val, sub, cls) => `<div class="pp-kpi-card"><div class="pp-kpi-lbl">${esc(lbl)}</div><div class="pp-kpi-val pp-dna-kpi${cls ? ` ${cls}` : ''}">${esc(val)}</div><div class="pp-kpi-sub">${esc(sub)}</div></div>`;
+    const recTotal = social.reduce((n, r) => n + (r.count || 0), 0);
+
+    const kpis = [
+      dec ? kpi('Player DNA', 'Complete', `Updated ${dnaDate(dec.updated_at)} by the player`, 'pp-dna-ok')
+        : kpi('Player DNA', 'Not completed', x.has_account ? 'Asked the next time they sign in' : 'No Player Portal account yet', 'pp-dna-warn'),
+      kpi('Competition', dec ? (dnaList(DNA_TXT.competition, Array.isArray(dec.competitions) ? dec.competitions : [dec.competition]).join(' · ') || '—') : '—', dec ? 'Declared by the player' : '—'),
+      kpi('Right Now', dec && dec.intent ? (DNA_TXT.intent[dec.intent] || '—') : 'Nothing set',
+        dec && dec.intent ? `Until ${dnaDate(new Date(new Date(dec.intent_until).getTime() - 60000).toISOString(), true)}` : 'Clears on its own', dec && dec.intent ? 'pp-dna-blue' : ''),
+      kpi('Recognitions Received', String(recTotal), recTotal ? `From ${dnaPlural(x.social_givers || 0, 'player', 'players')} · last 12 months` : 'None in the last 12 months'),
+    ].join('');
+
+    const declared = dec ? [
+      row('Play Style', tags(dnaList(DNA_TXT.style, dec.play_styles))),
+      row('Side', esc(DNA_TXT.side[dec.side] || '—')),
+      row('Format', esc(dnaList(DNA_TXT.format, dec.formats).join(' · ') || '—')),
+      row('When They Play', esc(dnaList(DNA_TXT.when, dec.availability).join(' · ') || '—')),
+      row('Where They Play', esc(DNA_TXT.venue[dec.venue_pref] || '—')),
+      row('Visible When Matching Launches', esc([dec.show_style && 'Style', dec.show_availability && 'Availability',
+        dec.show_intent && 'Right now', dec.show_social && 'Social DNA'].filter(Boolean).join(' · ') || 'Nothing')),
+    ].join('') : '<div class="pp-empty">The player has not completed their Player DNA yet.</div>';
+
+    // Los de los últimos 5 días el jugador todavía no los ve (SQL 93).
+    const waiting = x.social_waiting || 0;
+    const socialHTML = (social.length
+      ? social.map((r) => row(DNA_TXT.rec[r.recognition] || r.recognition, esc(String(r.count)))).join('')
+      : '<div class="pp-empty">No recognitions in the last 12 months.</div>')
+      + (waiting ? row('Waiting to appear (shown after 5 days)', esc(String(waiting))) : '');
+
+    const slot = { morning: 'mornings', afternoon: 'afternoons', evening: 'evenings' };
+    const u = der.usual;
+    const f = der.formats || {};
+    const fmts = [['doubles', 'Doubles'], ['mixed', 'Mixed'], ['singles', 'Singles']].filter(([k]) => f[k] > 0)
+      .sort((a, b) => f[b[0]] - f[a[0]]).map(([k, t]) => `${t} (${f[k]})`);
+    const titles = [der.ladder_titles ? dnaPlural(der.ladder_titles, 'ladder title', 'ladder titles') : '',
+      der.tournament_titles ? dnaPlural(der.tournament_titles, 'tournament title', 'tournament titles') : ''].filter(Boolean);
+    const sees = [
+      row('Usual Days', esc(u && slot[u.slot] ? `${DNA_DAYS[u.day]} ${slot[u.slot]} (${u.sessions} of last ${u.of} sessions)` : 'Not enough ladder sessions yet')),
+      row('Formats Played', esc(fmts.join(' · ') || '—')),
+      row('Competitions', esc(`${dnaPlural(der.ladders || 0, 'ladder', 'ladders')} · ${dnaPlural(der.tournaments || 0, 'tournament', 'tournaments')}`)),
+      row('Titles', esc(titles.join(' · ') || '—')),
+      row('Ladder Sessions (6 months)', esc(String(der.ladder_sessions_180 || 0))),
+      row('Activity', esc(`${dnaPlural(der.games_30 || 0, 'game', 'games')} in the last 30 days`)),
+    ].join('');
+
+    el.innerHTML = `
+      <div class="pp-kpi-row pp-section-gap">${kpis}</div>
+      <div class="pp-2col pp-section-gap">
+        <div class="pp-perf-card"><div class="pp-perf-title">Declared by the Player</div>${declared}</div>
+        <div class="pp-perf-card"><div class="pp-perf-title">Social DNA <span class="pp-dna-src">from recognitions · never shows who gave them</span></div>${socialHTML}</div>
+      </div>
+      <div class="pp-2col">
+        <div class="pp-perf-card"><div class="pp-perf-title">What FEROCIA Sees <span class="pp-dna-src">from verified games · last 12 months</span></div>${sees}</div>
+        <div class="pp-perf-card"><div class="pp-perf-title">Recognitions Given</div>
+          ${row('Sessions answered', esc(String(x.given_sessions || 0)))}
+          ${row('Recognitions given', esc(String(x.given_total || 0)))}
+          ${row('Received (all time)', esc(String(x.social_total || 0)))}
+        </div>
+      </div>`;
+  };
+
   const renderSoon = (tabId, label) => {
     const el = document.getElementById(`pp-tab-${tabId}`);
     if (!el || el.dataset.rendered) return;
@@ -2143,7 +2300,8 @@
     if (tab === 'adminnotes') { if (_ppCurrent) renderAdmin(_ppCurrent); return; }
     if (tab === 'reliability') { if (_ppCurrent) renderReliability(_ppCurrent); return; }
     if (tab === 'history') { if (_ppCurrent) renderHistory(_ppCurrent); return; }
-    const labels = { dna: 'DNA', membership: 'Membership' };
+    if (tab === 'dna') { if (_ppCurrent) renderDNA(_ppCurrent); return; }
+    const labels = { membership: 'Membership' };
     if (labels[tab]) renderSoon(tab, labels[tab]);
   };
 
@@ -2230,131 +2388,64 @@
     document.getElementById('edit-id').value = _ppCurrent.p.id;
     window.openPlayerHistory();
   };
-  // Opens a simple subject+message modal and sends a single email to the
-  // current player — por el mismo camino que el resto de la aplicación
-  // (sendEmailServer → la Edge Function), sólo que con un destinatario
-  // en vez de una lista.
-  /* El editor con formato de la ventana "Send Message". Compartido con
-     las otras cuatro pantallas que mandan correo. */
-  const edPP = window.FerociaEditor
-    ? window.FerociaEditor.mount('pp-email-message', { barraId: 'pp-fmt-bar' }) : null;
-  if (!edPP) console.error('[Ferocia] admin-rich-editor.js must load before admin-player-profile.js');
-
+  /* "Send Message" / "Send Email": escribirle a este jugador se hace en
+     el Communications Hub (All Players → Selected Players, con él ya
+     marcado), igual que cualquier otro correo a jugadores. El Hub es
+     quien dice si se le puede escribir y quien lo anota en su historial. */
   const ppSendMessage = () => {
-    /* Reabrir la ventana con un envío en curso limpiaba el composer y
-       se llevaba por delante el asunto y el mensaje de ESE envío, que
-       todavía no ha contestado. Si sale parcial, el texto que hace
-       falta para reintentar ya no existe. */
-    if (window.envioEnCurso && window.envioEnCurso('abrir')) return;
-    if (!_ppCurrent?.p?.email) { toast('This player has no email on file.', true); return; }
-    /* El MISMO nombre que va en el correo, no otro armado a mano aquí.
-       Pegando first_name y last_name sin más, un jugador sin apellido
-       salía como "To: Bob null (bob@x.com)" — justo en la ventana donde
-       lo único que hay que comprobar antes de mandar es a quién va. */
-    const nombre = window.nombreDestinatario
-      ? window.nombreDestinatario(_ppCurrent.p)
-      /* Si admin-email-utils.js no llegó a cargar, esto NO puede
-         reventar: sin la comprobación la ventana ni se abriría y el
-         botón parecería muerto, que es bastante peor que un nombre
-         mal puesto. */
-      : [_ppCurrent.p.first_name, _ppCurrent.p.last_name].filter(Boolean).join(' ');
-    document.getElementById('pp-email-recipient').textContent =
-      `To: ${nombre} (${_ppCurrent.p.email})`;
-    document.getElementById('pp-email-subject').value = '';
-    if (edPP) edPP.clear();
-    document.getElementById('pp-email-modal').classList.add('open');
-  };
-
-  const ppCloseEmailModal = () => {
-    document.getElementById('pp-email-modal').classList.remove('open');
-  };
-
-  const ppSendEmailSubmit = async (e) => {
-    e.preventDefault();
-    if (!_ppCurrent?.p?.email) return;
-    if (window.AdminState.emailInFlight) { toast('Please wait for the current send to finish.', true); return; }
-
-    const subject = document.getElementById('pp-email-subject').value.trim();
-    const message = edPP ? edPP.getHTML() : '';
-    const texto   = edPP ? edPP.getText() : '';
-    if (!subject || !texto) { toast('Please fill in subject and message.', true); return; }
-
-    const p = _ppCurrent.p;
-    const nombre = window.nombreDestinatario(p);
-
-    /* Confirmación también aquí, aunque sea UN correo. Va con nombre y
-       dirección en vez de con un número: lo que hay que comprobar antes
-       de darle a enviar es que la persona es la que crees. Desde una
-       ficha de jugador es fácil tener otra abierta en la cabeza. */
-    const seguro = await confirmModal({
-      title:   `Send this email to ${nombre}?`,
-      /* Empieza con el cursor en Cancel: manda correos y eso no se deshace. */
-      focusCancel: true,
-      message: `"${subject}" will be sent to ${p.email}. This cannot be undone.`,
-      okLabel: 'Send email',
-      cancelLabel: 'Cancel',
-      danger: true,
+    if (!_ppCurrent?.p) return;
+    if (!window.hubAbrirCon) { toast('The Communications Hub did not load. Reload the page.', true); return; }
+    window.hubAbrirCon('all_players', null, {
+      id: _ppCurrent.p.id,
+      nombre: window.nombreDestinatario(_ppCurrent.p),
     });
-    if (!seguro) return;
-
-    const sendBtn = document.getElementById('pp-email-send-btn');
-    const origHTML = sendBtn.innerHTML;
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = 'Sending...';
-    window.AdminState.emailInFlight = true;
-
-    let r;
-    try {
-      r = await window.sendEmailServer({
-        kind:     'player_message',
-        /* MESSAGE, no la de ladder: esto es una nota suelta a una
-           persona, y la de ladder termina con un botón "View
-           Leaderboard" que aquí no pinta nada. */
-        template: 'message',
-        subject,
-        body: message,
-        meta: {
-          /* El asunto, no un texto fijo: `email_title` es el titular
-             grande del correo, y "Rained out — session cancelled" se
-             lee mucho mejor ahí que el nombre del club en todos. */
-          email_title: subject,
-          cuerpo_html: true,
-        },
-        recipients: [{ email: p.email, name: nombre, player_id: p.id }],
-        /* Un solo destinatario y una ventana que se abre por persona:
-           el botón deshabilitado ya cubre el doble clic, y una clave
-           impediría mandarle a la misma persona dos avisos parecidos
-           el mismo día, que es algo que sí se hace. */
-        idempotency_key: null,
-      });
-    } finally {
-      window.AdminState.emailInFlight = false;
-      sendBtn.disabled = false;
-      sendBtn.innerHTML = origHTML;
-    }
-
-    if (!r.ok) {
-      console.error('[player-message] send failed:', r);
-      toast(r.message, true);
-      return;   // la ventana se queda abierta: no se pierde el mensaje
-    }
-
-    const d = r.data || {};
-    if (d.sent) {
-      window.logAuditAction(p.id, 'email_sent', `Sent email: ${subject}`);
-      toast(`Email sent to ${nombre}!`);
-      ppCloseEmailModal();
-    } else {
-      console.warn('[player-message] no salio:', d);
-      toast(`Not sent: ${window.resumenEnvio(d)}`, true);
-    }
   };
-  document.getElementById('pp-email-form')?.addEventListener('submit', ppSendEmailSubmit);
 
   // Honest placeholders — there's no real email/SMS verification system
   // yet (email_verified/phone_verified are just columns for now), so these
   // can't actually send or track a verification. Once that system exists,
   // wire the real send here instead of this toast.
+  /* Ajuste 17: "Clear" en el aviso de email de la ficha. La función
+     clear-bounce saca la dirección de la lista de bloqueos de Resend y
+     quita la marca. Si Resend no deja, no se cambia nada. */
+  const ppClearEmailProblem = async () => {
+    const p = _ppCurrent && _ppCurrent.p;
+    if (!p) return;
+    const seguro = await window.confirmModal({
+      title: 'Clear the email warning?',
+      message: (p.email_problem === 'complained'
+        ? 'This player marked one of our emails as spam. '
+        : 'Emails to this address bounced. ')
+        + 'We will ask Resend to stop blocking the address and remove the warning. Only do this if '
+        + 'you have checked the address with the player. If it fails again, the warning comes back.',
+      okLabel: 'Clear',
+      cancelLabel: 'Cancel',
+      focusCancel: true,
+    });
+    if (!seguro) return;
+    const r = await window.llamarFuncionAdmin({ player_id: p.id }, 'clear-bounce');
+    if (!r.ok) {
+      toast(r.code === 'resend_key_cannot_manage'
+        ? 'Resend did not let us remove this address from its block list: your Resend API key can '
+          + 'only send emails. Remove it by hand in Resend → Suppressions and try again. Nothing was changed.'
+        : (r.code === 'resend_failed' || r.code === 'resend_unreachable')
+          ? 'Resend could not remove this address from its block list right now. Nothing was changed — try again in a few minutes.'
+          : r.code === 'changed'
+            ? 'This player was changed a moment ago (a new warning arrived or the email was edited). Reload the profile and check.'
+            : (r.code === 'network' || !r.code)
+              ? 'We could not confirm whether the warning was cleared (the server did not answer clearly). Reload the profile in a minute and check.'
+              : `The warning could not be cleared (${r.code}). Nothing was changed.`, true);
+      return;
+    }
+    /* La ficha se pinta con la copia de la lista de jugadores que ya está
+       cargada: se pone al día aquí, o el aviso volvería a salir. */
+    for (const x of [p, (AdminState.allPlayers || []).find((y) => y.id === p.id)]) {
+      if (x) { x.email_problem = null; x.email_problem_at = null; }
+    }
+    toast(`✅ The email warning for ${p.first_name} ${p.last_name} was cleared.`);
+    await loadPlayerProfilePage(null, p.id);
+  };
+
   const ppResendEmailVerification = () => toast('Email verification isn\'t built yet — this will send a real verification email once that system exists.', true);
   const ppResendSmsVerification   = () => toast('SMS verification isn\'t built yet — this will send a real verification text once that system exists.', true);
 
@@ -2407,16 +2498,10 @@
     ppEditPlayer:   () => ppEditPlayer(),
     ppViewHistory:  () => ppViewHistory(),
     ppResendEmailVerification: () => ppResendEmailVerification(),
+    ppClearEmailProblem:       () => ppClearEmailProblem(),
     ppResendSmsVerification:   () => ppResendSmsVerification(),
     ppResetPlayerDna:          () => ppResetPlayerDna(),
     ppSendMessage:  () => ppSendMessage(),
-    /* Aquí y no dentro de la función: el cierre automático que hace
-       el propio envío al terminar tiene que seguir funcionando. Lo que
-       se protege es el botón X, que es por donde entra la persona. */
-    ppCloseEmailModal: () => {
-      if (window.envioEnCurso && window.envioEnCurso()) return;
-      ppCloseEmailModal();
-    },
     ppToggleNoteForm: () => ppToggleNoteForm(),
     ppSaveNote: () => ppSaveNote(),
     ppLogLateCancellation: () => ppLogLateCancellation(),

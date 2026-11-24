@@ -278,7 +278,7 @@
             </div>`;
           }).join('');
 
-          const courtIncidents = allLadderIncidents.filter((r) => r.session_date === s.session_date && r.court === `Court ${s.court_group}`);
+          const courtIncidents = incidentesDeCancha(allLadderIncidents, s);
           const incidentsListHTML = window.renderIncidentReportsList ? window.renderIncidentReportsList(courtIncidents) : '';
 
           // Players who actually played (or no-showed) this specific
@@ -369,8 +369,11 @@
             const aWins  = scoreA !== null && scoreB !== null && scoreA > scoreB;
             const bWins  = scoreA !== null && scoreB !== null && scoreB > scoreA;
 
+            /* SQL 111 (§94): el mismo puntaje en los dos equipos (un 7–7 mal escrito). */
+            const revisar = g.needs_check
+              ? '<span class="sess-check-pill" title="Both teams have the same score. Edit the game to fix it.">Scores need checking</span>' : '';
             html += `<div class="sess-game-row">
-              <span class="sess-game-label">Game ${g.game_number}</span>
+              <span class="sess-game-label">Game ${g.game_number}${revisar}</span>
               <div class="sess-game-body">
                 ${renderTeam(g.team_a, aWins)}
                 <div class="sess-vs"><div class="sess-vs-line"></div><span>VS</span><div class="sess-vs-line"></div></div>
@@ -534,9 +537,18 @@
     // Group rows into 2 teams by score_for (or index split if unscored)
     const scored = rows.filter(r => r.score_for !== null);
     let teamA = [], teamB = [];
-    if (scored.length) {
+    /* SQL 111 (§94): con el mismo puntaje en todos (un 7–7 mal escrito), el
+       puntaje no dice quién jugó con quién: se separan por el orden en que se
+       guardaron (el formulario guarda primero el equipo A), como en la lista. */
+    const unSoloPuntaje = scored.length && new Set(scored.map(r => r.score_for)).size === 1;
+    if (unSoloPuntaje) {
+      const enOrden = [...rows].sort((a, b) => a.id - b.id);
+      const mitad = Math.ceil(enOrden.length / 2);
+      teamA = enOrden.slice(0, mitad);
+      teamB = enOrden.slice(mitad);
+    } else if (scored.length) {
       const scores = [...new Set(scored.map(r => r.score_for))].sort((a,b) => b-a);
-      teamA = rows.filter(r => r.score_for === scores[0] || (scores.length === 1 && rows.indexOf(r) < 2));
+      teamA = rows.filter(r => r.score_for === scores[0]);
       teamB = rows.filter(r => !teamA.includes(r));
     } else {
       teamA = rows.slice(0, 2);
@@ -680,6 +692,11 @@
     if (!isVoid) {
       if (!sfAEl || !sfBEl || sfAEl.value === '' || sfBEl.value === '') {
         toast('Please enter scores for both teams, or mark the game as void.', true);
+        return;
+      }
+      /* SQL 111 (§94): sin empates. */
+      if (parseInt(sfAEl.value, 10) === parseInt(sfBEl.value, 10)) {
+        toast("A game can't end in a tie. Check the scores.", true);
         return;
       }
     }
@@ -1329,6 +1346,17 @@
         const sB = document.getElementById(`scoreB-${gameNum}`);
         if (!sA || sA.value === '' || !sB || sB.value === '') missingScores.push(gameNum);
       }
+      /* SQL 111 (§94): un juego de escalera no puede terminar empatado. Con el
+         mismo puntaje en los dos equipos, después no se sabe quién jugó con quién. */
+      const empatados = allGameNums.filter((gameNum) => {
+        if (document.getElementById(`void-${gameNum}`)?.checked) return false;
+        const sA = document.getElementById(`scoreA-${gameNum}`), sB = document.getElementById(`scoreB-${gameNum}`);
+        return sA && sB && sA.value !== '' && sB.value !== '' && parseInt(sA.value, 10) === parseInt(sB.value, 10);
+      });
+      if (!missingScores.length && empatados.length) {
+        toast(`Game${empatados.length > 1 ? 's' : ''} ${empatados.join(', ')}: a game can't end in a tie. Check the scores.`, true);
+        return;
+      }
       if (missingScores.length) {
         toast(
           `Please enter scores for Game${missingScores.length > 1 ? 's' : ''} ${missingScores.join(', ')} or mark ${missingScores.length > 1 ? 'them' : 'it'} as void.`,
@@ -1461,6 +1489,16 @@
   window.autoCalcGame        = autoCalcGame;         // called from the generic input listener
   window.autoCalcExtraGame   = autoCalcExtraGame;    // called from the generic input listener
 
+  // Los incidentes de UNA cancha de UNA sesión: misma fecha, misma cancha
+  // y misma hora (dos juegos en la cancha 8 el mismo día, a las 8 y a las
+  // 10, tienen cada uno los suyos). Un incidente viejo guardado sin hora
+  // (o una sesión sin hora) sale en todas las de esa fecha y cancha, como antes.
+  function incidentesDeCancha(lista, s) {
+    const hora = (t) => String(t || '').slice(0, 5);   // "08:00:00" → "08:00"
+    return (lista || []).filter((r) => r.session_date === s.session_date && r.court === `Court ${s.court_group}`
+      && (!r.session_time || !s.session_time || hora(r.session_time) === hora(s.session_time)));
+  }
+
   // Opens the shared Incident Report modal, pre-filled with this
   // ladder's context and this specific court pre-selected.
   const openIncidentReportForSession = (btn) => {
@@ -1500,6 +1538,8 @@
 
   // Own these two forms' submit listeners directly (DOM is already parsed
   // by the time this script runs, same as every other listener).
-  document.getElementById('edit-session-form')?.addEventListener('submit', saveEditSession);
-  document.getElementById('edit-game-form')?.addEventListener('submit', saveEditGame);
+  document.getElementById('edit-session-form')?.addEventListener('submit', window.FerociaBoton ? window.FerociaBoton.formulario(saveEditSession) : saveEditSession);
+  document.getElementById('edit-game-form')?.addEventListener('submit', window.FerociaBoton ? window.FerociaBoton.formulario(saveEditGame) : saveEditGame);
+  // §117: un clic a la vez en el interruptor de la penalización (onclick="…").
+  if (window.FerociaBoton) window.FerociaBoton.unaVez(['toggleNoShowPenalty']);
 })();

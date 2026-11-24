@@ -93,6 +93,11 @@ window.selectLadderType = (type) => {
       'ftc-playoffs':     ['sb-ftc-playoffs','bn-ladder'],
       'tournament-view': ['sb-tournament', 'bn-tournament'],
       'players':      ['sb-players',     'bn-players'],
+      'portal-activity': ['sb-portal-activity', null],
+      'player-claims': ['sb-player-claims', null],
+      'player-safety': ['sb-player-safety', null],
+      'play-games':   ['sb-play-games', null],
+      'lessons':      ['sb-lessons',    null],   // §118
       'player-profile': ['sb-players',   'bn-players'],
       'add-player':   ['sb-add-player',  null],
       'ladders':      ['sb-ladders',     null],
@@ -100,8 +105,12 @@ window.selectLadderType = (type) => {
       'events':       ['sb-events',      null],
       'orders':       ['sb-orders',      null],
       'promotions':   ['sb-promotions',  null],
-      'newsletter':   ['sb-newsletter',  null],
+      /* Ajuste 24: el Newsletter se abre desde Communications, que es
+         donde vive en el menú; su sitio lo ocupa Videos. */
+      'newsletter':   ['sb-communications', null],
+      'videos':       ['sb-videos',      null],
       'communications': ['sb-communications', null],
+      'reviews':      ['sb-reviews',     null],   // §113
       'share':        ['sb-share',       null],
       'match-hub':    ['sb-match-hub',   null],
     };
@@ -109,10 +118,10 @@ window.selectLadderType = (type) => {
     ids.forEach(id => { if (id) { const el = document.getElementById(id); if (el) el.classList.add('active'); } });
 
     // Bottom nav: pages in "more" drawer activate the ⋯ button
-    const morePages = ['add-player','ladders','t-tournaments','events','orders','promotions','newsletter','communications','share','match-hub'];
+    const morePages = ['add-player','ladders','t-tournaments','events','lessons','orders','promotions','newsletter','videos','communications','share','match-hub','player-claims','player-safety','play-games','portal-activity','reviews'];
     if (morePages.includes(pageOrKey)) {
       document.getElementById('bn-more')?.classList.add('active');
-      const mdEl = document.getElementById(`md-${pageOrKey}`);
+      const mdEl = document.getElementById(`md-${pageOrKey === 'newsletter' ? 'communications' : pageOrKey}`);
       if (mdEl) mdEl.classList.add('active');
     }
 
@@ -332,12 +341,15 @@ window.selectLadderType = (type) => {
       // ── Upcoming Events ────────────────────────────────────
       const eventsEl = document.getElementById('dash-events-list');
       if (eventsEl) {
-        const today = new Date().toISOString().split('T')[0];
+        // "Hoy" en la hora del club (antes: la de Londres, que después de
+        // las 8 de la noche ya era "mañana").
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
         let events = [];
-        // Same visibility rule as the events page — a clinic should not
-        // vanish from the dashboard the day after it started either.
+        // La misma regla que la portada del sitio (portal ajuste 2, §52):
+        // torneos y LADDERS hasta su fecha (una ladder desaparece el día
+        // después de empezar); clinics y private sessions siempre.
         try {
-          events = await api(`events?or=(event_date.gte.${today},and(event_type.eq.ladder,or(end_date.gte.${today},end_date.is.null)),event_type.in.(clinic,private_session))&select=id,title,event_date,event_type&order=event_date.asc&limit=8`);
+          events = await api(`events?or=(event_date.gte.${today},event_type.in.(clinic,private_session))&select=id,title,event_date,event_type&order=event_date.asc&limit=8`);
           const RECURRING = ['clinic', 'private_session'];
           events.sort((a, b) => {
             const ra = RECURRING.includes(a.event_type) ? 1 : 0;
@@ -531,6 +543,14 @@ window.selectLadderType = (type) => {
     if (name === 'add-player') window.initAddPlayer();
     if (name === 'share') window.AdminPageLoaders.share?.();
     if (name === 'orders') window.AdminPageLoaders.orders?.();
+    if (name === 'videos') window.AdminPageLoaders.videos?.();
+    if (name === 'player-claims') window.AdminPageLoaders.playerClaims?.();
+    if (name === 'player-safety') window.AdminPageLoaders.playerSafety?.();
+    if (name === 'play-games') window.AdminPageLoaders.playGames?.();
+    if (name === 'portal-activity') window.AdminPageLoaders.portalActivity?.();
+    if (name === 'reviews') window.AdminPageLoaders.reviews?.();   // §113
+    if (name === 'lessons') window.AdminPageLoaders.lessons?.();   // §118
+
     if (name === 'events') loadEventsPage();
     if (name === 'newsletter' && window.loadNewsletterPage) window.loadNewsletterPage();
     if (name === 'communications') window.openCommunications?.();
@@ -574,14 +594,10 @@ window.selectLadderType = (type) => {
      loadSharePage/switchShareTab/showShareQR/copyShareLink/_recordShareVisit
      now live there. */
 
-  /* ─── EMAIL NOTIFICATIONS ──────────────────────────────── */
-  /* Extracted to admin-email-notifications.js. NOTIFY_TEMPLATES/
-     setNotifyTemplate/openNotifyPlayers/sendNotifications now live there. */
-
-  /* ─── TOURNAMENT NOTIFY ────────────────────────────────── */
-  /* Extracted to admin-tournament-notify.js (Phase 3 of the app.js
-     modularization). openTournamentNotifyModal/closeTournamentNotifyModal/
-     sendTournamentNotify now live there. */
+  /* ─── CORREO A JUGADORES ───────────────────────────────── */
+  /* Todo pasa por el Communications Hub (admin-comms-hub.js). Los botones
+     "Notify Players" de escaleras y torneos, "Email Players" y el correo
+     desde la ficha del jugador abren el Hub con la audiencia ya elegida. */
 
   /* ─── ORDERS ────────────────────────────────────────────── */
   /* Extracted to admin-orders.js (Phase 1 of the app.js modularization).
@@ -622,13 +638,17 @@ window.selectLadderType = (type) => {
     const el = document.getElementById('events-list');
     if (!el) return;
     try {
-      const today = new Date().toISOString().split('T')[0];
-      /* Same rule as the public page, so both lists agree.
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());   // la fecha del club (ajuste 2)
+      /* La pantalla Events de la administradora. Aquí las ladders siguen
+         hasta su end_date (o siempre si no tiene), para poder verlas y
+         editarlas mientras se juegan. La portada del sitio, el Dashboard
+         y el portal, en cambio, las quitan el día después de empezar
+         (decisión §52, portal ajuste 2).
 
          event_date means the day a tournament happens but the day a ladder
          or clinic STARTED, so filtering on it alone made every clinic
-         disappear the day after it began. Ladders stay until end_date (or
-         forever when unset); clinics and private sessions always show. */
+         disappear the day after it began. Clinics and private sessions
+         always show. */
       const events = await api(`events?or=(event_date.gte.${today},and(event_type.eq.ladder,or(end_date.gte.${today},end_date.is.null)),event_type.in.(clinic,private_session))&select=*&order=event_date.asc,event_time.asc.nullslast`);
 
       // Recurring events last, so what happens next is at the top.
@@ -709,6 +729,7 @@ window.selectLadderType = (type) => {
                 data-evendtime="${esc(ev.end_time || '')}"
                 data-evtype="${esc(ev.event_type || '')}"
                 data-evend="${esc(ev.end_date || '')}"
+                data-evdays="${esc(Array.isArray(ev.weekdays) ? ev.weekdays.join(',') : '')}"
                 title="Edit event">${editSVG}</button>
               <button class="sess-edit-btn" data-action="deleteEvent"
                 data-evid="${ev.id}"
@@ -746,6 +767,10 @@ window.selectLadderType = (type) => {
     if (_timeErr) { toast(_timeErr, true); return; }
     const _dateErr = checkEventDates(date, endDate);
     if (_dateErr) { toast(_dateErr, true); return; }
+    // §105: a clinic needs its day(s) of the week.
+    const _daysErr = window.FerociaClinicDays ? window.FerociaClinicDays.error('create', eventType) : '';
+    if (_daysErr) { toast(_daysErr, true); return; }
+    const weekdays = (eventType === 'clinic' && window.FerociaClinicDays) ? window.FerociaClinicDays.leer('create') : null;
     if (file && file.size > 5 * 1024 * 1024) { toast('Flyer must be under 5MB.', true); return; }
 
     const btn = document.getElementById('create-event-btn');
@@ -783,6 +808,7 @@ window.selectLadderType = (type) => {
         end_date: (eventType === 'ladder' && endDate) ? endDate : null,
         event_time: startTime || null,
         end_time:   endTime   || null,
+        weekdays:   weekdays && weekdays.length ? weekdays : null,
         event_type: eventType,
         description: desc || null,
         registration_url: regUrl || null,
@@ -858,6 +884,11 @@ window.selectLadderType = (type) => {
     // would blank a ladder's saved end date.
     const editEndEl = document.getElementById('edit-event-end-date');
     if (editEndEl) editEndEl.value = btn.dataset.evend || '';
+    // §105: the clinic's saved days go in BEFORE the type is set, so the
+    // form does not fill them from the start date instead.
+    if (window.FerociaClinicDays) {
+      window.FerociaClinicDays.cargar('edit', String(btn.dataset.evdays || '').split(',').filter(Boolean).map(Number));
+    }
     setEventType('edit', btn.dataset.evtype || '');
 
     // Wire styled file label to hidden input (once only)
@@ -971,6 +1002,9 @@ window.selectLadderType = (type) => {
     // start date would sit in half the width with an empty gap beside it.
     const row = document.getElementById(`${p}event-dates-row`);
     if (row) row.classList.toggle('ev-dates-single', !rules.endDate);
+
+    // §105: the days of the week, for clinics only (admin-event-days.js).
+    if (window.FerociaClinicDays) window.FerociaClinicDays.mostrar(form, type === 'clinic');
   };
 
   /* Kept for backwards compatibility: any inline handler still calling the
@@ -1024,6 +1058,10 @@ window.selectLadderType = (type) => {
     if (_timeErr) { toast(_timeErr, true); return; }
     const _dateErr = checkEventDates(date, endDate);
     if (_dateErr) { toast(_dateErr, true); return; }
+    // §105: a clinic needs its day(s) of the week.
+    const _daysErr = window.FerociaClinicDays ? window.FerociaClinicDays.error('edit', eventType) : '';
+    if (_daysErr) { toast(_daysErr, true); return; }
+    const weekdays = (eventType === 'clinic' && window.FerociaClinicDays) ? window.FerociaClinicDays.leer('edit') : null;
     if (file && file.size > 5 * 1024 * 1024) { toast('Flyer must be under 5MB.', true); return; }
 
     const btn = document.getElementById('edit-event-btn');
@@ -1076,6 +1114,7 @@ window.selectLadderType = (type) => {
         end_date: (eventType === 'ladder' && endDate) ? endDate : null,
         event_time: startTime || null,
         end_time:   endTime   || null,
+        weekdays:   weekdays && weekdays.length ? weekdays : null,
         event_type: eventType,
         description: desc || null,
         registration_url: regUrl || null,
@@ -1125,24 +1164,11 @@ window.selectLadderType = (type) => {
     // closeEditLadderModal now registered by admin-ladder-management.js
     closeEditGameModal: () =>
       document.getElementById('edit-game-modal').classList.remove('open'),
-    /* Estos dos NO cierran mientras haya un envío en curso. Cerrar la
-       ventana no detiene el envío: sigue corriendo, y al reabrirla el
-       composer se limpia y se lleva el asunto y el mensaje por delante.
-       Si ese envío sale parcial, el texto que hace falta para
-       reintentar ya no existe. Email All Players ya se protegía así. */
-    closeNotifyModal: () => {
-      if (window.envioEnCurso && window.envioEnCurso()) return;
-      document.getElementById('notify-modal').classList.remove('open');
-    },
-    closePromoModal: () => {
-      if (window.envioEnCurso && window.envioEnCurso()) return;
-      const modal = document.getElementById('promo-modal');
-      if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
-    },
+    // closePromoModal now registered by admin-promotions.js (la campaña vive en Communications)
     closeEditSessionModal: () =>
       document.getElementById('edit-session-modal').classList.remove('open'),
     // Notify / promo
-    // openNotifyPlayers/openSendPromo now registered by admin-email-notifications.js / admin-promotions.js
+    // openSendPromo now registered by admin-promotions.js
     // sendPendingReminder now registered by admin-subscriber-reminder.js
     // generateQR now registered by admin-promotions.js
     // Share — copyShareLink/switchShareTab/showShareQR now registered by admin-share.js
@@ -1155,7 +1181,6 @@ window.selectLadderType = (type) => {
       });
       if (ok) window.auth.signOut();
     },
-    // Tournament notify — closeTournamentNotifyModal now registered by admin-tournament-notify.js
     // Orders management — markFulfilled now registered by admin-orders.js
     // Events management
     deleteEvent: (btn) => deleteEvent(btn),
@@ -1170,7 +1195,12 @@ window.selectLadderType = (type) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const handler = window.CLICK_HANDLERS[btn.dataset.action];
-    if (handler) handler(btn);
+    if (!handler) return;
+    /* §117: un clic a la vez. Mientras la acción de este botón trabaja
+       (guarda, envía, borra), otro clic en él no hace nada. */
+    if (window.FerociaBoton && window.FerociaBoton.ocupado(btn)) { e.preventDefault(); return; }
+    if (window.FerociaBoton) window.FerociaBoton.ejecutar(btn, () => handler(btn));
+    else handler(btn);
   });
 
   // Change handler — for selects / radios that need a custom action
@@ -1182,10 +1212,6 @@ window.selectLadderType = (type) => {
     }
     if (el.name === 'noshow-penalty') {
       AdminState.noShowPenalty = parseInt(el.value, 10);
-      return;
-    }
-    if (el.id === 'notify-type') {
-      window.setNotifyTemplate(el.value);
       return;
     }
     if (el.id === 'gender-filter') {
@@ -1270,11 +1296,9 @@ window.selectLadderType = (type) => {
   // edit-game-form's and edit-session-form's submit listeners are now wired by admin-sessions.js itself
   // ladder-selector's change listener is now wired by admin-ladder-selector.js itself
   document.getElementById('tournament-selector')?.addEventListener('change', onTournamentChange);
-  // notify-form's submit listener is now wired by admin-email-notifications.js itself
-  document.getElementById('create-event-form')?.addEventListener('submit', createEvent);
-  document.getElementById('edit-event-form')?.addEventListener('submit', editEvent);
+  document.getElementById('create-event-form')?.addEventListener('submit', window.FerociaBoton ? window.FerociaBoton.formulario(createEvent) : createEvent);
+  document.getElementById('edit-event-form')?.addEventListener('submit', window.FerociaBoton ? window.FerociaBoton.formulario(editEvent) : editEvent);
   // promo-form's, sub-status-filter's, and sub-search's listeners are now wired by admin-promotions.js itself
-  // t-notify-form's submit listener is now wired by admin-tournament-notify.js itself
   // edit-ladder-modal form's submit listener is now wired by admin-ladder-management.js itself
   // add-player-form's, edit-player-form's, player-status-filter's, and player-search's
   // listeners are now wired by admin-players.js itself
@@ -1290,7 +1314,6 @@ window.selectLadderType = (type) => {
     escapeHtml,
     sleep,
     showPage,
-    openTournamentNotifyModal: window.openTournamentNotifyModal,  // set by admin-tournament-notify.js; called by tournament.js notify button
   };
   // Also expose directly on window for legacy references in tournament.js
   window.api          = api;

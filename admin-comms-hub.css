@@ -1,0 +1,512 @@
+/* ============================================================
+   FEROCIA SPORTS CENTER — ADMIN: COMMUNICATIONS HUB
+   El panel de la pestaña Send donde se elige a quién se le escribe.
+
+   Las medidas y los colores son los de las ventanas que había antes
+   (Send Ladder Update, Send Tournament Update), escritos aquí como
+   clases.
+
+   El prefijo `hub-` no se usa en ninguna otra pantalla. Los chips son
+   los `.co-pfilter` de la pantalla Communications, no una copia. Al
+   final, lo poco de la pestaña History que es nuevo (`co-hist-`).
+   ============================================================ */
+
+/* `hidden` tiene que ganar siempre. Sin esto, una fila de la lista para
+   elegir (que pone `display:flex`) seguiría viéndose aunque el buscador
+   la haya ocultado. */
+.hub-panel [hidden]{display:none !important;}
+
+/* ── Cabecera ─────────────────────────────────────────────── */
+.hub-back{display:inline-flex;align-items:center;gap:6px;margin-bottom:14px;
+          font-size:10px;font-weight:700;padding:6px 14px;border-radius:99px;
+          border:0.5px solid #c5d6f5;background:white;color:var(--blue);
+          cursor:pointer;font-family:'Inter',sans-serif;}
+.hub-back:hover{background:#f4f8ff;}
+.hub-title{font-family:'Inter',sans-serif;font-size:24px;color:var(--text);
+           letter-spacing:1px;line-height:1;margin-bottom:4px;}
+.hub-sub{font-size:12px;font-weight:600;color:var(--text-muted);}
+
+/* ── Pasos ────────────────────────────────────────────────── */
+.hub-step{margin-bottom:22px;}
+.hub-step:last-child{margin-bottom:0;}
+/* El subtítulo de cada paso: en negrita y un poco más grande, sin la
+   línea azul delante (decidido el 10 de octubre). text-transform y
+   letter-spacing van explícitos porque el estilo global de <label>
+   los pone en mayúsculas y separados. */
+.hub-label{display:block;margin-bottom:8px;font-family:'Inter',sans-serif;
+           font-size:13px;font-weight:800;letter-spacing:normal;
+           text-transform:none;color:var(--text);}
+.hub-hint{font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;}
+.hub-sub-step{margin-top:14px;}
+
+/* ── Campos ───────────────────────────────────────────────── */
+.hub-select,
+.hub-input{width:100%;padding:9px 12px;border:1px solid var(--divider-color);
+           border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+           color:var(--text);background:white;outline:none;box-sizing:border-box;}
+.hub-select:focus,
+.hub-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(23,76,204,0.08);}
+.hub-chips{display:flex;flex-wrap:wrap;gap:6px;}
+
+/* ── Selected Players: la lista para marcar ───────────────── */
+.hub-pick-list{max-height:320px;overflow-y:auto;margin-top:8px;
+               border:1px solid var(--divider-color);border-radius:10px;}
+/* Cada fila es un <label> para que pulsar el nombre marque la casilla. La
+   regla general de `label` (mayúsculas pequeñas, para los rótulos de los
+   formularios) se anula aquí: esto es un nombre, no un rótulo. */
+.hub-pick{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;
+          border-bottom:0.5px solid #f4f5f8;font-size:13px;font-weight:600;color:var(--text);
+          text-transform:none;letter-spacing:normal;}
+.hub-pick:last-child{border-bottom:none;}
+.hub-pick:hover{background:rgba(23,76,204,0.02);}
+/* La regla general de `input` (relleno y borde de los campos de texto)
+   también alcanza a las casillas; aquí se anula. */
+.hub-pick input{width:16px;height:16px;margin:0;padding:0;border:0;
+                accent-color:var(--blue);flex-shrink:0;}
+.hub-pick-text{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+.hub-pick-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hub-pick-mail{margin-left:auto;font-size:11px;font-weight:600;color:var(--text-muted);
+               overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.hub-pick-empty{padding:14px;font-size:12px;font-weight:600;color:var(--text-muted);text-align:center;}
+
+/* ── Vista previa ─────────────────────────────────────────── */
+.hub-preview{background:#f8f9ff;border:0.5px solid var(--divider-color);
+             border-radius:10px;padding:14px 16px;}
+.hub-count{font-size:14px;font-weight:800;color:var(--text);}
+.hub-note{font-size:11px;font-weight:600;color:var(--text-muted);margin-top:6px;line-height:1.5;}
+.hub-error{font-size:12px;font-weight:700;color:var(--danger);}
+.hub-view-btn{margin-top:10px;}
+
+/* ── La lista de destinatarios ────────────────────────────── */
+/* Con su propio scroll: unas 10 filas a la vista, y la fila de títulos
+   fija arriba (pedido el 10 de octubre: con All Players había que bajar
+   muchísimo). */
+.hub-people{max-height:388px;margin-top:10px;border:1px solid var(--divider-color);
+            border-radius:10px;overflow:auto;}
+.hub-table{width:100%;border-collapse:collapse;font-size:12px;}
+.hub-table th{position:sticky;top:0;z-index:1;text-align:left;padding:9px 14px;font-size:9px;font-weight:800;letter-spacing:1px;
+              text-transform:uppercase;color:var(--text-muted);background:#f8f9ff;
+              border-bottom:0.5px solid var(--divider-color);white-space:nowrap;}
+.hub-table td{padding:9px 14px;border-bottom:0.5px solid #f4f5f8;font-weight:600;color:var(--text);}
+.hub-table tbody tr:last-child td{border-bottom:none;}
+.hub-table td.hub-td-mail{color:var(--text-muted);word-break:break-all;}
+.hub-row-out td{color:var(--text-muted);}
+.pill.hub-pill-warn{background:var(--orange-light);color:var(--orange-dark);}
+
+/* ── Escribir el mensaje ──────────────────────────────────── */
+/* Los mismos valores que la ventana "Send Ladder Update". */
+.hub-field{margin-bottom:12px;}
+.hub-field-label{display:block;margin-bottom:4px;font-size:9px;font-weight:700;letter-spacing:.5px;
+                 text-transform:uppercase;color:var(--text-muted);}
+.hub-req{color:#e53935;}
+.hub-field .hub-select,
+.hub-field .hub-input{max-width:none;}
+.hub-editor{border:1px solid var(--divider-color);border-radius:10px;overflow:hidden;background:white;}
+.hub-toolbar{flex-wrap:wrap;gap:4px;padding:6px 8px;background:#fcfdff;}
+.hub-editor-area{min-height:160px;max-height:340px;overflow-y:auto;padding:14px;outline:none;
+                 font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text);
+                 line-height:1.7;background:white;}
+.hub-editor:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(23,76,204,0.08);}
+.hub-hint-after{margin:5px 0 0;font-size:10px;color:#b0bbd6;}
+/* El mensaje lleva una nota debajo; sin este aire, "Attachment" quedaba
+   pegado a ella (pedido el 10 de octubre). */
+.hub-field.hub-field-roomy{margin-bottom:22px;}
+
+/* ── La encuesta (entregable 5) ───────────────────────────── */
+.hub-field .hub-input.hub-input-short{max-width:260px;}
+/* Las tres respuestas fijas de la disponibilidad, sólo para leer. */
+.hub-poll-fixed{padding:9px 12px;border:1px dashed var(--divider-color);border-radius:8px;background:#f8f9ff;
+                font-size:12px;font-weight:700;color:var(--text);}
+.hub-options{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
+.hub-option-row{display:flex;align-items:center;gap:6px;}
+.hub-option-row .hub-input{flex:1;min-width:0;}
+
+/* El PDF adjunto (el mismo aire que "Private Attachments" de la ficha) */
+.hub-attach-opt{font-weight:600;text-transform:none;letter-spacing:normal;}
+.hub-attach-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:0.5px solid var(--border);
+                border-radius:99px;background:white;color:var(--blue);font-family:'Inter',sans-serif;
+                font-size:11px;font-weight:700;cursor:pointer;}
+.hub-attach-btn:hover{background:#e8f0ff;border-color:var(--blue);}
+.hub-attach-btn:disabled{opacity:.6;cursor:default;}
+.hub-attach-btn:disabled:hover{background:white;border-color:var(--border);}
+.hub-attach-file{display:flex;align-items:center;gap:10px;padding:10px 12px;
+                 border:1px solid var(--divider-color);border-radius:10px;background:#fafbff;}
+.hub-attach-icon{flex-shrink:0;padding:4px 7px;border-radius:6px;background:#fdeceb;color:#c62828;
+                 font-size:9px;font-weight:800;letter-spacing:.5px;}
+.hub-attach-text{flex:1;min-width:0;}
+.hub-attach-name{display:block;font-size:12px;font-weight:700;color:var(--text);
+                 overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hub-attach-size{display:block;font-size:10px;font-weight:600;color:var(--text-muted);}
+.hub-attach-remove{flex-shrink:0;border:none;background:none;color:var(--danger);font-family:'Inter',sans-serif;
+                   font-size:11px;font-weight:700;cursor:pointer;padding:4px 6px;}
+
+/* El adjunto en el detalle de un envío (pestaña History). El [hidden]
+   tiene que ganar al display:flex: sin esto el recuadro salía también en
+   los correos SIN PDF (lo vio la fundadora el 10 de octubre). */
+.co-det-attach[hidden]{display:none;}
+.co-det-attach{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;
+               border:1px solid var(--divider-color);border-radius:10px;background:white;}
+.co-det-attach-name{flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--text);
+                    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* La casilla de ensayo y el botón de enviar */
+.hub-send-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;
+              gap:8px;padding-top:12px;margin-top:4px;border-top:0.5px solid var(--divider-color);}
+.hub-test{display:flex;align-items:flex-start;gap:9px;padding:10px 12px;margin-right:auto;
+          border:1px solid var(--divider-color);border-radius:10px;background:#f8f9ff;cursor:pointer;
+          flex:0 1 auto;max-width:330px;min-width:0;text-transform:none;letter-spacing:normal;}
+.hub-test input{margin:1px 0 0;padding:0;border:0;width:14px;height:14px;accent-color:var(--blue);
+                cursor:pointer;flex-shrink:0;}
+.hub-test-text{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.45;}
+.hub-test-help{display:block;margin-top:2px;font-size:10px;font-weight:600;color:var(--text-muted);}
+.hub-send-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;
+              background:linear-gradient(180deg,#2456d3,var(--blue));color:white;font-family:'Inter',sans-serif;
+              font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.hub-send-btn:disabled{opacity:.6;cursor:default;}
+
+/* ── La pestaña History ───────────────────────────────────
+   Los dos filtros (tipo, y escalera o torneo) y cuántos contestaron
+   una encuesta. El del tipo lleva su estilo escrito en el HTML desde
+   antes; el nuevo, el mismo aspecto, aquí. */
+.co-hist-filters{display:flex;flex-wrap:wrap;gap:8px;}
+.co-hist-filter{max-width:280px;padding:8px 14px;border:0.5px solid var(--border);border-radius:99px;
+                font-family:'Inter',sans-serif;font-size:12px;font-weight:700;outline:none;}
+.co-hist-filter:disabled{opacity:.6;}
+.co-hist-filters [hidden]{display:none !important;}
+
+.co-hist-responded{margin-top:2px;font-size:10px;font-weight:700;color:var(--blue);}
+/* Ajuste 16: lo que avisó Resend después de mandar (rebotes y quejas). */
+.co-hist-problemas{margin-top:2px;font-size:10px;font-weight:700;color:#9b1c1c;}
+.co-det-problema{margin-top:3px;font-size:10px;font-weight:700;color:#9b1c1c;}
+/* Ajuste 20: correos rechazados por el servidor del destinatario. */
+.co-hist-alerta{margin-top:5px;max-width:240px;min-width:180px;white-space:normal;padding:6px 9px;border-radius:8px;
+  background:rgba(198,40,40,0.07);border:1px solid rgba(198,40,40,0.25);font-size:10px;font-weight:700;
+  line-height:1.45;color:#9b1c1c;}
+.co-det-rechazo{margin-top:3px;font-size:10px;font-weight:700;color:var(--text-muted);}
+
+/* En el móvil:
+   · el correo de la lista para elegir baja debajo del nombre: no cabe al
+     lado, y sin él dos jugadores con el mismo nombre se verían iguales;
+   · la casilla de ensayo y el botón de enviar ocupan todo el ancho. */
+@media (max-width:600px){
+  .hub-pick-text{flex-direction:column;align-items:flex-start;gap:1px;}
+  .hub-pick-mail{margin-left:0;max-width:100%;}
+  .hub-title{font-size:20px;}
+  .hub-test{max-width:none;margin-right:0;flex:1 1 100%;}
+  .hub-send-btn{flex:1 1 100%;justify-content:center;}
+}
+
+/* ── Resultados de una encuesta (entregable 6) ─────────────
+   En el detalle de un envío (admin-comms-results.js). */
+.co-poll{border:1px solid var(--divider-color);border-radius:12px;padding:16px 18px;background:#fafbff;}
+.co-poll [hidden]{display:none !important;}
+.co-poll-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.co-poll-titles{min-width:0;flex:1 1 260px;}
+.co-poll-label{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
+.co-poll-question{margin-top:4px;font-size:15px;font-weight:800;color:var(--text);line-height:1.35;word-break:break-word;}
+.co-poll-status{margin-top:4px;font-size:11px;font-weight:600;color:var(--text-muted);}
+/* "Last reminder sent" (entregable 7), en azul para que se distinga del estado. */
+.co-poll-reminder{color:var(--blue);}
+.co-poll-actions{display:flex;flex-wrap:wrap;gap:6px;}
+.co-poll-close{padding:7px 14px;border:0.5px solid #f0c4c4;border-radius:99px;background:white;color:var(--danger);
+               font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;}
+.co-poll-close:hover{background:#fdeceb;}
+.co-poll-groups{display:flex;flex-direction:column;gap:6px;}
+.co-poll-group{border:0.5px solid var(--divider-color);border-radius:10px;background:white;overflow:hidden;}
+.co-poll-group-head{display:flex;align-items:center;gap:12px;width:100%;padding:10px 14px;border:none;background:none;
+                    cursor:pointer;text-align:left;font-family:'Inter',sans-serif;}
+.co-poll-group-head:hover{background:#f6f8ff;}
+.co-poll-group-name{flex:0 1 220px;min-width:0;font-size:12px;font-weight:800;color:var(--text);
+                    overflow-wrap:anywhere;}
+.co-poll-bar{flex:1;height:6px;border-radius:99px;background:#eef1f8;overflow:hidden;}
+.co-poll-bar-fill{display:block;height:100%;background:var(--blue);border-radius:99px;}
+.co-poll-group-none .co-poll-bar-fill{background:#b0bbd6;}
+.co-poll-group-count{min-width:28px;text-align:right;font-size:13px;font-weight:800;color:var(--text);}
+.co-poll-people{border-top:0.5px solid var(--divider-color);}
+.co-poll-person{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 14px;border-bottom:0.5px solid #f4f5f8;}
+.co-poll-person:last-child{border-bottom:none;}
+.co-poll-person-name{min-height:24px;border:none;background:none;padding:2px 0;font-family:'Inter',sans-serif;font-size:12px;
+                     font-weight:700;color:var(--blue);cursor:pointer;text-align:left;}
+.co-poll-person-when{flex:1;font-size:10px;font-weight:600;color:var(--text-muted);}
+.co-poll-change{min-height:28px;padding:4px 8px;border:0.5px solid var(--border);border-radius:8px;background:white;
+                font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--text);}
+.co-poll-save{min-height:28px;padding:4px 12px;border:none;border-radius:99px;background:var(--blue);color:white;
+              font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;}
+.co-poll-save:disabled{opacity:.4;cursor:default;}
+.co-poll-history{flex:1 1 100%;padding:6px 10px;border-radius:8px;background:#f8f9ff;}
+.co-poll-history-row{font-size:11px;font-weight:600;color:var(--text);line-height:1.6;}
+.co-poll-empty{padding:8px 14px;font-size:11px;font-weight:600;color:var(--text-muted);}
+
+/* El roster: tres columnas (cuatro en las encuestas con "Maybe"; dos en el móvil). */
+.co-roster{margin-top:14px;padding-top:14px;border-top:0.5px solid var(--divider-color);}
+.co-roster-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.co-roster-title{margin-top:4px;font-size:13px;font-weight:800;color:var(--text);}
+.co-roster-cols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.co-roster-cols.co-roster-cols-3{grid-template-columns:repeat(3,minmax(0,1fr));}
+.co-roster-col{border:0.5px solid var(--divider-color);border-radius:10px;background:white;padding:10px 12px;min-width:0;}
+.co-roster-col-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px;}
+.co-roster-col-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text);}
+.co-roster-copy{min-height:24px;border:none;background:none;padding:2px 6px;color:var(--blue);font-family:'Inter',sans-serif;
+                font-size:10px;font-weight:700;cursor:pointer;}
+.co-roster-list{margin:0;padding-left:18px;font-size:12px;font-weight:600;color:var(--text);line-height:1.7;}
+.co-roster-list li{word-break:break-word;}
+.co-roster-none{list-style:none;margin-left:-18px;color:var(--text-muted);}
+@media (max-width:600px){
+  .co-roster-cols,
+  .co-roster-cols.co-roster-cols-3{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .co-poll-group-name{flex-basis:120px;}
+}
+
+/* Imprimir sólo el roster: admin-comms-results.js lo copia a
+   #co-print-area, al final de la página, y pone la clase en <body>. */
+#co-print-area{display:none;}
+/* Al imprimir:
+   · se suelta el bloqueo de desplazamiento que pone la ventana abierta
+     (con él, algunos navegadores imprimen sólo la primera hoja);
+   · los grupos van uno debajo de otro, no en rejilla (una rejilla se
+     parte mal entre hojas), y los nombres de cada grupo en 3 columnas. */
+@media print{
+  html:has(body.co-print-roster),
+  body.co-print-roster{overflow:visible !important;height:auto !important;}
+  body.co-print-roster > *:not(#co-print-area){display:none !important;}
+  body.co-print-roster #co-print-area{display:block;}
+  body.co-print-roster #co-print-area .co-roster{margin:0;padding:0;border:none;}
+  body.co-print-roster #co-print-area .co-roster-copy,
+  body.co-print-roster #co-print-area [data-action="commPollPrint"]{display:none;}
+  body.co-print-roster #co-print-area .co-roster-cols{display:block;}
+  body.co-print-roster #co-print-area .co-roster-col{margin-bottom:12px;border:none;padding:0;}
+  body.co-print-roster #co-print-area .co-roster-col-head{break-after:avoid;}
+  body.co-print-roster #co-print-area .co-roster-list{columns:3;column-gap:24px;padding-left:28px;}
+}
+
+/* ── LAS OPCIONES DE LA PESTAÑA SEND ("Choose your audience") ───
+   Diseño que pediste el 11 de octubre: cuatro tarjetas en dos columnas,
+   cada una con su icono en un cuadro blanco, el nombre, una línea y una
+   flecha abajo a la derecha; Newsletter, a todo el ancho y en fila. En el
+   móvil, una columna. */
+.co-aud-head{margin:0 0 6px;font-family:'Inter',sans-serif;font-size:18px;font-weight:600;
+             letter-spacing:normal;text-transform:none;color:var(--text);}
+.co-aud-sub{margin:0 0 20px;font-size:12px;font-weight:500;color:var(--text-muted);}
+.co-aud-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.co-aud{position:relative;display:flex;flex-direction:column;align-items:flex-start;min-height:142px;
+        padding:12px 12px 30px;border:1px solid #dcdce0;border-radius:8px;background:#f4f4f5;
+        font-family:'Inter',sans-serif;text-align:left;cursor:pointer;
+        transition:border-color .15s,background .15s;}
+.co-aud:hover{border-color:#b9b9c0;background:#efeff1;}
+.co-aud:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+.co-aud-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:36px;height:36px;
+             margin-bottom:16px;border-radius:7px;background:white;color:var(--text);}
+.co-aud-t{font-size:14px;font-weight:600;color:var(--text);}
+.co-aud-d{margin-top:10px;font-size:10px;font-weight:500;color:var(--text-muted);line-height:1.4;}
+.co-aud-go{position:absolute;right:14px;bottom:14px;color:#77777f;}
+/* Newsletter: en fila, a todo el ancho, con el mismo tipo y tamaño de letra. */
+.co-aud-wide{grid-column:1 / -1;flex-direction:row;align-items:center;gap:18px;min-height:0;padding:12px;}
+.co-aud-wide .co-aud-icon{width:42px;height:42px;margin-bottom:0;}
+.co-aud-text{display:flex;flex-direction:column;min-width:0;padding-right:28px;}
+/* Mismas letras que las otras cuatro tarjetas (pedido el 11 de octubre):
+   sólo cambia el espacio entre el nombre y la línea, porque va en fila. */
+.co-aud-wide .co-aud-d{margin-top:6px;}
+.co-aud-wide .co-aud-go{top:50%;bottom:auto;transform:translateY(-50%);color:var(--text);}
+@media (max-width:600px){
+  .co-aud-grid{grid-template-columns:minmax(0,1fr);}
+  .co-aud{min-height:118px;}
+  .co-aud-wide{min-height:0;}
+}
+
+/* ════════════════════════════════════════════════════════════
+   EL FORMULARIO DEL HUB Y EL DE LA CAMPAÑA — diseño del 11 de octubre
+   (All Players, Ladder Players, Tournament Players y Campaign: los dos
+   paneles llevan la clase .hub-layout)
+   "All channels" a la izquierda, fuera; a la derecha el encabezado con
+   su icono y dos columnas: el formulario y, debajo, la casilla de
+   ensayo con el botón; al lado, "Recipient Preview", "Quick Tips" y
+   "Message Checklist". En el móvil, todo en una columna, con el botón
+   de enviar al final.
+   ════════════════════════════════════════════════════════════ */
+.hub-layout[hidden]{display:none;}
+.hub-layout{display:grid;grid-template-columns:150px minmax(0,1fr);gap:20px;align-items:start;}
+.hub-layout .hub-back{margin:0;padding:10px 18px;font-size:12px;font-weight:700;border:1px solid #d9e1f2;
+                     border-radius:99px;background:white;gap:10px;}
+.hub-main{padding:20px 18px 18px;border-radius:16px;background:#f5f7fb;border:1px solid #edf0f6;min-width:0;}
+
+/* El encabezado: icono, título y una línea. */
+.hub-top{display:flex;align-items:center;gap:18px;margin-bottom:20px;}
+.hub-top-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:58px;height:58px;
+              border-radius:12px;background:#e6ecfa;color:var(--blue);}
+.hub-top-icon > span{display:flex;}
+.hub-top-text{min-width:0;}
+.hub-layout .hub-title{margin:0 0 6px;font-family:'Inter',sans-serif;font-size:28px;font-weight:800;
+                      letter-spacing:-.3px;line-height:1.1;color:#0d1f4a;text-transform:none;}
+.hub-layout .hub-sub{margin:0;font-size:13px;font-weight:500;color:#4b5875;}
+
+/* Las dos columnas. */
+.hub-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;
+          grid-template-areas:"form side" "send side";grid-template-rows:auto 1fr;gap:16px;align-items:start;}
+.hub-area-form{grid-area:form;}
+.hub-area-send{grid-area:send;}
+.hub-area-side{grid-area:side;display:flex;flex-direction:column;gap:16px;min-width:0;}
+.hub-card{padding:18px;border-radius:12px;background:white;border:1px solid #e8ecf4;
+          box-shadow:0 1px 3px rgba(13,31,74,.04);min-width:0;}
+.hub-card-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.hub-card-title{margin:0;font-family:'Inter',sans-serif;font-size:15px;font-weight:700;letter-spacing:normal;
+                text-transform:none;color:#0d1f4a;}
+.hub-card-sub{margin:4px 0 14px;font-size:12px;font-weight:500;color:#4b5875;}
+.hub-mini-icon{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;
+               background:#e6ecfa;color:var(--blue);flex-shrink:0;}
+.hub-tips-icon{display:flex;color:#f5b400;}
+.hub-tips-icon svg{fill:#ffd84d;}
+.hub-check-icon{display:flex;color:#0d1f4a;}
+
+/* Los rótulos de los campos: como "Email Subject *" del diseño. */
+.hub-layout .hub-label,
+.hub-layout .hub-field-label{display:block;margin:0 0 8px;font-family:'Inter',sans-serif;font-size:13px;
+                            font-weight:700;letter-spacing:normal;text-transform:none;color:#0d1f4a;}
+.hub-field-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+.hub-field-row .hub-field-label{margin-bottom:8px;}
+.hub-count-chars{font-size:11px;font-weight:500;color:#6b7a99;white-space:nowrap;}
+.hub-count-chars.hub-count-over{color:var(--danger);font-weight:700;}
+.hub-count-after{display:block;margin-top:6px;text-align:right;}
+.hub-layout .hub-field{margin-bottom:18px;}
+/* El mensaje es lo último de la tarjeta (salvo el PDF, que lleva su aire
+   arriba): sin margen debajo, para que no quede un hueco vacío. */
+.hub-layout .hub-field.hub-field-roomy{margin-bottom:0;}
+.hub-layout #hub-attach-wrap{margin:18px 0 0;}
+.hub-layout .hub-select,
+.hub-layout .hub-input{padding:11px 14px;border-color:#dfe4ee;border-radius:10px;font-weight:500;}
+.hub-layout .hub-input::placeholder{color:#8c97ad;font-weight:500;}
+/* Al escribir, el borde azul (sin esto se quedaba gris: la regla de
+   arriba gana a la de :focus del principio del archivo). */
+.hub-layout .hub-select:focus,
+.hub-layout .hub-input:focus{border-color:var(--blue);}
+
+/* Los botones para elegir (Recipients, tipo, divisiones…): píldoras con
+   icono, como "All Players" / "Selected Players" del diseño. */
+.hub-layout .hub-chips{gap:10px;}
+.hub-layout .co-pfilter{display:inline-flex;align-items:center;gap:9px;min-height:40px;padding:8px 18px;
+                       border:1px solid #dfe4ee;border-radius:12px;background:white;color:#0d1f4a;
+                       font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;}
+.hub-layout .co-pfilter:hover{border-color:#b9c8ec;}
+.hub-layout .co-pfilter.co-pfilter-on{background:#eaf0ff;border-color:var(--blue);color:var(--blue);}
+.hub-layout .co-pfilter svg{flex-shrink:0;}
+
+/* El editor del mensaje. */
+.hub-layout .hub-editor{border-color:#dfe4ee;border-radius:10px;}
+.hub-layout .hub-toolbar{gap:6px;padding:8px 12px;background:#fafbfd;border-bottom:1px solid #e8ecf4;}
+.hub-layout .hub-editor-area{min-height:170px;}
+.hub-editor-area:empty::before{content:attr(data-placeholder);color:#8c97ad;pointer-events:none;}
+
+/* La nota azul con el icono de información. */
+.hub-info{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 14px;border-radius:8px;
+          background:#eef2fd;color:#2d4fb8;font-size:11px;font-weight:500;line-height:1.5;}
+.hub-info svg{flex-shrink:0;color:var(--blue);}
+.hub-info:has(> span:empty){display:none;}
+
+/* La casilla de ensayo y el botón, en su tarjeta. */
+.hub-layout .hub-send-row{flex-wrap:nowrap;gap:16px;padding:0;margin:0;border-top:none;}
+.hub-layout .hub-test{flex:1 1 auto;max-width:none;align-items:center;gap:14px;padding:14px 16px;
+                     border:1px solid #e3e8f1;border-radius:12px;background:white;}
+.hub-layout .hub-test input{width:18px;height:18px;margin:0;}
+.hub-test-icon{display:flex;color:var(--blue);}
+.hub-layout .hub-test-text{font-size:12px;font-weight:700;color:#0d1f4a;}
+.hub-layout .hub-test-help{font-size:11px;font-weight:500;color:#4b5875;}
+.hub-layout .hub-send-btn{gap:12px;padding:14px 34px;border-radius:12px;background:var(--blue);
+                         font-size:15px;font-weight:700;}
+.hub-layout .hub-send-btn:hover{background:#0f3fb0;}
+
+/* "Recipient Preview": la cuenta en azul, "View recipients" y la caja verde. */
+.hub-layout .hub-preview{padding:14px;border:none;border-radius:10px;background:#eef2fd;}
+.hub-layout .hub-count{font-size:18px;font-weight:800;color:var(--blue);}
+/* Si no llega la cuenta de suscriptores (campaña). */
+.hub-layout .hub-count.hub-count-error{font-size:12px;font-weight:700;color:var(--danger);}
+.hub-layout .hub-note{margin-top:8px;font-size:12px;font-weight:500;color:#4b5875;}
+.hub-view-btn{display:flex;align-items:center;gap:12px;width:100%;margin-top:14px;padding:11px 14px;
+              border:1px solid #b9c8ec;border-radius:10px;background:white;color:var(--blue);
+              font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;text-align:left;}
+.hub-view-btn span{flex:1;}
+.hub-view-btn:hover{background:#f4f7ff;}
+.hub-view-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+.hub-ok{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:11px 14px;border-radius:10px;
+        background:#eaf7ef;border:1px solid #bfe5cc;}
+.hub-ok svg{flex-shrink:0;color:white;fill:#22a55a;}
+.hub-ok-text{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.hub-ok-text strong{font-size:12px;font-weight:700;color:#18794a;}
+.hub-ok-text span{font-size:10px;font-weight:500;color:#2f6b47;}
+
+/* "Quick Tips" y "Message Checklist". */
+.hub-tips{margin:0;padding-left:18px;font-size:12px;font-weight:500;color:#2c3a57;line-height:1.5;}
+.hub-tips li{margin-bottom:4px;}
+.hub-checklist{margin:0;padding:0;list-style:none;}
+.hub-checklist li{display:flex;align-items:center;gap:12px;padding:5px 0;font-size:12px;font-weight:500;color:#2c3a57;}
+.hub-check-mark{position:relative;width:16px;height:16px;border:1.5px solid #8c97ad;border-radius:50%;flex-shrink:0;}
+.hub-checklist li.hub-done .hub-check-mark{border-color:var(--blue);background:var(--blue);}
+.hub-checklist li.hub-done .hub-check-mark::after{content:"";position:absolute;left:4.5px;top:1.5px;width:4px;height:8px;
+        border:solid white;border-width:0 2px 2px 0;transform:rotate(45deg);}
+
+/* La ventana de "View recipients". */
+.modal.hub-people-modal{width:100%;max-width:640px;padding:22px 24px;}
+.hub-people-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.hub-people-close{display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+                  border:1px solid #e3e8f1;border-radius:8px;background:white;color:#4b5875;cursor:pointer;}
+.hub-people-close:hover{background:#f4f7ff;}
+.hub-people-modal .hub-people{margin-top:0;}
+
+/* Pantallas medianas: "All channels" pasa arriba, para que el formulario
+   no se quede estrecho al lado del menú. */
+@media (max-width:1200px){
+  .hub-layout{grid-template-columns:minmax(0,1fr);gap:12px;}
+}
+/* Tableta y móvil: una columna; el botón de enviar, al final. */
+@media (max-width:1000px){
+  .hub-layout{grid-template-columns:minmax(0,1fr);gap:12px;}
+  .hub-grid{grid-template-columns:minmax(0,1fr);grid-template-areas:"form" "side" "send";grid-template-rows:auto;}
+}
+@media (max-width:600px){
+  .hub-main{padding:14px 10px 10px;}
+  .hub-top{gap:12px;}
+  .hub-top-icon{width:46px;height:46px;}
+  .hub-layout .hub-title{font-size:22px;}
+  .hub-layout .hub-send-row{flex-wrap:wrap;}
+  .hub-layout .hub-send-btn{flex:1 1 100%;justify-content:center;}
+}
+
+/* ── La campaña (Campaign) con el mismo diseño (11 de octubre) ──
+   Los botones del tipo de campaña, como los del Hub; la etiqueta de la
+   cabecera, en mayúsculas como sale en el correo; y "Campaign
+   Intelligence" en filas. */
+.hub-layout .promo-type-pill{display:inline-flex;align-items:center;gap:9px;min-height:40px;padding:8px 18px;
+                       border:1px solid #dfe4ee;border-radius:12px;background:white;color:#0d1f4a;
+                       font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;}
+.hub-layout .promo-type-pill:hover:not(.active){border-color:#b9c8ec;background:white;color:#0d1f4a;}
+.hub-layout .promo-type-pill.active{background:#eaf0ff;border-color:var(--blue);color:var(--blue);}
+.hub-layout .promo-type-pill svg{flex-shrink:0;}
+.hub-layout .promo-header-input{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;}
+.hub-layout .promo-header-input::placeholder{letter-spacing:.6px;}
+.promo-intel-row{padding:12px 0;border-top:1px solid #edf0f6;}
+.hub-card-head + .promo-intel-row{padding-top:0;border-top:none;}
+.promo-intel-row:last-child{padding-bottom:0;}
+.promo-intel-k{font-size:11px;font-weight:600;color:#6b7a99;}
+.promo-intel-v{margin-top:3px;font-size:14px;font-weight:700;color:#0d1f4a;}
+.promo-intel-s{margin-top:2px;font-size:11px;font-weight:500;color:#4b5875;}
+.promo-intel-s:empty{display:none;}
+
+/* ── Reenviar una campaña (ajuste 12) ─────────────────────────
+   El aviso de arriba del formulario cuando se reenvía una campaña desde
+   History, y la fila con "Resend to…" en el detalle de la campaña. */
+.promo-resend{display:flex;align-items:center;gap:12px;margin-bottom:18px;padding:12px 14px;border-radius:10px;
+              background:#eef2fd;border:1px solid #c9d6f6;color:var(--blue);}
+.promo-resend svg{flex-shrink:0;}
+.promo-resend-text{flex:1;min-width:0;font-size:12px;font-weight:500;color:#0d1f4a;line-height:1.5;overflow-wrap:anywhere;}
+.promo-resend-text strong{font-weight:700;}
+.promo-resend-sub{display:block;font-size:11px;color:#4b5875;}
+.promo-resend .hub-attach-btn{flex-shrink:0;}
+.hub-layout .co-pfilter:disabled{opacity:.45;cursor:not-allowed;}
+.hub-layout .co-pfilter:disabled:hover{border-color:#dfe4ee;}
+/* Con "Selected Subscribers" sin nadie marcado: una nota, no una cuenta. */
+.hub-layout .hub-count.hub-count-note{font-size:12px;font-weight:600;color:#4b5875;}
+.co-det-resend[hidden]{display:none;}
+.co-det-resend{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 14px;
+               border:1px solid var(--divider-color);border-radius:10px;background:#fafbff;}
+.co-det-resend-text{font-size:12px;font-weight:600;color:var(--text);}
+@media (max-width:600px){
+  .promo-resend{flex-wrap:wrap;}
+}

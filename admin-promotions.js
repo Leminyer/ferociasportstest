@@ -250,6 +250,10 @@
      decisión: mira la PRUEBA de que se tomó —fichas marcadas en las
      últimas 24 horas— que es un dato, no una copia de una regla.
      ════════════════════════════════════════════════════════════ */
+  /* Ajuste 21: POR QUÉ no salió el correo (sql/82). Las fichas de antes
+     no tienen motivo: entonces sólo existía el freno. */
+  const sinVerificacion = (s) => s.confirm_email_skipped_reason === 'unverified';
+
   const pintarAvisoDelFreno = () => {
     const caja = document.getElementById('sub-brake-banner');
     if (!caja) return;
@@ -267,10 +271,18 @@
       return t !== null && t >= desde;
     };
 
-    const frenadas = _allSubs.filter((s) => enVentana(s.confirm_email_skipped_at)).length;
-    if (!frenadas) { caja.style.display = 'none'; caja.innerHTML = ''; return; }
+    /* Ajuste 21: las que llegaron sin la verificación de Turnstile NO son
+       del freno: tienen su propio aviso, debajo. */
+    const enVentanaSinCorreo = _allSubs.filter((s) => enVentana(s.confirm_email_skipped_at));
+    const frenadas = enVentanaSinCorreo.filter((s) => !sinVerificacion(s)).length;
+    const sinVerificar = enVentanaSinCorreo.filter(sinVerificacion).length;
+    if (!frenadas && !sinVerificar) { caja.style.display = 'none'; caja.innerHTML = ''; return; }
 
-    const altas = _allSubs.filter((s) => enVentana(s.subscribed_at)).length;
+    /* Ajuste 22: con la HORA del alta (sql/83). `subscribed_at` es sólo el
+       día y aquí contaba desde la medianoche UTC (las 8 de la noche en
+       Florida); las fichas de antes del SQL 83 no tienen hora y se
+       cuentan por el día, como antes. */
+    const altas = _allSubs.filter((s) => enVentana(s.signed_up_at || s.subscribed_at)).length;
 
     /* ── LOS NÚMEROS SON UN MÍNIMO, NO UN TOTAL, Y SE DICE ─────
        `_allSubs` no son todos los suscriptores: la consulta que los trae
@@ -300,7 +312,7 @@
        pasar por encima con las flechas del teclado— sino que el aviso
        deje la pantalla ENTERA en el estado correcto de una vez. */
     caja.style.display = 'block';
-    caja.innerHTML = `
+    caja.innerHTML = (frenadas ? `
       <div style="padding:14px 20px;background:#FFF1E8;border-bottom:0.5px solid #f3c9ae;">
         <div style="font-size:13px;font-weight:800;color:#9a3d0e;margin-bottom:4px;">
           ⚠️ The signup brake is on
@@ -316,8 +328,41 @@
           style="margin-top:10px;font-family:'Inter',sans-serif;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:11px 16px;border-radius:99px;border:0.5px solid #c88a5e;background:white;color:#9a3d0e;cursor:pointer;">
           Show me who
         </button>
-      </div>`;
+      </div>` : '') + (sinVerificar ? `
+      <div class="sub-aviso-sinverif">
+        <div class="sub-aviso-sinverif-titulo">⚠️ Signups that could not be verified</div>
+        <div class="sub-aviso-sinverif-texto">
+          ${alMenos}<strong>${sinVerificar}</strong> signup${sinVerificar === 1 ? '' : 's'} in the last 24 hours
+          arrived without the anti-robot check, so ${sinVerificar === 1 ? 'it' : 'they'} did not get a
+          confirmation email. It is usually a robot — but it can be a real person whose browser blocked
+          the check. If you recognize someone, resend the email with the envelope button.
+        </div>
+        <button type="button" data-action="verFrenadas" class="sub-aviso-sinverif-btn">Show me who</button>
+      </div>` : '');
   };
+
+  /* ── Ajuste 23: BUZONES COMPARTIDOS ───────────────────────────
+     Hasta 4 fichas pueden compartir dirección (una familia). La
+     dirección se compara sin espacios y sin mayúsculas. */
+  const _correoDe = (s) => String((s && s.email) || '').trim().toLowerCase();
+  /* Cuántas fichas tiene cada dirección (estén como estén). */
+  const _fichasPorCorreo = () => {
+    const m = new Map();
+    for (const x of _allSubs) {
+      const c = _correoDe(x);
+      if (c) m.set(c, (m.get(c) || 0) + 1);
+    }
+    return m;
+  };
+  /* Las OTRAS fichas con la misma dirección, estén como estén. */
+  const _mismoCorreo = (s) => {
+    const c = _correoDe(s);
+    return c ? _allSubs.filter((x) => x.id !== s.id && _correoDe(x) === c) : [];
+  };
+  /* Al pulsar la pastilla se escribe la dirección en el buscador y, MIENTRAS
+     el buscador diga exactamente eso, se compara la dirección entera: si
+     no, "a@x.com" también sacaría a "ana@x.com". */
+  let _buzonExacto = '';
 
   const _renderSubsTable = () => {
     const search = (document.getElementById('sub-search')?.value || '').toLowerCase().trim();
@@ -331,8 +376,12 @@
        devolver siempre lo mismo. */
     const perFil = document.getElementById('sub-period-filter')?.value || 'all';
     const desde  = _desdeDelPeriodo(perFil);
+    const porCorreo = _fichasPorCorreo();
+    const exacto = _buzonExacto !== '' && search === _buzonExacto;
     const filtered = _allSubs.filter(s => {
-      const nameMatch = `${s.first_name} ${s.last_name} ${s.email} ${s.phone || ''} ${FerociaPhone.searchable(s.country_code, s.phone)}`.toLowerCase().includes(search);
+      const nameMatch = exacto
+        ? _correoDe(s) === _buzonExacto
+        : `${s.first_name} ${s.last_name} ${s.email} ${s.phone || ''} ${FerociaPhone.searchable(s.country_code, s.phone)}`.toLowerCase().includes(search);
       /* '__frenadas' no es un estado: son las fichas a las que el freno
          del formulario público no les mandó el correo de confirmación.
          Su estado sigue siendo 'pending', así que se mira la marca y no
@@ -352,6 +401,10 @@
       const statusMatch = filter === 'all' ? true
         : filter === '__frenadas'
             ? (s.status === 'pending' && !!s.confirm_email_skipped_at)
+        /* Ajuste 23: tampoco es un estado — las fichas cuyo correo
+           comparten varias. */
+        : filter === '__compartidos'
+            ? (porCorreo.get(_correoDe(s)) || 0) > 1
         : s.status === filter;
       /* Los CUATRO filtros se combinan (Y, no O): buscar "maria", estado
          Active, origen Instagram y este mes devuelve las Marías activas
@@ -364,6 +417,12 @@
       const perMatch = _enPeriodo(s, desde);
       return nameMatch && statusMatch && srcMatch && perMatch;
     });
+    /* Con "Shared email", cada familia junta: por dirección y luego por
+       nombre. */
+    if (filter === '__compartidos') {
+      filtered.sort((a, b) => _correoDe(a).localeCompare(_correoDe(b))
+        || `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
+    }
     const slice   = filtered.slice(0, _subsShown);
     const total   = filtered.length;
 
@@ -378,6 +437,8 @@
     const pillCSS = (status) => {
       if (status === 'active')       return 'background:rgba(36,188,150,0.12);color:#085041;';
       if (status === 'pending')      return 'background:rgba(242,96,36,0.12);color:#7a3d00;';
+      /* Ajuste 16: el email rebota. Rojo, como lo que hay que mirar. */
+      if (status === 'bounced')      return 'background:rgba(198,40,40,0.10);color:#9b1c1c;';
       return 'background:rgba(107,122,153,0.12);color:var(--text-muted);';
     };
     const tableHTML = slice.length ? `
@@ -404,7 +465,15 @@
                   <div style="font-size:13px;font-weight:700;color:var(--text);">${esc(s.first_name)} ${esc(s.last_name)}</div>
                 </div>
               </td>
-              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:var(--text-muted);">${esc(s.email || '—')}</td>
+              <td style="padding:11px 16px;border-bottom:0.5px solid #f4f5f8;font-size:12px;color:var(--text-muted);">${esc(s.email || '—')}${(() => {
+                /* Ajuste 23: la pastilla del buzón compartido. */
+                const n = porCorreo.get(_correoDe(s)) || 0;
+                return n > 1
+                  ? ` <button type="button" class="sub-buzon" data-action="verBuzon" data-email="${esc(_correoDe(s))}"`
+                    + ` title="${n} subscriptions share this email" aria-label="${n} subscriptions share this email">`
+                    + `${ICON_USERS}<span>${n}</span></button>`
+                  : '';
+              })()}</td>
               ${/* Misma regla que el modal, y aqui tambien sin la marca:
                     la tabla se lee de un vistazo, el modal es el que
                     explica de donde sale cada dato. */''}
@@ -549,7 +618,7 @@
        · otherwise          → person-with-plus, opens the convert modal
 
      Y desde el 6 de octubre uno más, el de la suscripción:
-       · activa o pendiente → sobre tachado, para darla de baja
+       · activa o pendiente → campana tachada, para darla de baja
        · dada de baja       → flecha de vuelta, para volver a activarla
 
      ⚠️  NINGUNO DE LOS DOS HACE NADA AL PULSARLO. Los dos abren una
@@ -559,8 +628,16 @@
   const ICON_EYE   = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
   const ICON_ADD   = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>';
   const ICON_CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>';
-  // Sobre tachado = "deja de recibir correo". Flecha de vuelta = "vuelve".
-  const ICON_UNSUB = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9"/><polyline points="22 7 12 13 2 7"/><line x1="16" y1="19" x2="22" y2="19"/></svg>';
+  // Campana tachada = "deja de recibir correo". Flecha de vuelta = "vuelve".
+  /* Ajuste 20: campana tachada ("no más avisos"). Antes era un sobre con
+     una rayita y se confundía con el sobre de "Resend confirmation". */
+  const ICON_UNSUB = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5"/><path d="M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="m2 2 20 20"/></svg>';
+  /* Ajuste 23: dos personas, para los buzones compartidos (mismo trazo
+     que los demás iconos de la fila). */
+  const ICON_USERS = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  /* Ajuste 20: el relojito de la cápsula "Last confirmation email…". */
+  const ICON_RELOJ = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+  const ICON_MAIL  = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
   const ICON_BACK  = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>';
 
   const iconBtn = (action, extra, title, icon, color) =>
@@ -585,6 +662,16 @@
                 'Already a player — view profile', ICON_CHECK, 'var(--teal)')
       : iconBtn('convertSubscriber', `data-subid="${s.id}"`,
                 'Convert to player', ICON_ADD, 'var(--blue)');
+    /* Ajuste 19: reenviar la confirmación a ESTA persona. */
+    if (s.status === 'pending') {
+      html += iconBtn('resendConfirmation', `data-subid="${s.id}"`,
+                      'Resend confirmation email', ICON_MAIL, 'var(--blue)');
+    }
+    /* Ajuste 17: quitar la marca de rebote a mano. */
+    if (s.status === 'bounced') {
+      html += iconBtn('clearBounce', `data-subid="${s.id}"`,
+                      'Clear bounce', ICON_BACK, 'var(--blue)');
+    }
     html += iconBtn('unsubscribeSubscriber', `data-subid="${s.id}"`,
                     'Unsubscribe', ICON_UNSUB, '#c04a0e');
     return html;
@@ -746,7 +833,10 @@
          dice que sí se mandó. */
       + (s.confirm_email_skipped_at
           ? svRow('Confirmation email',
-              '<span style="color:#c04a0e;">Not sent — the signup brake was on '
+              '<span class="sv-sin-correo">'
+              + (sinVerificacion(s)
+                  ? 'Not sent — the anti-robot check could not run '
+                  : 'Not sent — the signup brake was on ')
               + `${esc(fechaYHora(s.confirm_email_skipped_at))}</span>`)
           : '')
       // Surfaces the legacy rows that have no token and therefore cannot
@@ -755,13 +845,44 @@
       /* Cuándo y por qué se fue. Sólo se enseña a quien está fuera: a
          quien está dentro, estos dos datos son del pasado y leerlos en
          su ficha haría pensar que está de baja. */
+      /* Ajuste 16: el email rebotó (lo avisó Resend). Se enseña también a
+         quien después se dio de baja: si alguien pide volver, esto dice
+         que su dirección no recibe correo. */
+      + (s.bounced_at
+          ? svRow('Email bounced',
+              `<span class="sv-rebote">${esc(fechaYHora(s.bounced_at))}`
+              + (s.bounce_reason ? ` — ${esc(s.bounce_reason)}` : '')
+              + '</span><div class="sv-rebote-nota">'
+              + (s.status === 'bounced'
+                  ? 'Campaigns and the newsletter skip this address. They can sign up '
+                    + 'again with a different email.'
+                  : 'This address bounced before. If emails to it fail again, check it '
+                    + 'with them.')
+              + '</div>')
+          : '')
       + (s.status === 'unsubscribed'
           ? svRow('Unsubscribed', esc(_cuandoSeDioDeBaja(s)))
             + svRow('Reason', esc(_porQueSeDioDeBaja(s)))
-          : '');
+          : '')
+      /* Ajuste 23: las otras fichas con este mismo correo. */
+      + (() => {
+          const otras = _mismoCorreo(s);
+          if (!otras.length) return '';
+          return svSection(`Same email · ${esc(_correoDe(s))}`)
+            + '<div class="sv-buzon">'
+            + otras.map((x) => `<div class="sv-buzon-fila">${ICON_USERS}`
+                + `<span class="sv-buzon-nombre">${esc(x.first_name)} ${esc(x.last_name)}</span>`
+                + `<span class="sv-buzon-estado sv-buzon-${esc(x.status)}">${esc(_etiquetaEstado(x.status))}</span>`
+                + `<button type="button" class="sv-buzon-ver" data-action="viewSubscriber" data-subid="${esc(x.id)}">View</button></div>`).join('')
+            + '</div>';
+        })();
 
     document.getElementById('sub-view-modal').classList.add('open');
   };
+
+  /* Ajuste 23: el nombre de cada estado, como en la tabla. */
+  const _etiquetaEstado = (st) => ({ active: 'Active', pending: 'Pending', unsubscribed: 'Unsubscribed',
+                                     bounced: 'Bounced' })[st] || String(st || '—');
 
   window.closeSubView = () =>
     document.getElementById('sub-view-modal').classList.remove('open');
@@ -814,23 +935,46 @@
   /* Las OTRAS fichas que comparten esa misma dirección y siguen dentro.
      Hasta cuatro personas pueden compartir buzón (una familia), y la
      lista de envío se arma por FICHA, no por dirección. */
+  /* Ajuste 23: devuelve las fichas (antes, sólo cuántas), para poder
+     nombrarlas y darlas de baja juntas. */
   const _otrasEnEseBuzon = (s) => {
     const correo = String(s.email || '').trim().toLowerCase();
-    if (!correo) return 0;
+    if (!correo) return [];
     return _allSubs.filter((x) => x.id !== s.id
       && String(x.email || '').trim().toLowerCase() === correo
-      && x.status !== 'unsubscribed').length;
+      /* Ajuste 16: quien rebota tampoco recibe. */
+      && (x.status === 'active' || x.status === 'pending'));
+  };
+  /* "Ana", "Ana and Beto", "Ana, Beto and Carla". */
+  const _listaNombres = (fichas) => {
+    const n = fichas.map((x) => `${x.first_name} ${x.last_name}`);
+    return n.length <= 1 ? (n[0] || '') : `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`;
   };
 
   let _ssSub  = null;   // de quién habla la ventana abierta
   let _ssModo = null;   // 'baja' | 'alta'
   let _ssTecla = null;  // el oyente del teclado mientras está abierta
+  /* Mientras se guarda o se manda el correo, la ventana NO se cierra
+     (ni con Escape, ni pulsando fuera, ni con la X). Si se cerrara, al
+     terminar cerraría la ventana que estuviera abierta entonces —la de
+     otra persona— y se perdería lo escrito en ella. Lo señaló la
+     revisión del ajuste 15. */
+  let _ssOcupada = false;
+  /* Si el correo de "Subscribe Again" no salió: a quién y con qué
+     código, para "Retry email". */
+  let _ssReintento = null;
+  /* Ajuste 23: las fichas que se darían de baja con "Everyone at this
+     email" (la abierta primero), tal como se enseñaron en la ventana. */
+  let _ssBuzon = [];
 
-  const closeSubStatus = () => {
+  const closeSubStatus = (forzar = false) => {
+    if (_ssOcupada && forzar !== true) return;
     document.getElementById('sub-status-modal').classList.remove('open');
     if (_ssTecla) { document.removeEventListener('keydown', _ssTecla); _ssTecla = null; }
     _ssSub = null;
     _ssModo = null;
+    _ssReintento = null;
+    _ssBuzon = [];
   };
 
   /* ⚠️  EL CURSOR NO SE SALE DE ESTA VENTANA, Y ESCAPE LA CIERRA.
@@ -854,8 +998,10 @@
     _ssTecla = (e) => {
       if (e.key === 'Escape') { closeSubStatus(); return; }
       if (e.key !== 'Tab') return;
-      const foco = [...modal.querySelectorAll('button, textarea')]
-        .filter((el) => !el.disabled && el.offsetParent !== null);
+      /* De las opciones (radio) sólo la marcada, como hace el navegador:
+         entre ellas se pasa con las flechas. */
+      const foco = [...modal.querySelectorAll('button, textarea, input')]
+        .filter((el) => !el.disabled && el.offsetParent !== null && !(el.type === 'radio' && !el.checked));
       if (!foco.length) return;
       e.preventDefault();
       const i = foco.indexOf(document.activeElement);
@@ -886,9 +1032,15 @@
        el estado al que ibas a llevarla, no se pregunta nada: se dice y
        se recarga. Mejor que confirmar un cambio que no hace nada. */
     const yaEsta = (modo === 'baja' && s.status === 'unsubscribed')
-                || (modo === 'alta'  && s.status !== 'unsubscribed');
+                || (modo === 'alta'  && s.status !== 'unsubscribed')
+                || (modo === 'rebote' && s.status !== 'bounced')
+                || (modo === 'reconfirmar' && s.status !== 'pending');
     if (yaEsta) {
-      toast(`${s.first_name} ${s.last_name} is already `
+      toast(modo === 'reconfirmar'
+        ? `${s.first_name} ${s.last_name} is no longer Pending. Refreshing the list.`
+        : modo === 'rebote'
+        ? `${s.first_name} ${s.last_name} is no longer marked Bounced. Refreshing the list.`
+        : `${s.first_name} ${s.last_name} is already `
           + `${modo === 'baja' ? 'unsubscribed' : 'subscribed'}. Refreshing the list.`);
       loadSubscribers();
       return;
@@ -898,7 +1050,10 @@
     _ssModo = modo;
 
     document.getElementById('ss-title').textContent =
-      modo === 'baja' ? 'Unsubscribe this person?' : 'Subscribe this person again?';
+      modo === 'baja' ? 'Unsubscribe this person?'
+      : modo === 'rebote' ? 'Clear the bounce?'
+      : modo === 'reconfirmar' ? 'Resend the confirmation email?'
+      : 'Subscribe this person again?';
     document.getElementById('ss-subtitle').textContent =
       `${s.first_name} ${s.last_name} · ${s.email}`;
 
@@ -908,16 +1063,17 @@
     const body = document.getElementById('ss-body');
 
     if (modo === 'baja') {
+      /* Ajuste 23: si el correo lo comparten otras fichas que reciben, se
+         elige entre "sólo esta persona" (marcada, como siempre) y "todo el
+         buzón". */
+      const otras = _otrasEnEseBuzon(s);
+      _ssBuzon = otras.length ? [s].concat(otras) : [];
       body.innerHTML =
         aviso('rgba(192,74,14,0.06)', 'rgba(192,74,14,0.25)',
             'They will stop receiving campaigns and the newsletter from now on. '
           + 'Nothing is deleted: their record, their history and where they came '
           + 'from all stay.'
-          + (_playerIndex.get(_personKey(s))
-              ? '<div style="margin-top:10px;font-weight:700;color:#c04a0e;">'
-                + 'This person is also a player, so they will still get ladder '
-                + 'and tournament emails. Those are not part of the mailing list.</div>'
-              : '')
+          + '<div id="ss-jugadores"></div>')
           /* ⚠️  EL BUZÓN COMPARTIDO. 19 de sus 490 direcciones llevan más
              de una ficha —familias que comparten correo— y la lista de
              envío se arma por FICHA, no por dirección. Sin este aviso,
@@ -926,19 +1082,15 @@
              al buzón le siguen llegando los correos a nombre de otro. Lo
              siguiente que se pulsa ahí es spam. Lo señaló la revisión del
              6 de octubre. */
-          + (() => {
-              const n = _otrasEnEseBuzon(s);
-              if (!n) return '';
-              return '<div style="margin-top:10px;font-weight:700;color:#c04a0e;">'
-                + (n === 1
-                    ? '1 other subscription shares this email address and will keep '
-                      + 'receiving campaigns. Unsubscribe it too if the whole inbox '
-                      + 'should stop.'
-                    : `${n} other subscriptions share this email address and will keep `
-                      + 'receiving campaigns. Unsubscribe them too if the whole inbox '
-                      + 'should stop.')
-                + '</div>';
-            })())
+          + (otras.length
+              ? `<div class="ss-etiqueta ss-buzon-titulo">This email is shared by ${_ssBuzon.length} subscriptions</div>`
+                + '<label class="ss-opcion ss-opcion-sel"><input type="radio" name="ss-alcance" value="uno" checked>'
+                + `<span><strong>Only ${esc(s.first_name)} ${esc(s.last_name)}</strong>`
+                + `<small>${esc(_listaNombres(otras))} will keep receiving campaigns at this email.</small></span></label>`
+                + '<label class="ss-opcion"><input type="radio" name="ss-alcance" value="todos">'
+                + `<span><strong>Everyone at this email (${_ssBuzon.length})</strong>`
+                + `<small>${esc(_listaNombres(_ssBuzon))}. The inbox stops getting campaigns.</small></span></label>`
+              : '')
         + '<div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 4px;">'
         + 'Why are you unsubscribing them? <span style="color:#e53935;">*</span></div>'
         + '<textarea id="ss-note" rows="3" maxlength="200"'
@@ -972,7 +1124,74 @@
       };
       nota.addEventListener('input', mirar);
       mirar();
+      /* Ajuste 23: el botón y el aviso de jugadores siguen a la opción. */
+      const pintarAlcance = () => {
+        const todos = body.querySelector('input[name="ss-alcance"]:checked')?.value === 'todos';
+        body.querySelectorAll('.ss-opcion').forEach((l) =>
+          l.classList.toggle('ss-opcion-sel', !!l.querySelector('input:checked')));
+        ok.textContent = todos ? `Unsubscribe all ${_ssBuzon.length}` : 'Unsubscribe';
+        const quienes = (todos ? _ssBuzon : [s]).filter((x) => _playerIndex.get(_personKey(x)));
+        const caja = document.getElementById('ss-jugadores');
+        if (caja) {
+          caja.className = quienes.length ? 'ss-jugadores' : '';
+          caja.textContent = !quienes.length ? ''
+            : !todos
+              ? 'This person is also a player, so they will still get ladder and tournament emails. '
+                + 'Those are not part of the mailing list.'
+              : `${_listaNombres(quienes)} ${quienes.length === 1 ? 'is' : 'are'} also `
+                + `${quienes.length === 1 ? 'a player' : 'players'}, so they will still get ladder and `
+                + 'tournament emails. Those are not part of the mailing list.';
+        }
+      };
+      body.querySelectorAll('input[name="ss-alcance"]').forEach((r) => r.addEventListener('change', pintarAlcance));
+      pintarAlcance();
       setTimeout(() => nota.focus(), 50);
+    } else if (modo === 'reconfirmar') {
+      /* Ajuste 19: reenviar la confirmación a UNA persona, con su mismo
+         enlace. Lo último que se le mandó se pinta cuando llega (abajo). */
+      body.innerHTML =
+          '<p class="ss-texto ss-texto-primero">We will send <strong>' + esc(s.email) + '</strong> the '
+        + 'confirmation email again, with the same link as before. They will receive campaigns '
+        + 'once they click it.</p>'
+        /* Ajuste 20: en una cápsula. Gris mientras se lee (o si no hay
+           registro); azul cuando hay fecha. */
+        + '<div id="ss-historial" class="ss-capsula ss-capsula-gris">' + ICON_RELOJ
+        + '<span class="ss-capsula-txt">Checking the last confirmation email…</span></div>'
+        + (s.confirm_email_skipped_at
+            ? (sinVerificacion(s)
+                ? '<p class="ss-rebote">This signup arrived without the anti-robot check '
+                  + `(${esc(fechaYHora(s.confirm_email_skipped_at))}). It may be a robot, or a real person `
+                  + 'whose browser blocked the check. Only send it if you know this person is real.</p>'
+                : '<p class="ss-rebote">The signup brake was on when this person signed up '
+                  + `(${esc(fechaYHora(s.confirm_email_skipped_at))}), which usually means a burst of fake `
+                  + 'signups. Only send it if you know this person is real.</p>')
+            : '')
+        + (s.bounced_at
+            ? '<p class="ss-rebote">This email address bounced on '
+              + `${esc(fechaYHora(s.bounced_at))}, so it will most likely not arrive.</p>`
+            : '')
+        + `<div class="ss-botones">
+             ${_ssBoton('closeSubStatus', 'Cancel', 'white')}
+             ${_ssBoton('confirmSubStatus', 'Send email', 'linear-gradient(180deg,#2456d3,var(--blue))', 'id="ss-ok"')}
+           </div>`;
+      _pintarUltimaConfirmacion(s);
+    } else if (modo === 'rebote') {
+      /* Ajuste 17: "Clear bounce". Los estilos, en admin-pages.css (ss-). */
+      body.innerHTML =
+          `<div class="ss-caja-rebote"><div class="ss-etiqueta">Bounced</div>`
+        + `<div>${esc(fechaYHora(s.bounced_at) || '—')}</div>`
+        + (s.bounce_reason
+            ? `<div class="ss-etiqueta ss-etiqueta-sep">Reason</div><div>${esc(s.bounce_reason)}</div>` : '')
+        + '</div>'
+        + '<p class="ss-texto">We will ask Resend to remove this address from its block list. '
+        + 'Then they go back to <strong>Pending</strong> and get an email to confirm their '
+        + 'subscription. They will receive campaigns once they click the link.</p>'
+        + '<p class="ss-nota">Only do this if you know the address works now (for example, they '
+        + 'told you their mailbox is fixed). If it bounces again, it will be marked Bounced again.</p>'
+        + `<div class="ss-botones">
+             ${_ssBoton('closeSubStatus', 'Cancel', 'white')}
+             ${_ssBoton('confirmSubStatus', 'Clear bounce', 'linear-gradient(180deg,#2456d3,var(--blue))', 'id="ss-ok"')}
+           </div>`;
     } else {
       body.innerHTML =
         aviso('rgba(36,188,150,0.06)', 'rgba(36,188,150,0.25)',
@@ -980,24 +1199,25 @@
           + `<div style="margin-bottom:10px;">${esc(_cuandoSeDioDeBaja(s))}</div>`
           + '<div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);">Reason</div>'
           + `<div>${esc(_porQueSeDioDeBaja(s))}</div>`)
-        /* ⚠️  QUIEN NUNCA CONFIRMÓ SU CORREO NO VUELVE COMO ACTIVO.
+        /* ⚠️  NADIE VUELVE COMO ACTIVO DESDE AQUÍ (ajuste 15, 12 de octubre).
 
-           Esta pantalla también deja dar de baja a una ficha pendiente
-           (una alta falsa, por ejemplo). Devolverla como "activa" la
-           metería en los envíos sin que nadie haya comprobado nunca que
-           esa dirección existe y que su dueño la quiere — justo lo que
-           el doble paso del alta está para impedir, y una dirección sin
-           comprobar en un envío masivo es lo que hunde la reputación
-           del dominio. Vuelve como pendiente, y se lo dice. Lo señaló la
-           revisión del 6 de octubre. */
+           Vuelve como PENDIENTE y se le manda el correo de confirmación,
+           con un enlace nuevo. Entra en los envíos cuando pulsa ese
+           enlace, como cualquier alta del formulario: así es ELLA quien
+           dice que quiere volver, y no sólo una pulsación nuestra. Vale
+           igual para quien estaba activa antes de irse y para quien nunca
+           llegó a confirmar. */
+        /* Ajuste 16: si su dirección rebotó, el correo de confirmación
+           no le va a llegar. Se dice antes de pulsar. */
+        + (s.bounced_at
+            ? '<p class="ss-rebote">This email address bounced on '
+              + `${esc(fechaYHora(s.bounced_at))}, so the confirmation email will `
+              + 'most likely not arrive. Ask them for a different email.</p>'
+            : '')
         + '<div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.6;margin-top:16px;">'
-        + (s.confirm_token
-            ? 'They never confirmed their email, so they go back to '
-              + '<strong>Pending</strong>. They will receive campaigns once they '
-              + 'confirm — you can send them the confirmation link again from '
-              + 'this screen.'
-            : 'They will go back to <strong>Active</strong> and will receive campaigns '
-              + 'and the newsletter again, starting with the next one.')
+        + 'They will go back to <strong>Pending</strong> and get an email to '
+        + 'confirm their subscription. They will receive campaigns and the '
+        + 'newsletter once they click the link in that email.'
         + '</div>'
         + '<div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:8px;line-height:1.5;">'
         + 'Only do this if this person asked you to. Writing to someone who chose '
@@ -1013,10 +1233,283 @@
     _atraparCursor(modal);
   };
 
+  /* ─── SUBSCRIBE AGAIN: PENDIENTE + CORREO DE CONFIRMACIÓN ─────
+     (ajuste 15, 12 de octubre)
+
+     El asunto es el MISMO que el del formulario de alta: para quien lo
+     recibe es el mismo correo, con la misma plantilla 'confirm'. El
+     enlace se arma igual que en el recordatorio
+     (admin-subscriber-reminder.js). */
+  const ASUNTO_CONFIRMAR = '✅ Please confirm your Ferocia Sports subscription';
+
+  const _enlaceConfirmar = (token) =>
+    window.location.origin
+    + window.location.pathname.replace('admin.html', '')
+    + `confirm.html?t=${token}`;
+
+  /* 64 letras hexadecimales, como las que pone la base de datos en el
+     alta. Con el generador del navegador (el que sirve para claves), no
+     con Math.random: este código es lo único que confirma a la persona. */
+  const _nuevoTokenConfirmacion = () => {
+    const b = new Uint8Array(32);
+    window.crypto.getRandomValues(b);
+    return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  };
+
+  /* Paso 1: la ficha pasa a pendiente con un código nuevo. Devuelve el
+     código, o null si otra persona la cambió entretanto.
+
+     ⚠️  SÓLO SI SIGUE DE BAJA. La tabla puede llevar minutos pintada:
+     si otra administradora ya la devolvió (o la persona ya confirmó),
+     esto no toca nada. Y como el PATCH no devuelve la fila, se pregunta
+     después si el código que quedó guardado es el NUESTRO. Si no lo es,
+     no se manda nada: un correo con un enlace que no confirma a nadie es
+     peor que ningún correo. */
+  const _apuntarDeNuevo = async (s) => {
+    const token = _nuevoTokenConfirmacion();
+    await api(`subscribers?id=eq.${s.id}&status=eq.unsubscribed`, 'PATCH',
+      { status: 'pending', confirm_token: token, confirm_email_skipped_at: null });
+    const [ahora] = await api(`subscribers?id=eq.${s.id}&select=status,confirm_token`);
+    return (ahora && ahora.status === 'pending' && ahora.confirm_token === token) ? token : null;
+  };
+
+  /* Paso 2: el correo. Devuelve { llego, dudoso, detalle }.
+     `dudoso`: se cortó la conexión y no sabemos si salió. */
+  const _mandarConfirmacion = async (s, token, llave = null) => {
+    window.AdminState.emailInFlight = true;
+    let r;
+    try {
+      r = await window.sendEmailServer({
+        kind:     'subscriber_confirm',
+        template: 'confirm',
+        subject:  ASUNTO_CONFIRMAR,
+        recipients: [{
+          email: s.email,
+          name:  window.nombreDestinatario(s),
+          subscriber_id: s.id,
+          vars:  { confirm_url: _enlaceConfirmar(token) },
+        }],
+        /* Una llave por código: "Retry email" repite el MISMO código y la
+           MISMA llave, así que si el primer intento sí había llegado, el
+           servidor no lo manda otra vez. Otra vuelta de Subscribe Again
+           es otro código y otra llave. */
+        idempotency_key: llave || `reactivar-${s.id}-${token.slice(0, 16)}`,
+      });
+    } finally {
+      window.AdminState.emailInFlight = false;
+    }
+    const d = (r && r.ok && r.data) || {};
+    if (r && r.ok && ((d.sent || 0) + (d.already_sent || 0)) > 0) return { llego: true };
+    console.error('[subscribe-again] el correo no salió:', r);
+    /* Sin respuesta del servidor (se cortó, o no contestó a tiempo) no
+       sabemos si salió. Con una respuesta, sí: no salió. */
+    const dudoso = !!(r && !r.ok && r.code !== 'no_client'
+                      && (r.code === 'network' || r.status == null))
+      /* El servidor contestó que no mandó NADA y que nada falló: un
+         intento anterior con la misma llave sigue en marcha. Puede
+         llegar en un momento. */
+      || !!(r && r.ok && !d.sent && !d.already_sent && !d.failed);
+    return { llego: false, dudoso,
+             detalle: r && !r.ok ? r.message : window.resumenEnvio(d) };
+  };
+
+  /* Ajuste 17: Edit Player también lo usa (al corregir el email de alguien
+     que rebotó). Devuelve { llego, dudoso, detalle }. */
+  window.mandarConfirmacionSuscriptor = (s, token) => _mandarConfirmacion(s, token);
+
+  /* Si el correo no salió, la ventana NO se cierra: se queda diciéndolo,
+     con "Retry email" para mandárselo a ESTA persona. Antes el aviso
+     mandaba a "Send Reminder", que escribe a TODOS los pendientes. Lo
+     señaló la revisión del ajuste 15. */
+  const _pintarFalloDeCorreo = (s, token, fallo, llave = null) => {
+    _ssReintento = { s, token, llave };
+    document.getElementById('ss-title').textContent =
+      fallo.dudoso ? 'Did the email go out?' : 'The email did not go out';
+    const body = document.getElementById('ss-body');
+    body.innerHTML =
+      `<p class="ss-fallo">${esc(s.first_name)} ${esc(s.last_name)} is already `
+      + '<strong>Pending</strong>, with a valid confirmation link. '
+      + (fallo.dudoso
+          ? 'We did not get a clear answer from the server, so we do not know yet if '
+            + 'the confirmation email reached them. Retrying is safe: if it already '
+            + 'went out, it will not be sent twice.'
+          : `But the confirmation email did not go out (${esc(fallo.detalle)}).`)
+      + '</p>'
+      + '<p class="ss-fallo-nota">If you close this, they stay Pending without the email. '
+      + 'You can send it later with "Send Reminder", which emails every pending subscriber.</p>'
+      + `<div class="ss-botones">
+           ${_ssBoton('closeSubStatus', 'Close', 'white')}
+           ${_ssBoton('confirmSubStatus', 'Retry email', 'linear-gradient(180deg,#2456d3,var(--blue))', 'id="ss-ok"')}
+         </div>`;
+    /* El foco estaba en el botón que se acaba de borrar: se pone en
+       Close, la respuesta que no hace nada. */
+    setTimeout(() => body.querySelector('[data-action="closeSubStatus"]')?.focus(), 50);
+  };
+
+  /* Ajuste 19: el último correo de confirmación que se le mandó DESDE EL
+     ADMIN (los del formulario público no quedan en el historial). Si fue
+     hace menos de 24 horas, se avisa en rojo; se puede mandar igual. */
+  const _pintarUltimaConfirmacion = async (s) => {
+    /* La caja de ESTA ventana: si se cierra y se abre otra antes de que
+       llegue la respuesta, ésta ya no está en la página y no se pinta
+       (si no, el aviso rojo podía salir dos veces). */
+    const el = document.getElementById('ss-historial');
+    const caja = () => (el && el.isConnected ? el : null);
+    let texto = 'No confirmation email from the admin is on record (the signup form sends its own).';
+    let reciente = false;
+    let hayFecha = false;
+    try {
+      const filas = await api(`communication_recipients?subscriber_id=eq.${s.id}&status=eq.sent`
+        + '&select=sent_at,communications!inner(kind)&communications.kind=eq.subscriber_confirm'
+        + '&order=sent_at.desc&limit=1');
+      const ult = filas && filas[0] && filas[0].sent_at;
+      if (ult) {
+        hayFecha = true;
+        reciente = Date.now() - new Date(ult).getTime() < 24 * 3600 * 1000;
+        texto = `Last confirmation email from the admin: ${fechaYHora(ult)}`;
+      }
+    } catch (e) {
+      console.warn('[resend-confirmation] no se pudo leer el historial:', e);
+      texto = 'Could not check when the last confirmation email was sent.';
+    }
+    /* La ventana pudo cerrarse o cambiar de persona mientras se leía. */
+    if (!caja() || !_ssSub || _ssSub.id !== s.id || _ssModo !== 'reconfirmar') return;
+    const txt = caja().querySelector('.ss-capsula-txt');
+    if (txt) txt.textContent = texto; else caja().textContent = texto;
+    /* Azul sólo si hay una fecha que enseñar. */
+    caja().classList.toggle('ss-capsula-gris', !hayFecha);
+    if (reciente) {
+      caja().insertAdjacentHTML('afterend', '<p class="ss-rebote">They got a confirmation email less than '
+        + '24 hours ago. Sending another one so soon can look like spam — they may just need to check '
+        + 'their spam folder.</p>');
+    }
+  };
+
+  /* Reenviar: el enlace que YA tiene. Si por algún motivo no tiene ninguno
+     (fichas antiguas), se le pone uno nuevo, sólo si sigue Pending y sin
+     enlace. Devuelve el enlace, o null si ya no está Pending. */
+  const _enlaceActual = async (s) => {
+    const [ahora] = await api(`subscribers?id=eq.${s.id}&select=status,confirm_token`);
+    if (!ahora || ahora.status !== 'pending') return null;
+    if (ahora.confirm_token) return ahora.confirm_token;
+    const token = _nuevoTokenConfirmacion();
+    await api(`subscribers?id=eq.${s.id}&status=eq.pending&confirm_token=is.null`, 'PATCH',
+      { confirm_token: token });
+    const [luego] = await api(`subscribers?id=eq.${s.id}&select=status,confirm_token`);
+    return (luego && luego.status === 'pending' && luego.confirm_token) ? luego.confirm_token : null;
+  };
+
+  /* Ajuste 17: "Clear bounce" en el servidor (función clear-bounce): la
+     saca de la lista de bloqueos de Resend y la deja pendiente con un
+     enlace nuevo. Devuelve el enlace, null si otra persona la cambió, o
+     lanza un error con un mensaje para la pantalla. */
+  const _quitarRebote = async (s) => {
+    /* El enlace nuevo lo genera el navegador y viaja en la petición: si
+       se corta la conexión con el trabajo ya hecho en el servidor, aquí
+       se puede comprobar que quedó guardado ESTE enlace y seguir con el
+       correo (lo señaló la revisión del ajuste 17). */
+    const token = _nuevoTokenConfirmacion();
+    const r = await window.llamarFuncionAdmin({ subscriber_id: s.id, confirm_token: token }, 'clear-bounce');
+    if (r.ok && r.data && r.data.confirm_token === token) return token;
+    const codigo = r.code || '';
+    const CONOCIDOS = ['changed', 'not_bounced', 'not_found', 'bad_email', 'bad_request', 'not_authorized',
+                       'resend_key_cannot_manage', 'resend_failed', 'resend_unreachable'];
+    if (!CONOCIDOS.includes(codigo)) {
+      /* No sabemos si el servidor terminó (se cortó la conexión, o un error
+         sin explicación). Se espera un poco y se mira la ficha: si tiene
+         NUESTRO enlace, terminó, y se sigue con el correo. */
+      for (const espera of [0, 3000]) {
+        if (espera) await new Promise((res) => setTimeout(res, espera));
+        const [ahora] = await api(`subscribers?id=eq.${s.id}&select=status,confirm_token`);
+        if (ahora && ahora.status === 'pending' && ahora.confirm_token === token) return token;
+      }
+      throw new Error('We could not confirm whether the bounce was cleared (the server did not '
+        + 'answer clearly). Refresh in a minute and check this person');
+    }
+    if (codigo === 'not_bounced') return null;
+    if (codigo === 'changed') {
+      throw new Error('This person was changed by someone else a moment ago. Their address was '
+        + 'removed from Resend\'s block list, but nothing else was changed or sent');
+    }
+    if (codigo === 'resend_key_cannot_manage') {
+      throw new Error('Resend did not let us remove this address from its block list: your Resend '
+        + 'API key can only send emails. Remove it by hand in Resend → Suppressions and try again. '
+        + 'Nothing was changed');
+    }
+    if (codigo === 'resend_failed' || codigo === 'resend_unreachable') {
+      throw new Error('Resend could not remove this address from its block list right now. '
+        + 'Nothing was changed — try again in a few minutes');
+    }
+    throw new Error(codigo === 'not_authorized'
+      ? 'Your admin access could not be confirmed. Log in again and retry'
+      : 'The bounce could not be cleared (' + codigo + '). Nothing was changed');
+  };
+
+  /* Lo que pasa al pulsar "Subscribe Again", "Clear bounce" o "Retry email". */
+  const _volverAApuntar = async (ok) => {
+    let s, token, llave = null;
+    if (_ssReintento) {
+      ({ s, token, llave } = _ssReintento);
+      /* Antes de reintentar se mira otra vez la ficha: si entretanto se
+         dio de baja, confirmó, u otra administradora le puso un código
+         nuevo, este correo ya no vale (su enlace no confirmaría nada).
+         Lo señaló la segunda revisión del ajuste 15. */
+      const [ahora] = await api(`subscribers?id=eq.${s.id}&select=status,confirm_token`);
+      if (!ahora || ahora.status !== 'pending' || ahora.confirm_token !== token) {
+        closeSubStatus(true);
+        toast(`${s.first_name} ${s.last_name} was changed by someone else a moment `
+            + 'ago, so the email was not sent. The list has been refreshed.', true);
+        return;
+      }
+    } else {
+      s = _ssSub;
+      try {
+        token = _ssModo === 'rebote' ? await _quitarRebote(s)
+              : _ssModo === 'reconfirmar' ? await _enlaceActual(s)
+              : await _apuntarDeNuevo(s);
+        /* Reenviar con el MISMO enlace necesita una llave propia: con la
+           de siempre (enlace + persona) el servidor diría "ya se le mandó"
+           y no saldría nada. "Retry email" reutiliza ésta. */
+        if (_ssModo === 'reconfirmar') llave = `reconfirmar-${s.id}-${_nuevoTokenConfirmacion().slice(0, 12)}`;
+      } catch (err) {
+        /* Pudo guardarse y fallar sólo la comprobación: no se ofrece
+           repetir a ciegas. Se cierra y se recarga la lista para que se
+           vea en qué estado quedó. Lo señaló la revisión del ajuste 15. */
+        closeSubStatus(true);
+        toast(`Error: ${String(err.message).replace(/\.$/, '')}. The list has been refreshed — check `
+            + `${s.first_name} ${s.last_name}'s status before trying again.`, true);
+        return;
+      }
+      if (!token) {
+        closeSubStatus(true);
+        toast(`${s.first_name} ${s.last_name} was changed by someone else a moment `
+            + 'ago, so nothing was changed or sent. The list has been refreshed.', true);
+        return;
+      }
+    }
+
+    if (ok) ok.textContent = 'Sending email...';
+    const reenvio = _ssModo === 'reconfirmar';
+    const fallo = await _mandarConfirmacion(s, token, llave);
+    if (fallo.llego) {
+      closeSubStatus(true);
+      toast(reenvio
+        ? `✅ Confirmation email sent again to ${s.first_name} ${s.last_name}.`
+        : `✅ ${s.first_name} ${s.last_name} is now Pending. We sent them an email `
+          + 'to confirm; they will receive campaigns once they click the link.');
+      return;
+    }
+    _pintarFalloDeCorreo(s, token, fallo, llave);
+    toast(reenvio
+      ? `The confirmation email to ${s.first_name} ${s.last_name} `
+        + (fallo.dudoso ? 'may not have gone out.' : 'did not go out.')
+      : `${s.first_name} ${s.last_name} is now Pending, but the confirmation email `
+        + (fallo.dudoso ? 'may not have gone out.' : 'did not go out.'), true);
+  };
+
   const confirmSubStatus = async () => {
-    const s    = _ssSub;
     const modo = _ssModo;
-    if (!s || !modo) return;
+    if (!_ssSub || !modo) return;
 
     const ok = document.getElementById('ss-ok');
     let nota = '';
@@ -1025,35 +1518,83 @@
       /* Segundo cinturón: el botón ya nace apagado sin nota, pero si
          algún día ese enganche se rompiera, aquí no pasa igual. */
       if (!nota) { toast('Write why you are unsubscribing them first.', true); return; }
+    } else if (window.AdminState.emailInFlight) {
+      /* Volver a apuntar (o quitar un rebote) manda un correo: si hay
+         otro envío en marcha en el admin, no se toca nada todavía. */
+      toast('A send is still running somewhere in the admin. Please wait for it to finish.', true);
+      return;
     }
 
+    const textoBoton = ok ? ok.textContent : '';
     if (ok) { ok.disabled = true; ok.textContent = 'Saving...'; }
+    _ssOcupada = true;
     try {
-      /* La fecha NO se manda desde aquí: la pone la base de datos sola,
-         con la regla del `sql/69`. Así vale igual para este botón, para
-         el enlace del correo y para un SQL a mano, y no puede olvidarse
-         en ninguno de los tres. */
-      await api(`subscribers?id=eq.${s.id}`, 'PATCH',
-        modo === 'baja'
-          ? { status: 'unsubscribed', unsubscribe_note: nota }
-          /* Pendiente vuelve a pendiente: nunca confirmó su correo, y
-             devolverla como activa la metería en los envíos sin que
-             nadie haya comprobado que esa dirección existe. */
-          : { status: s.confirm_token ? 'pending' : 'active' });
-
-      closeSubStatus();
-      toast(modo === 'baja'
-        ? `${s.first_name} ${s.last_name} will not receive any more emails.`
-        : (s.confirm_token
-            ? `${s.first_name} ${s.last_name} is back, pending their email confirmation.`
-            : `${s.first_name} ${s.last_name} is back on the mailing list.`));
-      await loadSubscribers();
+      if (modo === 'baja') {
+        const s = _ssSub;
+        /* La fecha NO se manda desde aquí: la pone la base de datos sola,
+           con la regla del `sql/69`. Así vale igual para este botón, para
+           el enlace del correo y para un SQL a mano, y no puede olvidarse
+           en ninguno de los tres. */
+        const todos = _ssBuzon.length > 1
+          && document.querySelector('#ss-body input[name="ss-alcance"]:checked')?.value === 'todos';
+        if (!todos) {
+          await api(`subscribers?id=eq.${s.id}`, 'PATCH',
+            { status: 'unsubscribed', unsubscribe_note: nota });
+          closeSubStatus(true);
+          toast(`${s.first_name} ${s.last_name} will not receive any more emails.`);
+        } else {
+          /* Ajuste 23: todo el buzón — las fichas que se enseñaron en la
+             ventana y que SIGAN dentro (Active o Pending): si otra
+             administradora cambió alguna mientras tanto, ésa no se toca. */
+          const ids = _ssBuzon.map((x) => Number(x.id)).filter((x) => Number.isSafeInteger(x));
+          const total = ids.length;
+          const dir = String(s.email || '').trim().toLowerCase();
+          const antes = await api(`subscribers?id=in.(${ids.join(',')})&select=id,status`);
+          /* La persona de la ventana se da de baja esté como esté (igual
+             que con "Only…": por ejemplo, si rebotó); las demás, sólo si
+             siguen Active o Pending. Lo encontró la revisión: con la
+             abierta en Bounced, "Everyone" la dejaba fuera y el aviso
+             culpaba a "otra administradora". */
+          const dentro = (antes || []).filter((x) => (String(x.id) === String(s.id)
+            ? x.status !== 'unsubscribed'
+            : (x.status === 'active' || x.status === 'pending'))).map((x) => x.id);
+          let hechas = 0;
+          if (dentro.length) {
+            const otrasIds = dentro.filter((x) => String(x) !== String(s.id));
+            if (dentro.some((x) => String(x) === String(s.id))) {
+              await api(`subscribers?id=eq.${s.id}&status=neq.unsubscribed`, 'PATCH',
+                { status: 'unsubscribed', unsubscribe_note: nota });
+            }
+            if (otrasIds.length) {
+              await api(`subscribers?id=in.(${otrasIds.join(',')})&status=in.(active,pending)`, 'PATCH',
+                { status: 'unsubscribed', unsubscribe_note: nota });
+            }
+            const despues = await api(`subscribers?id=in.(${dentro.join(',')})&select=id,status`);
+            hechas = (despues || []).filter((x) => x.status === 'unsubscribed').length;
+          }
+          closeSubStatus(true);
+          if (hechas === 0) {
+            toast(`Nobody at ${dir} was still subscribed — someone changed them meanwhile. Refreshing the list.`, true);
+          } else {
+            toast(hechas === total
+              ? `✅ ${hechas} subscriptions at ${dir} unsubscribed.`
+              : `✅ ${hechas} of ${total} subscriptions at ${dir} unsubscribed. The others had already been changed by someone else.`);
+          }
+        }
+      } else {
+        await _volverAApuntar(ok);
+      }
     } catch (err) {
       toast(`Error: ${err.message}`, true);
-      if (ok) {
-        ok.disabled = false;
-        ok.textContent = modo === 'baja' ? 'Unsubscribe' : 'Subscribe Again';
-      }
+      const b = document.getElementById('ss-ok');
+      if (b) { b.disabled = false; b.textContent = textoBoton; }
+    } finally {
+      _ssOcupada = false;
+    }
+    try {
+      await loadSubscribers();
+    } catch (e) {
+      console.warn('[subscribe-again] no se pudo refrescar la lista:', e);
     }
   };
 
@@ -1424,14 +1965,378 @@
     return `${Math.floor(diff/86400)} days ago`;
   };
 
-  const openSendPromo = async () => {
-    /* Reabrir la ventana con un envío en curso limpiaba el composer y
+  /* ── LA CAMPAÑA VIVE EN COMMUNICATIONS (10 de octubre) ─────────
+     El formulario está en la pestaña Send de Communications, como los
+     demás canales ("Campaign"), con "All channels" para volver. Antes era
+     una ventana encima de Promotions; el botón "Launch Campaign" de
+     Promotions lleva ahora allí. El formulario y el envío son los de
+     siempre: sólo cambia dónde se ve.
+     Como en el Hub: si hay algo escrito, se pregunta antes de perderlo. */
+  const panelCampana = () => document.getElementById('promo-panel');
+  const campanaAbierta = () => { const p = panelCampana(); return !!p && !p.hidden; };
+
+  /* ¿Hay algo escrito que se perdería? La etiqueta de cabecera no cuenta:
+     la pone sola el tipo de campaña. */
+  function hayBorradorCampana() {
+    if (!campanaAbierta()) return false;
+    const valor = (id) => (document.getElementById(id)?.value || '').trim();
+    return !!(valor('promo-subject') || valor('promo-preview-text') || valor('promo-other-flyer-url')
+      || (edPromo && edPromo.getText().trim()));
+  }
+
+  async function puedeDescartarCampana() {
+    if (!hayBorradorCampana()) return true;
+    return window.confirmModal({
+      title: 'Discard the campaign you were writing?',
+      message: 'The subject and message you were writing will be lost.',
+      okLabel: 'Discard',
+      cancelLabel: 'Keep writing',
+      danger: true,
+      focusCancel: true,
+    });
+  }
+
+  function cerrarCampanaYa() {
+    const p = panelCampana();
+    if (!p) return;
+    p.hidden = true;
+    document.getElementById('co-send-home').hidden = false;
+  }
+
+  /* "All channels". */
+  async function cerrarCampana() {
+    if (!campanaAbierta()) return;
+    /* Cerrar con la campaña saliendo dejaría sin el texto que hace falta
+       para reintentarla si sale a medias. */
+    if (window.envioEnCurso && window.envioEnCurso('cerrar')) return;
+    if (!(await puedeDescartarCampana())) return;
+    cerrarCampanaYa();
+    /* El cursor vuelve a la tarjeta que la abrió, como en el Hub. */
+    document.querySelector('#co-send-home [data-action="openSendPromo"]')?.focus();
+  }
+
+  /* La pestaña Send y los botones de correo de otras pantallas vuelven a
+     las opciones: si hay una campaña a medio escribir, se pregunta.
+     Devuelve si se cerró (o si no estaba abierta). */
+  window.campanaIrAOpciones = async () => {
+    if (!campanaAbierta()) return true;
+    if (window.AdminState?.emailInFlight || _preparandoCampana) return false;
+    if (!(await puedeDescartarCampana())) return false;
+    cerrarCampanaYa();
+    return true;
+  };
+
+  /* Al volver a Communications desde el menú: sin nada escrito se cierra;
+     con un borrador se queda, que es a lo que se vuelve. */
+  window.campanaAlVolver = () => {
+    if (!campanaAbierta() || window.AdminState?.emailInFlight) return;
+    if (!hayBorradorCampana()) cerrarCampanaYa();
+  };
+
+  /* ─── CONTADORES Y "MESSAGE CHECKLIST" (diseño del 11 de octubre) ───
+     Los mismos topes que el Hub: 120 en el asunto y 5.000 caracteres de
+     texto en el mensaje. Pasado el tope, el contador se pone en rojo y
+     "Launch Campaign" avisa y no manda (leerFormulario). */
+  const MAX_ASUNTO_CAMPANA = 120;
+  const MAX_TEXTO_CAMPANA  = 5000;
+  let _suscriptores = null;   // cuántos activos; null hasta que llega la cuenta
+
+  /* A QUIÉN (ajuste 12): "all" = todos los suscriptores activos (como
+     siempre); "selected" = sólo los que se marquen en la lista. */
+  let _segmentoCampana = 'all';
+  let _elegidosCampana = new Set();   // ids de suscriptor marcados
+  let _candidatosCampana = null;      // los activos: [{ id, first_name, last_name, email }]
+  /* El reenvío desde History: la campaña original (su id, su fecha y su
+     meta) o null. Mientras dura, el tipo y el flyer son los suyos y sólo
+     se manda a elegidos. */
+  let _reenvio = null;
+
+  /* La cuenta de "Recipient Preview". `estilo`: 'error' (en rojo, no se
+     pudo leer), 'nota' (una indicación, no una cuenta) o nada. */
+  function ponerCuenta(numero, palabra, estilo) {
+    const n = document.getElementById('promo-audience-count');
+    const w = document.getElementById('promo-audience-word');
+    /* Sólo si cambia: la zona se lee en voz alta (aria-live) y esto se
+       llama en cada tecla. */
+    if (n && n.textContent !== String(numero)) n.textContent = String(numero);
+    if (w && w.textContent !== palabra) w.textContent = palabra;
+    n?.parentElement?.classList.toggle('hub-count-error', estilo === 'error' || estilo === true);
+    n?.parentElement?.classList.toggle('hub-count-note', estilo === 'nota');
+  }
+
+  const plural = (x, uno, varios) => `${x} ${x === 1 ? uno : varios}`;
+
+  /* "Recipient Preview" y la caja verde, según a quién va. */
+  function pintarDestinatarios() {
+    const ok = document.getElementById('promo-preview-ok');
+    const titulo = document.getElementById('promo-ok-title');
+    const linea = document.getElementById('promo-ok-sub');
+    if (_suscriptores === null) { if (ok) ok.hidden = true; return; }   // cargando o con error: lo dice ponerCuenta
+    if (_segmentoCampana === 'all') {
+      ponerCuenta(_suscriptores, _suscriptores === 1 ? 'active subscriber' : 'active subscribers', false);
+      if (titulo) titulo.textContent = 'All active subscribers selected';
+      if (linea) linea.textContent = 'This campaign will be sent to all your active subscribers.';
+      if (ok) ok.hidden = !(_suscriptores > 0);
+      return;
+    }
+    const n = _elegidosCampana.size;
+    if (!n) {
+      ponerCuenta('', 'Select at least one subscriber.', 'nota');
+      if (ok) ok.hidden = true;
+      return;
+    }
+    ponerCuenta(n, `of ${plural(_suscriptores, 'active subscriber', 'active subscribers')}`, false);
+    if (titulo) titulo.textContent = `${plural(n, 'subscriber', 'subscribers')} selected`;
+    if (linea) linea.textContent = 'This campaign will be sent only to the subscribers you chose.';
+    if (ok) ok.hidden = false;
+  }
+
+  /* Los botones "All Subscribers" / "Selected Subscribers" y la lista. */
+  function ponerSegmentoCampana(segmento) {
+    if (_reenvio && segmento === 'all') return;   // un reenvío nunca va a todos
+    _segmentoCampana = segmento;
+    document.querySelectorAll('#promo-segments [data-segment]').forEach((b) => {
+      const on = b.dataset.segment === segmento;
+      b.classList.toggle('co-pfilter-on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    const wrap = document.getElementById('promo-selected-wrap');
+    if (wrap) wrap.hidden = segmento !== 'selected';
+    if (segmento === 'selected') pintarCandidatosCampana();
+    pintarCampana();
+  }
+
+  function notaLista(texto) {
+    const d = document.createElement('div');
+    d.className = 'hub-pick-empty';
+    d.textContent = texto;
+    return d;
+  }
+
+  /* La lista para marcar: los suscriptores ACTIVOS (los dados de baja y
+     los que no confirmaron no salen nunca). Hecha con textContent: los
+     nombres los escribe cualquiera al suscribirse. */
+  function pintarCandidatosCampana() {
+    const lista = document.getElementById('promo-pick-list');
+    if (!lista) return;
+    if (_candidatosCampana === null) {
+      pintarCuentaCampana();
+      if (!_errorAudiencia) { lista.replaceChildren(notaLista('Loading subscribers…')); return; }
+      const nota = notaLista('Could not load the subscribers. ');
+      const otra = document.createElement('button');
+      otra.type = 'button';
+      otra.className = 'hub-attach-btn';
+      otra.dataset.action = 'promoReloadAudience';
+      otra.textContent = 'Try again';
+      nota.append(otra);
+      lista.replaceChildren(nota);
+      return;
+    }
+    if (!_candidatosCampana.length) { lista.replaceChildren(notaLista('There are no active subscribers.')); pintarCuentaCampana(); return; }
+    lista.replaceChildren(..._candidatosCampana.map((p) => {
+      const nombre = window.nombreDestinatario(p) || p.email;
+      const fila = document.createElement('label');
+      fila.className = 'hub-pick';
+      fila.dataset.name = `${nombre} ${p.email}`.toLowerCase();
+      const caja = document.createElement('input');
+      caja.type = 'checkbox';
+      caja.value = String(p.id);
+      caja.checked = _elegidosCampana.has(p.id);
+      const textos = document.createElement('span');
+      textos.className = 'hub-pick-text';
+      const n = document.createElement('span');
+      n.className = 'hub-pick-name';
+      n.textContent = nombre;
+      const m = document.createElement('span');
+      m.className = 'hub-pick-mail';
+      m.textContent = p.email;
+      textos.append(n, m);
+      fila.append(caja, textos);
+      return fila;
+    }));
+    filtrarCandidatosCampana();
+    pintarCuentaCampana();
+  }
+
+  /* §114: "Select all" / "Clear" — sólo los que se ven (con una búsqueda
+     escrita, sólo los que coinciden). Sólo salen suscriptores activos. */
+  function marcarVisiblesCampana(si) {
+    if (!_candidatosCampana || !_candidatosCampana.length) return;
+    document.querySelectorAll('#promo-pick-list .hub-pick:not([hidden]) input[type="checkbox"]').forEach((c) => {
+      c.checked = si;
+      const id = Number(c.value);
+      if (si) _elegidosCampana.add(id); else _elegidosCampana.delete(id);
+    });
+    pintarCuentaCampana();
+    pintarCampana();
+  }
+
+  function pintarCuentaCampana() {
+    const total = _candidatosCampana ? _candidatosCampana.length : 0;
+    const herramientas = document.getElementById('promo-pick-tools');
+    const cuenta = document.getElementById('promo-pick-count');
+    if (herramientas) herramientas.hidden = !total;
+    if (cuenta) cuenta.textContent = total ? `${_elegidosCampana.size} of ${total} selected` : '';
+  }
+
+  function filtrarCandidatosCampana() {
+    const q = (document.getElementById('promo-search')?.value || '').trim().toLowerCase();
+    document.querySelectorAll('#promo-pick-list .hub-pick').forEach((f) => {
+      f.hidden = !!q && !f.dataset.name.includes(q);
+    });
+  }
+
+  /* Al llegar la lista de activos: quien estaba marcado y ya no está
+     activo deja de estarlo. */
+  function guardarCandidatosCampana(subs) {
+    const orden = (a, b) => (window.nombreDestinatario(a) || a.email).localeCompare(window.nombreDestinatario(b) || b.email);
+    _candidatosCampana = [...subs].sort(orden);
+    const activos = new Set(_candidatosCampana.map((x) => x.id));
+    _elegidosCampana = new Set([..._elegidosCampana].filter((id) => activos.has(id)));
+  }
+
+  let _vezCampana = 0;
+  let _errorAudiencia = false;      // no se pudo leer la lista de activos
+  let _preparandoCampana = false;   // de pulsar Launch a que sale (confirmación incluida)
+
+  /* Rellena el formulario con la campaña que se reenvía. `c` lo prepara
+     admin-communications.js: { id, subject, sent_at, html, meta }, con el
+     HTML ya limpio (sin scripts ni on…), como lo enseña History. */
+  function aplicarReenvio(c) {
+    const meta = c.meta || {};
+    const tipo = ['Tournament', 'Ladder', 'Other'].includes(meta.campaign_type) ? meta.campaign_type : 'Other';
+    /* La fecha del envío; si no llegó a salir, la de cuando se creó. */
+    const fecha = new Date(c.sent_at || c.created_at || NaN);
+    const dia = !isNaN(fecha) ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York',
+      month: 'short', day: 'numeric', year: 'numeric' }).format(fecha) : '';
+    const flyer = typeof meta.flyer_url === 'string' ? meta.flyer_url : '';
+    _reenvio = {
+      id: c.id,
+      subject: c.subject || '',
+      tipo,
+      flyer,
+      conFlyer: !!flyer && !String(flyer).endsWith(SPACER_VIEJO),
+      cuando: dia ? `${c.sent_at ? 'sent' : 'created'} ${dia}` : '',
+    };
+    const $id = (id) => document.getElementById(id);
+    $id('promo-campaign-type').value = tipo;
+    $id('promo-selected-type').textContent = tipo;
+    $id('promo-header-label').value = typeof meta.email_type === 'string' ? meta.email_type : (ETIQUETA_POR_TIPO[tipo] || '');
+    $id('promo-subject').value = c.subject || '';
+    if (edPromo) edPromo.setHTML(c.html || '');
+    /* El texto de vista previa sólo si se escribió a mano: si era el que
+       sale solo del mensaje, se deja vacío para que siga al mensaje si lo
+       corriges. */
+    const pv = typeof meta.preview_text === 'string' ? meta.preview_text : '';
+    $id('promo-preview-text').value = pv && pv !== vistaPreviaDe(edPromo ? edPromo.getText() : '') ? pv.slice(0, 140) : '';
+    /* Para saber después si se tocó algo ("Start a new campaign"). */
+    _reenvio.asunto = $id('promo-subject').value;
+    _reenvio.html = edPromo ? edPromo.getHTML() : '';
+    pintarReenvio();
+    ponerSegmentoCampana('selected');
+  }
+
+  /* "Start a new campaign": sale del reenvío y deja el formulario en
+     blanco (como al abrirlo). */
+  async function salirDelReenvio() {
+    if (!_reenvio) return;
+    if (_preparandoCampana || (window.envioEnCurso && window.envioEnCurso('cerrar'))) return;
+    /* Si ya marcaste a alguien o cambiaste el texto, se pregunta. */
+    const tocado = _elegidosCampana.size > 0
+      || document.getElementById('promo-subject').value !== _reenvio.asunto
+      || (edPromo ? edPromo.getHTML() : '') !== _reenvio.html;
+    if (tocado && !(await window.confirmModal({
+      title: 'Start a new campaign?',
+      message: 'The resend you were preparing (and who you selected) will be lost.',
+      okLabel: 'Start new',
+      cancelLabel: 'Keep resending',
+      focusCancel: true,
+    }))) return;
+    cerrarCampanaYa();
+    await openSendPromo();
+  }
+
+  /* El modo reenvío: aviso arriba, tipo y flyer fijos, "All" apagado. */
+  function pintarReenvio() {
+    const en = !!_reenvio;
+    const $id = (id) => document.getElementById(id);
+    if ($id('promo-resend')) $id('promo-resend').hidden = !en;
+    if ($id('promo-type-field')) $id('promo-type-field').hidden = en;
+    if ($id('promo-seg-hint')) $id('promo-seg-hint').hidden = !en;
+    const todos = $id('promo-seg-all');
+    if (todos) todos.disabled = en;
+    if (en) {
+      if ($id('promo-event-selector-wrap')) $id('promo-event-selector-wrap').hidden = true;
+      if ($id('promo-other-flyer-wrap')) $id('promo-other-flyer-wrap').hidden = true;
+      $id('promo-resend-subject').textContent = _reenvio.subject || '(no subject)';
+      $id('promo-resend-when').textContent = _reenvio.cuando ? ` \u2014 ${_reenvio.cuando}` : '';
+      $id('promo-resend-sub').textContent = `${_reenvio.tipo} campaign · `
+        + (_reenvio.conFlyer ? 'same flyer as the original' : 'no flyer, like the original');
+    }
+  }
+
+  function pintarCampana() {
+    const $id = (id) => document.getElementById(id);
+    const asuntoEl = $id('promo-subject');
+    if (!asuntoEl) return;
+    const largoAsunto = asuntoEl.value.length;
+    const largo = edPromo ? edPromo.getText().length : 0;
+    const cuenta = (id, n, max) => {
+      const el = $id(id);
+      if (!el) return;
+      el.textContent = `${n}/${max}`;
+      el.classList.toggle('hub-count-over', n > max);
+    };
+    cuenta('promo-subject-count', largoAsunto, MAX_ASUNTO_CAMPANA);
+    cuenta('promo-char-count', largo, MAX_TEXTO_CAMPANA);
+    const pv = $id('promo-preview-text');
+    const cp = $id('promo-preview-count');
+    if (pv && cp) cp.textContent = `${pv.value.length}/140`;
+
+    /* "Recipient Preview" y la caja verde (sólo cuando hay a quién mandar). */
+    pintarDestinatarios();
+
+    const tipo = $id('promo-campaign-type')?.value || 'Other';
+    /* En un reenvío el flyer es el del original: no se elige evento. */
+    const conEvento = !_reenvio && (tipo === 'Tournament' || tipo === 'Ladder');
+    const hecho = {
+      subject: !!asuntoEl.value.trim(),
+      message: largo > 0,
+      recipients: _segmentoCampana === 'all' ? _suscriptores > 0 : _elegidosCampana.size > 0,
+    };
+    hecho.ready = hecho.subject && hecho.message && hecho.recipients
+      && largoAsunto <= MAX_ASUNTO_CAMPANA && largo <= MAX_TEXTO_CAMPANA
+      && (!conEvento || !!$id('promo-event-select')?.value);
+    document.querySelectorAll('#promo-checklist [data-check]').forEach((li) => {
+      li.classList.toggle('hub-done', !!hecho[li.dataset.check]);
+    });
+  }
+
+  /* `reenvio` (ajuste 12): la campaña de History que se quiere volver a
+     mandar, ya leída: { id, subject, sent_at, html, meta }. */
+  const openSendPromo = async (reenvio = null) => {
+    /* Reabrir el formulario con un envío en curso limpiaba el composer y
        se llevaba por delante el asunto y el mensaje de ESE envío, que
        todavía no ha contestado. Si sale parcial, el texto que hace
        falta para reintentar ya no existe. */
     if (window.envioEnCurso && window.envioEnCurso('abrir')) return;
-    const modal = document.getElementById('promo-modal');
-    if (!modal) return;
+    /* Ni mientras se prepara un lanzamiento (la lista, la confirmación). */
+    if (_preparandoCampana) return;
+    const panel = panelCampana();
+    if (!panel) return;
+
+    window.showPage('communications');
+    /* Ya abierta con algo escrito (venía de Promotions, por ejemplo): se
+       va a ella sin borrar nada. Un reenvío, en cambio, es otra campaña:
+       si hay algo escrito, se pregunta antes de perderlo. */
+    if (campanaAbierta()) {
+      if (!reenvio) { panel.scrollIntoView({ block: 'start' }); return; }
+      if (!(await puedeDescartarCampana())) { panel.scrollIntoView({ block: 'start' }); return; }
+      cerrarCampanaYa();
+    }
+    /* Un mensaje a medio escribir en el Hub: se pregunta antes. Con "Keep
+       writing" se queda en él. */
+    if (window.hubIrAOpciones && !(await window.hubIrAOpciones())) return;
 
     /* Lo que escribe el usuario: asunto, mensaje y texto de vista previa,
        con sus contadores.
@@ -1446,23 +2351,36 @@
       if (sj) sj.value = '';
       const pv = document.getElementById('promo-preview-text');
       if (pv) pv.value = '';
-      // Los contadores también: si no, el campo queda vacío pero debajo
-      // sigue diciendo "412 / 2000", que es peor que no tener contador.
-      const c1 = document.getElementById('promo-char-count');
-      if (c1) c1.textContent = '0 / 2000';
-      const c2 = document.getElementById('promo-char-count2');
-      if (c2) c2.textContent = '0 / 2000';
-      const cp = document.getElementById('promo-preview-count');
-      if (cp) cp.textContent = '0 / 140';
+      // Los contadores y la lista de comprobación también: si no, el
+      // campo queda vacío pero debajo sigue diciendo "412/5000", que es
+      // peor que no tener contador.
+      pintarCampana();
     };
+
+    /* La cuenta de la vez anterior no vale: hasta que llegue la nueva,
+       "—" y sin caja verde ni "Recipients selected". */
+    _suscriptores = null;
+    _candidatosCampana = null;
+    ponerCuenta('—', 'active subscribers', false);
+    /* A quién: todos, como siempre; la lista de elegidos, vacía. */
+    _reenvio = null;
+    _elegidosCampana = new Set();
+    pintarCuentaCampana();
+    const busca = document.getElementById('promo-search');
+    if (busca) busca.value = '';
+    pintarReenvio();
+    ponerSegmentoCampana('all');
 
     // Reset composer
     limpiarComposer();
 
     // Reset type pills to Tournament
-    document.querySelectorAll('.promo-type-pill').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.promo-type-pill').forEach(p => {
+      p.classList.remove('active');
+      p.setAttribute('aria-pressed', 'false');
+    });
     const firstPill = document.querySelector('.promo-type-pill');
-    if (firstPill) firstPill.classList.add('active');
+    if (firstPill) { firstPill.classList.add('active'); firstPill.setAttribute('aria-pressed', 'true'); }
     const typeInput = document.getElementById('promo-campaign-type');
     if (typeInput) typeInput.value = 'Tournament';
     const selTypeEl = document.getElementById('promo-selected-type');
@@ -1483,15 +2401,21 @@
     const updateCampaignTypeUI = (type) => {
       const evWrap    = document.getElementById('promo-event-selector-wrap');
       const otherWrap = document.getElementById('promo-other-flyer-wrap');
-      if (evWrap)    evWrap.style.display    = (type === 'Tournament' || type === 'Ladder') ? 'block' : 'none';
-      if (otherWrap) otherWrap.style.display = type === 'Other' ? 'block' : 'none';
+      /* Con `hidden` y no con style.display (11 de octubre): el HTML
+         nuevo no lleva estilos escritos, ni puestos desde aquí. */
+      if (evWrap)    evWrap.hidden    = !(type === 'Tournament' || type === 'Ladder');
+      if (otherWrap) otherWrap.hidden = type !== 'Other';
       // Repopulate event dropdown for selected type
       if (type === 'Tournament' || type === 'Ladder') populateCampaignEventDropdown(type);
     };
     document.querySelectorAll('.promo-type-pill').forEach(pill => {
       pill.onclick = () => {
-        document.querySelectorAll('.promo-type-pill').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.promo-type-pill').forEach(p => {
+          p.classList.remove('active');
+          p.setAttribute('aria-pressed', 'false');
+        });
         pill.classList.add('active');
+        pill.setAttribute('aria-pressed', 'true');
         if (typeInput) typeInput.value = pill.dataset.type;
         if (selTypeEl) selTypeEl.textContent = pill.dataset.type;
         /* La etiqueta de la cabecera sigue al tipo de campaña, para no
@@ -1502,6 +2426,11 @@
            tipo, que es el orden natural del formulario. */
         const lblInp = document.getElementById('promo-header-label');
         if (lblInp) lblInp.value = ETIQUETA_POR_TIPO[pill.dataset.type] || 'ANNOUNCEMENT';
+        /* El Flyer URL es de "Other": al cambiar de tipo se borra (12 de
+           octubre). Escondido y mal escrito, el navegador frenaba
+           "Launch Campaign" sin decir por qué. */
+        const flyerOtro = document.getElementById('promo-other-flyer-url');
+        if (flyerOtro) flyerOtro.value = '';
         /* Cambiar de tipo de campaña es empezar otra campaña distinta,
            así que el asunto, el mensaje y el texto de vista previa del
            anterior no deben quedarse. Antes se arrastraban, y era fácil
@@ -1513,14 +2442,13 @@
     // Trigger for initial state (Tournament selected by default)
     updateCampaignTypeUI('Tournament');
 
-    // Contador del texto de vista previa
+    /* Los contadores del asunto y del texto de vista previa, y la lista
+       de comprobación, al escribir. Con `oninput` (no addEventListener):
+       abrir el formulario otra vez no suma escuchadores. */
     const prevInp = document.getElementById('promo-preview-text');
-    if (prevInp) {
-      prevInp.oninput = () => {
-        const el = document.getElementById('promo-preview-count');
-        if (el) el.textContent = `${prevInp.value.length} / 140`;
-      };
-    }
+    if (prevInp) prevInp.oninput = pintarCampana;
+    const subjInp = document.getElementById('promo-subject');
+    if (subjInp) subjInp.oninput = pintarCampana;
 
     /* El contador de caracteres lo mantiene admin-rich-editor.js, que
        recibe `alEscribir` al montar el editor. Antes se enganchaba aquí
@@ -1558,11 +2486,41 @@
        reenviar una campaña a propósito sigue funcionando: después de
        un envío correcto no queda ninguna, y aquí se pone una nueva. */
     claveador.asegurar();
+    claveadorElegidos.asegurar();
 
-    // Load audience + last campaign in parallel
+    /* Se enseña YA, antes de esperar a las cuentas de la derecha (que
+       salen con "—" hasta que llegan). Si se enseñara al final, con la
+       red lenta las tarjetas de los canales seguirían pulsables y se
+       podían acabar abriendo dos formularios a la vez. */
+    document.getElementById('co-send-home').hidden = true;
+    panel.hidden = false;
+    /* Un reenvío desde History (ajuste 12): el formulario, ya relleno
+       con la campaña; tipo y flyer los del original, y a elegidos. Con el
+       panel ya visible: el texto de un editor escondido sale sin los
+       saltos de párrafo. */
+    if (reenvio) aplicarReenvio(reenvio);
+    panel.scrollIntoView({ block: 'start' });
+    /* En el móvil no: el teclado taparía el formulario (como en el Hub). */
+    if (window.matchMedia('(min-width: 769px)').matches) {
+      /* En un reenvío lo primero es buscar a la persona. */
+      document.getElementById(reenvio ? 'promo-search' : 'promo-subject')?.focus();
+    }
+
+    await cargarAudienciaCampana();
+
+  };
+
+  /* La cuenta de suscriptores, la lista de "Selected Subscribers" y la
+     última campaña. Al abrir, y con "Try again" si falló (ajuste 12). */
+  async function cargarAudienciaCampana() {
+    /* Lo que llegue de una apertura anterior ya no se pinta. */
+    const vez = ++_vezCampana;
+    _errorAudiencia = false;
     try {
       const [subs, campanas] = await Promise.all([
-        api('subscribers?status=eq.active&select=id'),
+        /* Los activos, con nombre y correo: son la cuenta y también la
+           lista de "Selected Subscribers". */
+        api('subscribers?status=eq.active&select=id,first_name,last_name,email'),
         /* La última campaña sale de `communications`, que es donde la
            escribe ahora el servidor.
 
@@ -1572,43 +2530,62 @@
              aquí como "última campaña".
            · status=in.(sent,partial) — una campaña que falló del todo
              no es la última que se envió.
-           · se piden 5 y no 1, para poder descartar los ensayos
-             "solo a mí" sin filtrar por dentro del JSON. */
+           · sin los ensayos "solo a mí" ni los envíos a suscriptores
+             elegidos (un reenvío no es "la última campaña", decidido el
+             11 de octubre): lo filtra la base, así no se escapan aunque
+             haya muchos seguidos. */
         api('communications?kind=eq.promo&status=in.(sent,partial)'
-            + '&select=sent_at,meta&order=sent_at.desc&limit=5').catch(() => []),
+            + '&meta->>solo_admin=is.null&meta->>segment=is.null'
+            + '&select=sent_at,meta&order=sent_at.desc&limit=1').catch(() => []),
       ]);
+      if (vez !== _vezCampana) return;
 
       const count = subs.length;
+      guardarCandidatosCampana(subs);
       const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-      setEl('promo-audience-count', count);
+      _suscriptores = count;
+      if (_segmentoCampana === 'selected') pintarCandidatosCampana();
+      pintarCampana();
 
-      const recipEl = document.getElementById('promo-recipient-count');
-      if (recipEl) recipEl.innerHTML = `<span style="font-weight:800;color:var(--teal);">${count} active subscriber${count !== 1 ? 's' : ''}</span> will receive this campaign.`;
-
-      const last = (campanas || []).find(
-        (c) => c.sent_at && !(c.meta && c.meta.solo_admin)) || null;
+      const last = (campanas || []).find((c) => c.sent_at) || null;
       setEl('promo-last-sent', last ? _relTimePromo(last.sent_at) : 'No campaigns yet');
       setEl('promo-last-type', last ? (last.meta && last.meta.campaign_type) || 'General' : '');
 
     } catch (e) {
-      const recipEl = document.getElementById('promo-recipient-count');
-      if (recipEl) recipEl.textContent = 'Could not load audience data.';
+      if (vez !== _vezCampana) return;
+      /* En rojo y no con el aspecto de una cuenta. */
+      ponerCuenta('', 'Could not load audience data.', 'error');
+      _suscriptores = null;
+      _candidatosCampana = null;
+      _errorAudiencia = true;
+      pintarCandidatosCampana();
+      pintarCampana();
     }
+  }
 
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-  };
-
+  /* Cada pedido de eventos lleva su número: sólo se usa la respuesta del
+     ÚLTIMO (12 de octubre). Si pulsas Tournament y enseguida Ladder, y los
+     torneos llegan después, se ignoran: si no, la lista de Ladder salía
+     con torneos. */
+  let _turnoEventos = 0;
   const populateCampaignEventDropdown = async (type) => {
     const sel      = document.getElementById('promo-event-select');
     const flyerInp = document.getElementById('promo-event-flyer-url');
     if (!sel) return;
+    const turno = ++_turnoEventos;
     sel.innerHTML = '<option value="">Loading...</option>';
     if (flyerInp) flyerInp.value = '';
+    pintarCampana();
     try {
-      const today  = new Date().toISOString().slice(0, 10);
+      /* "Hoy" en la hora del club (Boca Raton), no en la de Londres:
+         con toISOString, desde las 8 de la tarde los eventos de ese
+         mismo día desaparecían de la lista (ajuste 18). */
+      const partes = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York',
+        year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map((x) => [x.type, x.value]));
+      const today  = `${partes.year}-${partes.month}-${partes.day}`;
       const dbType = type.toLowerCase(); // 'tournament' or 'ladder'
       const events = await api(`events?event_type=eq.${dbType}&event_date=gte.${today}&select=id,title,event_date,flyer_url&order=event_date.asc`);
+      if (turno !== _turnoEventos) return;
       if (!events.length) {
         sel.innerHTML = `<option value="">No upcoming ${type.toLowerCase()} events</option>`;
         return;
@@ -1617,7 +2594,10 @@
         + events.map(ev => {
             const d = new Date(ev.event_date + 'T00:00:00');
             const label = `${ev.title} — ${d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}`;
-            return `<option value="${ev.id}" data-title="${ev.title.replace(/"/g,'&quot;')}" data-flyer="${ev.flyer_url || ''}">${label}</option>`;
+            /* Todo escapado (ajuste 19): el título y el flyer los escriben
+               administradoras, y un "<", un "&" o unas comillas rompían la
+               lista o se colaban como HTML. */
+            return `<option value="${esc(ev.id)}" data-title="${esc(ev.title)}" data-flyer="${esc(ev.flyer_url || '')}">${esc(label)}</option>`;
           }).join('');
       // Wire selection → auto-fill subject + store flyer URL
       sel.onchange = () => {
@@ -1628,8 +2608,10 @@
           subjectEl.value = `${emoji} ${opt.dataset.title} — Don't Miss It!`;
         }
         if (flyerInp) flyerInp.value = opt.dataset.flyer || '';
+        pintarCampana();
       };
     } catch (err) {
+      if (turno !== _turnoEventos) return;
       sel.innerHTML = '<option value="">Error loading events</option>';
     }
   };
@@ -1649,12 +2631,7 @@
            apiladas, y sólo en esta pantalla. La de aquí ya existe en
            admin.html porque lleva además el contador de caracteres. */
         barraId: 'promo-fmt-bar',
-        alEscribir: (n) => {
-          const c1 = document.getElementById('promo-char-count');
-          const c2 = document.getElementById('promo-char-count2');
-          if (c1) c1.textContent = `${n} / 2000`;
-          if (c2) c2.textContent = `${n} / 2000`;
-        },
+        alEscribir: () => pintarCampana(),
       })
     : null;
   if (!edPromo) console.error('[Ferocia] admin-rich-editor.js must load before admin-promotions.js');
@@ -1670,19 +2647,13 @@
          Una clave que no existe allí se ignora en silencio: no da
          error, simplemente no aparece en el correo. */
 
-  /* Cuando no hay flyer se manda un espaciador transparente de 600x1.
-
-     Antes se mandaba un GIF de 1x1 incrustado en el propio correo, y
-     eso fallaba por dos motivos:
-       · la plantilla lo estiraba al 100% de ancho y, al ser cuadrado,
-         crecía también a 600 de ALTO: un hueco vacío enorme en medio
-         del correo (medido: 1245px de alto contra 646px sin él);
-       · Gmail elimina las imágenes incrustadas en formato data:, así
-         que además aparecía rota.
-     Un archivo de 600x1 ya tiene la proporción correcta y ocupa 1px. */
-  const SPACER_FLYER =
-    'https://yyocceadorckkfbgnbqk.supabase.co/storage/v1/object/public/'
-    + 'newsletter-images/logo/spacer-600x1.png';
+  /* Sin flyer NO se manda nada (ajuste 18). Hasta el 13 de octubre se
+     mandaba un espaciador transparente de 600x1 porque la plantilla de
+     entonces dejaba una caja rota; la del servidor (renderPromo) ya
+     omite la fila entera si no hay flyer, así que había dos soluciones
+     para lo mismo y sobraba ésta. Las campañas viejas guardadas con el
+     espaciador se siguen viendo igual: la imagen sigue existiendo. */
+  const SPACER_VIEJO = 'newsletter-images/logo/spacer-600x1.png';
 
   /* La etiqueta de la cabecera, arriba a la derecha. Sale del tipo de
      campaña que ya se elige arriba, así que no hay que escribirla dos
@@ -1726,11 +2697,15 @@
   const textoVistaPrevia = (mensaje) => {
     const escrito = (document.getElementById('promo-preview-text')?.value || '').trim();
     if (escrito) return escrito.slice(0, 140);
+    return vistaPreviaDe(mensaje);
+  };
+  /* La que sale sola del mensaje (también la usa el reenvío, ajuste 12). */
+  function vistaPreviaDe(mensaje) {
     const limpio = sinMarcadores(mensaje);
     if (limpio.length <= 140) return limpio;
     // Corta en la última palabra entera, no a mitad de una.
     return limpio.slice(0, 140).replace(/\s+\S*$/, '') + '…';
-  };
+  }
 
   /* ─── UN SOLO SITIO QUE LEE EL FORMULARIO ──────────────────
      La prueba y el envío real leían los mismos cuatro campos con el
@@ -1767,7 +2742,11 @@
     const campaignType = document.getElementById('promo-campaign-type')?.value || 'Other';
 
     let flyerUrl = '';
-    if (campaignType === 'Tournament' || campaignType === 'Ladder') {
+    if (_reenvio) {
+      /* Un reenvío lleva el flyer del original, aunque su evento ya no
+         esté entre los próximos (ajuste 12). */
+      flyerUrl = _reenvio.flyer;
+    } else if (campaignType === 'Tournament' || campaignType === 'Ladder') {
       const sel = document.getElementById('promo-event-select');
       if (!sel || !sel.value) { toast('Please select an event.', true); return null; }
       flyerUrl = document.getElementById('promo-event-flyer-url')?.value || '';
@@ -1777,6 +2756,24 @@
 
     if (!subject || !texto) {
       toast('Please fill in the subject and message.', true);
+      return null;
+    }
+    /* Los topes, como en el Hub (11 de octubre). El del asunto también
+       aquí: el tope del campo sólo frena lo que se escribe, y el asunto
+       que pone sola la lista de eventos puede pasarse. */
+    if (subject.length > MAX_ASUNTO_CAMPANA) {
+      toast(`The subject is too long: ${subject.length} characters. The limit is ${MAX_ASUNTO_CAMPANA}.`, true);
+      return null;
+    }
+    if (texto.length > MAX_TEXTO_CAMPANA) {
+      toast(`The message is too long: ${texto.length} characters. `
+        + `The limit is ${MAX_TEXTO_CAMPANA.toLocaleString('en-US')}.`, true);
+      return null;
+    }
+    /* El ensayo "solo a mí" sí se puede sin nadie marcado: va a ti. */
+    if (_segmentoCampana === 'selected' && !_elegidosCampana.size
+        && !document.getElementById('promo-only-me')?.checked) {
+      toast('Select at least one subscriber.', true);
       return null;
     }
     return { subject, message, texto, campaignType, flyerUrl };
@@ -1794,10 +2791,8 @@
          que no existe allí se ignora en silencio: no da error,
          simplemente no aparece en el correo. */
   const metaPromo = ({ campaignType, texto, flyerUrl }) => ({
-    /* Cuando no hay flyer va el espaciador, NO una cadena vacía. La
-       plantilla omite la fila de la imagen si la URL está vacía, y eso
-       cambiaría el alto del correo respecto a como sale hoy. */
-    flyer_url:     flyerUrl || SPACER_FLYER,
+    /* Sin flyer, vacío: la plantilla omite la fila de la imagen. */
+    flyer_url:     flyerUrl || '',
     email_type:    etiquetaCabecera(campaignType),
     /* El texto de la bandeja sale del TEXTO, no del HTML: si saliera
        del HTML, la bandeja de entrada enseñaría `<p style="color...`
@@ -1817,6 +2812,11 @@
      lleva dos trozos— está explicado en admin-email-utils.js, donde lo
      comparten las cuatro pantallas que mandan en lote. */
   const claveador = window.crearClaveador('promo');
+  /* Los envíos a elegidos (y los reenvíos) llevan su propia clave
+     (ajuste 12): si un reenvío sale bien, NO se borra la clave de una
+     campaña a todos que se cortó y está pendiente de reintentar. */
+  const claveadorElegidos = window.crearClaveador('promo-sel');
+  const claveDe = (elegidos) => (elegidos ? claveadorElegidos : claveador);
 
   /* La casilla de ensayo y la etiqueta del botón van juntas. El
      mecanismo vive en admin-email-utils.js: lo comparten las cuatro
@@ -1828,7 +2828,7 @@
   const nombreDe = window.nombreDestinatario;
   const resumenEnvio = window.resumenEnvio;
 
-  const sendPromoEmail = async (e) => {
+  const enviarCampana = async (e) => {
     e.preventDefault();
 
     if (window.AdminState.emailInFlight) {
@@ -1850,6 +2850,10 @@
        de verdad— dejaba el botón diciendo lo contrario de lo que se
        acababa de mandar. */
     ensayo.bloquear(true);
+    /* A quién, leído UNA vez aquí (ajuste 12): null = todos los activos;
+       si no, los ids marcados en "Selected Subscribers". */
+    const elegidos = _segmentoCampana === 'selected' ? new Set(_elegidosCampana) : null;
+    const reenvioDe = elegidos && _reenvio ? _reenvio.id : null;
 
 
     const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
@@ -1881,6 +2885,21 @@
         toast(`Error: ${err.message}`, true);
         ensayo.bloquear(false);   // soltar la casilla al salir por aquí
         return;
+      }
+      /* "Selected Subscribers" (ajuste 12): sólo los marcados, y sólo si
+         SIGUEN activos — la lista se acaba de leer otra vez, justo ahora.
+         Quien se dio de baja entretanto no recibe nada, y se dice. */
+      let yaNoActivos = 0;
+      if (elegidos) {
+        const total = elegidos.size;
+        subs = subs.filter((x) => elegidos.has(x.id));
+        yaNoActivos = total - subs.length;
+        if (!subs.length) {
+          toast(total === 1 ? 'That subscriber is no longer active, so nothing was sent.'
+                            : 'None of the selected subscribers is still active, so nothing was sent.', true);
+          ensayo.bloquear(false);
+          return;
+        }
       }
       if (!subs.length) {
         toast('No active subscribers to send to.', true);
@@ -1929,7 +2948,9 @@
             unsubscribe_url: `${baseUrl}unsubscribe.html?t=${s.unsubscribe_token}`,
           },
         })),
-        copiaAdmin,
+        /* Tu copia sólo al mandar a todos: a elegidos va sin copia
+           (decidido el 11 de octubre). */
+        ...(elegidos ? [] : [copiaAdmin]),
       ];
 
       /* ─── ÚLTIMA PARADA ANTES DE 450 CORREOS ─────────────────
@@ -1949,12 +2970,17 @@
          `subs.length`, que contaba también a quien no tiene enlace de
          baja: la ventana prometía 453 y salían 452. */
       const cuantos = conEnlace.length;
+      const fuera = yaNoActivos
+        ? ` ${yaNoActivos} of the subscribers you chose ${yaNoActivos === 1 ? 'is' : 'are'} no longer active and won't receive it.`
+        : '';
       const seguro = await confirmModal({
         title:   `Send this campaign to ${cuantos} subscriber${cuantos === 1 ? '' : 's'}?`,
         /* Empieza con el cursor en Cancel: manda correos y eso no se deshace. */
         focusCancel: true,
-        message: `"${datos.subject}" will be emailed to ${cuantos} active subscriber`
-               + `${cuantos === 1 ? '' : 's'}, plus a copy to you. This cannot be undone.`
+        message: (elegidos
+          ? `"${datos.subject}" will be emailed to ${cuantos} selected subscriber${cuantos === 1 ? '' : 's'}. This cannot be undone.${fuera}`
+          : `"${datos.subject}" will be emailed to ${cuantos} active subscriber`
+            + `${cuantos === 1 ? '' : 's'}, plus a copy to you. This cannot be undone.`)
                + window.avisoSinEnlaceDeBaja(sinEnlace.length)
                /* Una sola frase seguida: confirmModal pinta con
                   textContent y sin white-space:pre-line, así que un
@@ -1995,11 +3021,22 @@
           ...metaPromo(datos),
           /* Marca el ensayo para que no cuente como "Last Campaign". */
           ...(soloAdmin ? { solo_admin: true } : {}),
+          /* Un envío a elegidos (o un reenvío) tampoco cuenta como "Last
+             Campaign", y en History se sabe de qué campaña es copia. */
+          ...(elegidos ? { segment: 'selected' } : {}),
+          ...(reenvioDe ? { resend_of: reenvioDe } : {}),
         },
         recipients,
         idempotency_key: soloAdmin ? null
-          : await claveador.clave([datos.subject, datos.message,
-                                   datos.campaignType, datos.flyerUrl]),
+          : await claveDe(elegidos).clave([datos.subject, datos.message,
+                                   datos.campaignType, datos.flyerUrl,
+                                   /* A quién también, pero sólo "todos" o
+                                      "elegidos", no la lista: si un envío a
+                                      elegidos se corta y se reintenta con
+                                      alguien más marcado, se RETOMA (el
+                                      servidor añade a los nuevos y no repite
+                                      a quien ya lo recibió). */
+                                   elegidos ? 'selected' : 'all']),
       });
     } finally {
       /* En finally: si esto no se limpia, `emailInFlight` se queda en
@@ -2073,12 +3110,13 @@
        falso por su cuenta. */
     const limpio = window.envioTerminado(d) && !d.unconfirmed;
     if (limpio) {
-      const modal = document.getElementById('promo-modal');
-      if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+      /* Salió: de vuelta a los canales, como cuando se cerraba la
+         ventana. */
+      cerrarCampanaYa();
       /* Una campaña nueva tiene que renovar la clave: si no, volver a
          lanzar la misma campaña más tarde chocaría con la de este
          envío y no mandaría nada. */
-      claveador.limpiar();
+      claveDe(elegidos).limpiar();
       /* "Campaign launched!" sólo si LANZÓ algo. Con todas las
          direcciones agotadas, `mensajeExito` ya dice "Nothing was sent"
          —y le quita el ✅ a propósito— pero este prefijo volvía a
@@ -2090,7 +3128,8 @@
          `d.sent`. Con todas las direcciones de la lista agotadas y sólo
          su copia entregada, `d.sent` vale 1 y el aviso decía "Campaign
          launched!" de una campaña que no llegó a ningún suscriptor. */
-      const salio = (d.sent || 0) + (d.already_sent || 0) > 1;
+      /* A elegidos no va copia: ahí basta con uno (ajuste 12). */
+      const salio = (d.sent || 0) + (d.already_sent || 0) > (elegidos ? 0 : 1);
       toast(`${salio ? 'Campaign launched! ' : ''}`
             + `${window.mensajeExito(d)}${window.loQueFalto(d)}${window.loQueEntro(d)}`
             + window.avisoSinEnlaceDeBaja(sinEnlace.length),
@@ -2115,9 +3154,42 @@
 
   // Own these listeners directly (DOM is already parsed by the time this
   // script runs, same as every other listener).
-  document.getElementById('promo-form')?.addEventListener('submit', sendPromoEmail);
+  /* Mientras se prepara un envío (la lista, la confirmación), no se
+     puede salir del reenvío ni lanzar otro (ajuste 12). */
+  const sendPromoEmail = async (e) => {
+    e.preventDefault();
+    if (_preparandoCampana) return;
+    _preparandoCampana = true;
+    try { await enviarCampana(e); } finally { _preparandoCampana = false; }
+  };
+  document.getElementById('promo-form')?.addEventListener('submit', window.FerociaBoton ? window.FerociaBoton.formulario(sendPromoEmail) : sendPromoEmail);
+
+  /* "Selected Subscribers" (ajuste 12): marcar y buscar. Una vez, al
+     cargar; la lista se vuelve a pintar entera, los escuchadores no. */
+  document.getElementById('promo-pick-list')?.addEventListener('change', (e) => {
+    const caja = e.target.closest('input[type="checkbox"]');
+    if (!caja) return;
+    const id = Number(caja.value);
+    if (caja.checked) _elegidosCampana.add(id); else _elegidosCampana.delete(id);
+    pintarCuentaCampana();
+    pintarCampana();
+  });
+  document.getElementById('promo-search')?.addEventListener('input', filtrarCandidatosCampana);
+  /* Enter en el buscador no debe mandar la campaña (está dentro del formulario). */
+  document.getElementById('promo-search')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') e.preventDefault();
+  });
+
+  /* "Resend to…" de History (admin-communications.js). */
+  window.campanaReenviar = (campana) => openSendPromo(campana);
   document.getElementById('sub-status-filter')?.addEventListener('change', () => { _subsShown = 25; _renderSubsTable(); });
-  document.getElementById('sub-search')?.addEventListener('input', () => { _subsShown = 25; _renderSubsTable(); });
+  document.getElementById('sub-search')?.addEventListener('input', () => {
+    /* Ajuste 23: en cuanto se escribe otra cosa, se olvida la dirección
+       exacta de la pastilla. */
+    const v = (document.getElementById('sub-search')?.value || '').toLowerCase().trim();
+    if (v !== _buzonExacto) _buzonExacto = '';
+    _subsShown = 25; _renderSubsTable();
+  });
   document.getElementById('sub-source-filter')?.addEventListener('change', () => { _subsShown = 25; _renderSubsTable(); });
   document.getElementById('sub-period-filter')?.addEventListener('change', () => { _subsShown = 25; _renderSubsTable(); });
 
@@ -2127,10 +3199,14 @@
 
   Object.assign(window.CLICK_HANDLERS, {
     // CLICK_HANDLERS are called with ONE argument: the button element.
+    promoPickAll:  () => marcarVisiblesCampana(true),    // §114
+    promoPickNone: () => marcarVisiblesCampana(false),
     viewSubscriber:      (btn) => window.viewSubscriber(btn.dataset.subid),
     // Los dos abren la ventana; ninguno cambia nada por sí solo.
     unsubscribeSubscriber: (btn) => _abrirSubStatus(btn.dataset.subid, 'baja'),
     resubscribeSubscriber: (btn) => _abrirSubStatus(btn.dataset.subid, 'alta'),
+    clearBounce:           (btn) => _abrirSubStatus(btn.dataset.subid, 'rebote'),
+    resendConfirmation:    (btn) => _abrirSubStatus(btn.dataset.subid, 'reconfirmar'),
     closeSubStatus:        () => closeSubStatus(),
     confirmSubStatus:      () => confirmSubStatus(),
     // El resumen por origen: cambiar de periodo, y saltar de una
@@ -2204,6 +3280,22 @@
        frenadas del 31 de octubre y "This Month" las esconde. Esa lista
        nunca es una pregunta de calendario: es "a quién le falta su
        correo ahora mismo". */
+    /* Ajuste 23: la pastilla del buzón compartido — la tabla enseña a toda
+       la familia (sólo esa dirección, entera) y nada más. */
+    verBuzon: (btn) => {
+      const dir = String(btn.dataset.email || '').trim().toLowerCase();
+      if (!dir) return;
+      const poner = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+      poner('sub-status-filter', 'all');
+      poner('sub-period-filter', 'all');
+      poner('sub-source-filter', 'all');
+      poner('sub-search', dir);
+      _buzonExacto = dir;
+      _subsShown = 25;
+      _renderSubsTable();
+      document.getElementById('subscribers-table')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    },
     verFrenadas: () => {
       const poner = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
       poner('sub-status-filter', '__frenadas');
@@ -2220,6 +3312,15 @@
     closeSubView:        () => window.closeSubView(),
     closeSubConvert:     () => window.closeSubConvert(),
     openSendPromo: () => openSendPromo(),
+    promoSegment: (btn) => { if (!btn.disabled) ponerSegmentoCampana(btn.dataset.segment); },
+    promoResendExit: () => salirDelReenvio(),
+    promoReloadAudience: () => {
+      ponerCuenta('—', 'active subscribers', false);
+      _errorAudiencia = false;
+      pintarCandidatosCampana();
+      cargarAudienciaCampana();
+    },
+    closePromoModal: () => cerrarCampana(),
     generateQR: () => generateQR(),
   });
 })();

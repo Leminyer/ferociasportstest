@@ -23,10 +23,11 @@
 
    ── TODO EL CORREO SALE DEL SERVIDOR ──────────────────────────────
    Las pantallas del admin que mandan correo pasan por aquí, y de aquí a
-   la Edge Function `send-email`. A día de hoy son siete: Promotions,
-   avisos de ladder, avisos de torneo, correo a todos los jugadores,
-   mensaje a un jugador, el recordatorio de confirmación y el reintento
-   del historial.
+   la Edge Function `send-email`. A día de hoy son cuatro: Promotions,
+   el recordatorio de confirmación, el reintento del historial y el
+   Communications Hub — éste a través de `comms-send`, que calcula la
+   lista en el servidor y se la pasa a `send-email`. Todo correo a
+   jugadores (escaleras, torneos, todos, uno solo) sale del Hub.
 
    Hay dos que NO pasan por aquí, y las dos por el mismo motivo —
    necesitan su propia función del servidor:
@@ -104,6 +105,51 @@
 
     network:   'Could not reach the server. Check your connection, then try again.',
     no_client: 'Internal error: the Supabase client is not ready.',
+
+    /* Los del Communications Hub (función comms-send). */
+    invalid_request:            'Internal error: the request was not valid. Nothing was sent.',
+    invalid_message:            'Write a subject (up to 200 characters) and a message. Nothing was sent.',
+    no_recipients:              'No one in this group can receive email. Nothing was sent.',
+    audience_changed:           'The recipients changed since the list was loaded. Nothing was sent — check the updated list and press Send again.',
+    attachment_not_allowed:     'A PDF can only be attached to ladder and tournament emails. Nothing was sent.',
+    attachment_invalid:         'The attached file is not a valid PDF of 10 MB or less. Nothing was sent — remove it and attach it again.',
+    attachment_missing:         'The attached PDF could not be found. Nothing was sent — remove it and attach it again.',
+    attachment_unavailable:     'The attached PDF could not be prepared for sending. Nothing was sent — try again in a moment.',
+    no_selection:               'Select at least one player or division. Nothing was sent.',
+    too_many_recipients:        'This group is larger than one send allows (1,000 email addresses). Nothing was sent — choose a smaller group.',
+    audience_not_found:         'That ladder or tournament no longer exists. Nothing was sent.',
+    division_not_in_tournament: 'One of those divisions is no longer part of this tournament. Nothing was sent.',
+    player_not_in_audience:     'One of the selected players is no longer in this group, or can\'t receive email. Review the selection — nothing was sent.',
+    audience_check_failed:      'Could not work out who should receive it. Nothing was sent — try again.',
+    snapshot_failed:            'Could not record who this goes to, so nothing was sent — press Send again.',
+    server_misconfigured:       'The server is missing a setting (SITE_URL). Nothing was sent.',
+    send_unreachable:           'The sending service did not answer. Press Send again — nobody will get it twice.',
+    server_error:               'Unexpected server error. Check the Supabase logs.',
+
+    /* Las encuestas del Hub (entregable 5). */
+    poll_invalid:          'Check the poll: it needs a question, and an availability request needs its session date. Nothing was sent.',
+    poll_not_allowed:      'This kind of poll can\'t be sent to this group. Nothing was sent.',
+    poll_deadline_invalid: 'The response deadline has to be in the future (and within 120 days). Nothing was sent.',
+    poll_options_invalid:  'A poll needs between 2 and 6 different answers, up to 80 characters each. Nothing was sent.',
+    poll_setup_failed:     'Could not prepare the answer links, so nothing was sent — press Send again.',
+    poll_missing:          'Could not prepare the poll, so nothing was sent — press Send again.',
+    poll_links_incomplete: 'Could not prepare the answer links, so nothing was sent — press Send again.',
+    poll_closed:           'This poll is already closed (its deadline passed), so it was not sent again.',
+
+    /* Los recordatorios y los grupos por respuesta (entregable 7). */
+    reminder_too_soon:     'A reminder already went out less than an hour ago. Nothing was sent — you can send another one hour after the last.',
+    no_one_to_remind:      'Everyone has answered, so there is nobody to remind. Nothing was sent.',
+    poll_is_rehearsal:     'This was a rehearsal ("Send only to me"), so there is nobody to remind. Nothing was sent.',
+    poll_not_found:        'That poll no longer exists. Nothing was sent.',
+    poll_not_in_audience:  'That poll is not from this ladder. Choose another one — nothing was sent.',
+    invalid_segment:       'That answer is not part of the poll. Choose again — nothing was sent.',
+    poll_still_sending:    'The poll itself has not finished sending. Finish it first (History → View → Retry). Nothing was sent.',
+
+    /* §113: las reviews. */
+    review_not_completed:  'A review request can only be sent once the ladder or tournament is completed (not cancelled). Nothing was sent.',
+    review_not_allowed:    'A review request goes to everyone who played or to the players you select (not to divisions or poll groups). Nothing was sent.',
+    review_already_sent:     'Everyone in this group already received this review request. Nothing was sent.',
+    review_already_received: 'One of the selected players already received this review request. Nothing was sent — review the selection.',
   };
 
   /**
@@ -152,6 +198,9 @@
    * @param {object} payload  Lo que espera la función: kind, template,
    *                          subject, body, meta, recipients[], y
    *                          opcionalmente idempotency_key.
+   * @param {string} [funcion] La función del servidor. Por defecto
+   *                          send-email; el Hub usa comms-send, que
+   *                          contesta igual.
    * @returns {Promise<{ok:boolean, data?:object, code?:string|null,
    *                    status?:number|null, detail?:string, message:string}>}
    *
@@ -160,7 +209,7 @@
    * `emailInFlight` en true, y desde ahí la página no vuelve a mandar
    * nada hasta recargarla.
    */
-  async function sendEmailServer(payload) {
+  async function sendEmailServer(payload, funcion = FUNCION) {
     const sb = window.supabase;
     if (!sb || !sb.functions || typeof sb.functions.invoke !== 'function') {
       console.error('[Ferocia] db.js must load before sendEmailServer is called');
@@ -190,7 +239,7 @@
       const conTope = new Promise((_, rechaza) =>
         setTimeout(() => rechaza(new Error(`sin respuesta en ${TOPE_MS / 1000}s`)), TOPE_MS));
       ({ data, error } = await Promise.race([
-        sb.functions.invoke(FUNCION, { body: payload }),
+        sb.functions.invoke(funcion, { body: payload }),
         conTope,
       ]));
     } catch (e) {
@@ -229,8 +278,9 @@
      Se guarda el HTML original una sola vez y se sustituye sólo el
      texto, así el icono no se pierde.
 
-     Vive aquí porque son cuatro pantallas con casilla. Escrito cuatro
-     veces, a la tercera ya no dirían lo mismo.
+     Vive aquí porque la usan tres pantallas (Promotions, el
+     recordatorio de confirmación y el Hub), y escrita tres veces
+     acabaría diciendo cosas distintas.
      ════════════════════════════════════════════════════════════ */
 
   const ETIQUETA_ENSAYO = 'Send only to me';
@@ -250,10 +300,10 @@
       /* Sin esto el fallo es SILENCIOSO: reset() no desmarcaría nada y
          el aviso "the checkbox is now off" estaría mintiendo. */
       console.error(`[Ferocia] vincularEnsayo: falta #${casillaId} o #${botonId}`);
-      return { sync: () => {}, reset: () => {}, bloquear: () => {} };
+      return { sync: () => {}, reset: () => {}, bloquear: () => {}, rotular: () => {} };
     }
 
-    const original = btn.innerHTML;
+    let original = btn.innerHTML;
     if (original.indexOf(textoNormal) === -1) {
       /* Si el texto de admin.html cambia y aquí no, el botón se
          quedaría sin avisar del ensayo y nadie se enteraría. Mejor
@@ -280,7 +330,16 @@
        problema de raíz, en vez de intentar arreglarlo después. */
     const bloquear = (b) => { chk.disabled = !!b; };
 
-    return { sync, reset, bloquear, original };
+    /* Cambia el texto normal del botón (el Hub dice "Send Poll" en una
+       encuesta y "Send Email" en un anuncio). El de ensayo no cambia. */
+    const rotular = (nuevo) => {
+      if (!nuevo || nuevo === textoNormal) return;
+      original = original.replace(textoNormal, nuevo);
+      textoNormal = nuevo;
+      sync();
+    };
+
+    return { sync, reset, bloquear, rotular, get original() { return original; } };
   }
 
   /* ─── EL NOMBRE PARA EL SALUDO ─────────────────────────────
@@ -538,12 +597,10 @@
    * frase lo dice.
    *
    * ⚠️  ESTA FUNCIÓN ES LA ÚNICA VOZ DEL CORTE, TAMBIÉN PARA EL
-   * NEWSLETTER. El servidor compone su propia frase (`mensajeCorte`, en
-   * send-newsletter), y la segunda revisión demostró que las dos no
-   * coincidían: la del servidor decía "vuelve a pulsar" para los tres
-   * motivos y sin mirar si algo salió sin apuntarse. Así que la pantalla
-   * del Newsletter ignora `message` cuando hay corte y usa esto. Un
-   * aviso, un sitio.
+   * NEWSLETTER. El servidor componía su propia frase (`mensajeCorte`, en
+   * send-newsletter) y no coincidía con ésta, así que la pantalla del
+   * Newsletter la ignoraba; desde el ajuste 18 el servidor ya no la
+   * manda. Un aviso, un sitio.
    *
    * @param   {object} d  lo que contesta la Edge Function
    * @returns {string}    el aviso entero, o '' si no se cortó
@@ -557,6 +614,10 @@
           ? 'the provider says this email is too large to send in batches of 100'
       : motivo === 'proveedor_caido'
           ? 'the email provider is not responding'
+      : motivo === 'adjunto_grande'
+          ? 'the provider says the email with its attachment is too large'
+      : motivo === 'tiempo'
+          ? 'emails with an attachment go out one by one, and this round ran out of time'
       : '';
     if (!razon) return '';
 
@@ -612,15 +673,20 @@
         + loQueFalto(d);
     }
 
-    /* De los tres cortes, sólo uno se arregla volviendo a pulsar. Los
-       otros dos acaban en "dímelo y lo arreglo": ella no tiene por qué
-       saber qué es un secreto de Supabase ni cómo se acorta un correo.
+    /* Dos cortes se arreglan volviendo a pulsar: el proveedor caído y
+       el tiempo (los correos con adjunto, que van de uno en uno). Los
+       demás acaban en "dímelo y lo arreglo": ella no tiene por qué saber
+       qué es un secreto de Supabase ni cómo se acorta un correo.
 
        Tampoco se nombra el botón, por lo mismo de arriba: "send it
        again" vale para Send, para Launch Campaign y para Retry. */
     const queHacer =
         motivo === 'proveedor_caido'
           ? ' Wait a few minutes and send it again — the rest will go out, and nobody gets it twice.'
+      : motivo === 'tiempo'
+          ? ' Send it again without changing anything to continue — the rest will go out, and nobody gets it twice.'
+      : motivo === 'adjunto_grande'
+          ? ' Nothing more will go out with that file — attach a smaller PDF, or tell me and I will look at it.'
       : motivo === 'lote_grande'
           ? ' Nothing more will go out until it is made shorter — tell me and I will fix it.'
       : ' Sending it again will not help until it is fixed — tell me and I will sort it out.';
@@ -668,9 +734,9 @@
      cuando la campaña está TERMINADA. Esa cuenta vive en
      `envioTerminado`, con el porqué entero.
 
-     Vive aquí y no en cada módulo porque son cuatro pantallas que
-     mandan en lote, y esto escrito cuatro veces es lo mismo escrito
-     de tres formas distintas al cabo de un año.
+     Vive aquí y no en cada módulo porque la usan tres pantallas que
+     mandan en lote (Promotions, el recordatorio y el Hub), y escrita
+     tres veces acabaría diciendo cosas distintas al cabo de un año.
      ════════════════════════════════════════════════════════════ */
 
   const _nuevoNonce = () =>
@@ -727,7 +793,7 @@
    *
    * Email All Players ya se protegía así; las demás pantallas no, y
    * eran copias del mismo patrón. Ahora la comprobación vive en un
-   * solo sitio y dice lo mismo en las cinco.
+   * solo sitio y dice lo mismo en todas.
    *
    * @param   {string} [que]  qué se estaba intentando hacer, para el aviso
    * @returns {boolean}       true si hay un envío en curso (o sea: no toques)
@@ -760,6 +826,10 @@
   window.addEventListener('beforeunload', beforeUnloadGuard);
 
   window.sendEmailServer = sendEmailServer;
+  /* Ajuste 17: lo mismo, con un nombre que no diga "correo", para las
+     funciones de administradora que no mandan nada (clear-bounce). */
+  window.llamarFuncionAdmin = (payload, funcion) => sendEmailServer(payload, funcion);
+  window.leerErrorDeFuncion = leerError;   // el Hub lee igual los errores de sus funciones
   window.crearClaveador  = crearClaveador;
   window.nombreDestinatario = nombreDestinatario;
   window.resumenEnvio       = resumenEnvio;

@@ -81,245 +81,38 @@ async function openIncidentReportForTournament(tournamentId, tournamentName, tou
   }
 }
 
-// ─── ROUND ROBIN SCHEDULE LOOKUP TABLE ──────────────────────
-// Based exactly on the provided charts. Index = 0-based team numbers.
-// Each entry: {round, courts: [{court, a, b}], bye: []}
-const RR_SCHEDULES = {
-  3: [
-    {round:1, courts:[{court:1,a:0,b:1}], bye:[2]},
-    {round:2, courts:[{court:1,a:0,b:2}], bye:[1]},
-    {round:3, courts:[{court:1,a:1,b:2}], bye:[0]},
-  ],
-  4: [
-    {round:1, courts:[{court:1,a:0,b:1},{court:2,a:2,b:3}], bye:[]},
-    {round:2, courts:[{court:1,a:1,b:3},{court:2,a:0,b:2}], bye:[]},
-    {round:3, courts:[{court:1,a:1,b:2},{court:2,a:0,b:3}], bye:[]},
-  ],
-  5: [
-    {round:1, courts:[{court:1,a:0,b:3},{court:2,a:1,b:2}], bye:[4]},
-    {round:2, courts:[{court:1,a:1,b:4},{court:2,a:2,b:3}], bye:[0]},
-    {round:3, courts:[{court:1,a:0,b:2},{court:2,a:3,b:4}], bye:[1]},
-    {round:4, courts:[{court:1,a:1,b:3},{court:2,a:0,b:4}], bye:[2]},
-    {round:5, courts:[{court:1,a:2,b:4},{court:2,a:0,b:1}], bye:[3]},
-  ],
-  6: [
-    {round:1, courts:[{court:1,a:0,b:3},{court:2,a:1,b:2},{court:3,a:4,b:5}], bye:[]},
-    {round:2, courts:[{court:1,a:0,b:5},{court:2,a:2,b:3},{court:3,a:1,b:4}], bye:[]},
-    {round:3, courts:[{court:1,a:0,b:2},{court:2,a:3,b:4},{court:3,a:1,b:5}], bye:[]},
-    {round:4, courts:[{court:1,a:2,b:5},{court:2,a:0,b:4},{court:3,a:1,b:3}], bye:[]},
-    {round:5, courts:[{court:1,a:2,b:4},{court:2,a:3,b:5},{court:3,a:0,b:1}], bye:[]},
-  ],
-  7: [
-    {round:1, courts:[{court:1,a:0,b:5},{court:2,a:1,b:4},{court:3,a:2,b:3}], bye:[6]},
-    {round:2, courts:[{court:1,a:1,b:6},{court:2,a:2,b:5},{court:3,a:3,b:4}], bye:[0]},
-    {round:3, courts:[{court:1,a:0,b:2},{court:2,a:3,b:6},{court:3,a:4,b:5}], bye:[1]},
-    {round:4, courts:[{court:1,a:1,b:3},{court:2,a:0,b:4},{court:3,a:5,b:6}], bye:[2]},
-    {round:5, courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6}], bye:[3]},
-    {round:6, courts:[{court:1,a:3,b:5},{court:2,a:2,b:6},{court:3,a:0,b:1}], bye:[4]},
-    {round:7, courts:[{court:1,a:4,b:6},{court:2,a:0,b:3},{court:3,a:1,b:2}], bye:[5]},
-  ],
-  8: [
-    {round:1, courts:[{court:1,a:0,b:5},{court:2,a:1,b:4},{court:3,a:2,b:3},{court:4,a:6,b:7}], bye:[]},
-    {round:2, courts:[{court:1,a:0,b:7},{court:2,a:2,b:5},{court:3,a:3,b:4},{court:4,a:1,b:6}], bye:[]},
-    {round:3, courts:[{court:1,a:3,b:6},{court:2,a:0,b:2},{court:3,a:4,b:5},{court:4,a:1,b:7}], bye:[]},
-    {round:4, courts:[{court:1,a:2,b:7},{court:2,a:0,b:4},{court:3,a:5,b:6},{court:4,a:1,b:3}], bye:[]},
-    {round:5, courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:3,b:7},{court:4,a:0,b:6}], bye:[]},
-    {round:6, courts:[{court:1,a:4,b:7},{court:2,a:2,b:6},{court:3,a:0,b:1},{court:4,a:3,b:5}], bye:[]},
-    {round:7, courts:[{court:1,a:4,b:6},{court:2,a:0,b:3},{court:3,a:1,b:2},{court:4,a:5,b:7}], bye:[]},
-  ],
-  9: [
-    {round:1, courts:[{court:1,a:6,b:8},{court:2,a:0,b:5},{court:3,a:2,b:3},{court:4,a:1,b:4}], bye:[7]},
-    {round:2, courts:[{court:1,a:5,b:7},{court:2,a:4,b:8},{court:3,a:0,b:3},{court:4,a:1,b:2}], bye:[6]},
-    {round:3, courts:[{court:1,a:4,b:6},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:0,b:1}], bye:[5]},
-    {round:4, courts:[{court:1,a:3,b:5},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8}], bye:[4]},
-    {round:5, courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:8}], bye:[3]},
-    {round:6, courts:[{court:1,a:1,b:3},{court:2,a:0,b:4},{court:3,a:5,b:8},{court:4,a:6,b:7}], bye:[2]},
-    {round:7, courts:[{court:1,a:0,b:2},{court:2,a:3,b:8},{court:3,a:4,b:7},{court:4,a:5,b:6}], bye:[1]},
-    {round:8, courts:[{court:1,a:1,b:8},{court:2,a:2,b:7},{court:3,a:3,b:6},{court:4,a:4,b:5}], bye:[0]},
-    {round:9, courts:[{court:1,a:0,b:7},{court:2,a:1,b:6},{court:3,a:2,b:5},{court:4,a:3,b:4}], bye:[8]},
-  ],
-  10: [
-    {round:1, courts:[{court:1,a:8,b:9},{court:2,a:1,b:6},{court:3,a:2,b:5},{court:4,a:3,b:4},{court:5,a:0,b:7}], bye:[]},
-    {round:2, courts:[{court:1,a:0,b:9},{court:2,a:2,b:7},{court:3,a:3,b:6},{court:4,a:4,b:5},{court:5,a:1,b:8}], bye:[]},
-    {round:3, courts:[{court:1,a:0,b:2},{court:2,a:3,b:8},{court:3,a:1,b:9},{court:4,a:5,b:6},{court:5,a:4,b:7}], bye:[]},
-    {round:4, courts:[{court:1,a:2,b:9},{court:2,a:0,b:4},{court:3,a:5,b:8},{court:4,a:6,b:7},{court:5,a:1,b:3}], bye:[]},
-    {round:5, courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:8},{court:5,a:3,b:9}], bye:[]},
-    {round:6, courts:[{court:1,a:4,b:9},{court:2,a:2,b:6},{court:3,a:0,b:1},{court:4,a:3,b:7},{court:5,a:5,b:8}], bye:[]},
-    {round:7, courts:[{court:1,a:4,b:6},{court:2,a:3,b:8},{court:3,a:2,b:9},{court:4,a:0,b:1},{court:5,a:5,b:9}], bye:[]},
-    {round:8, courts:[{court:1,a:6,b:7},{court:2,a:4,b:8},{court:3,a:0,b:3},{court:4,a:1,b:2},{court:5,a:5,b:9}], bye:[]},
-    {round:9, courts:[{court:1,a:6,b:7},{court:2,a:0,b:5},{court:3,a:7,b:9},{court:4,a:2,b:3},{court:5,a:1,b:4}], bye:[]},
-  ],
-  11: [
-    {round:1,  courts:[{court:1,a:0,b:9},{court:2,a:1,b:8},{court:3,a:2,b:7},{court:4,a:3,b:6},{court:5,a:4,b:5}], bye:[10]},
-    {round:2,  courts:[{court:1,a:1,b:10},{court:2,a:2,b:9},{court:3,a:3,b:8},{court:4,a:4,b:7},{court:5,a:5,b:6}], bye:[0]},
-    {round:3,  courts:[{court:1,a:2,b:0},{court:2,a:3,b:10},{court:3,a:4,b:9},{court:4,a:5,b:8},{court:5,a:6,b:7}], bye:[1]},
-    {round:4,  courts:[{court:1,a:1,b:3},{court:2,a:0,b:4},{court:3,a:5,b:10},{court:4,a:6,b:9},{court:5,a:7,b:8}], bye:[2]},
-    {round:5,  courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:10},{court:5,a:8,b:9}], bye:[3]},
-    {round:6,  courts:[{court:1,a:3,b:5},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8},{court:5,a:9,b:10}], bye:[4]},
-    {round:7,  courts:[{court:1,a:4,b:6},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10}], bye:[5]},
-    {round:8,  courts:[{court:1,a:5,b:7},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:0,b:1}], bye:[6]},
-    {round:9,  courts:[{court:1,a:6,b:8},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:0,b:3},{court:5,a:1,b:2}], bye:[7]},
-    {round:10, courts:[{court:1,a:7,b:9},{court:2,a:6,b:10},{court:3,a:0,b:1},{court:4,a:1,b:4},{court:5,a:2,b:3}], bye:[8]},
-    {round:11, courts:[{court:1,a:8,b:10},{court:2,a:0,b:7},{court:3,a:1,b:6},{court:4,a:2,b:5},{court:5,a:3,b:4}], bye:[9]},
-  ],
-  12: [
-    {round:1,  courts:[{court:1,a:0,b:9},{court:2,a:1,b:8},{court:3,a:2,b:7},{court:4,a:3,b:6},{court:5,a:4,b:5},{court:6,a:10,b:11}], bye:[]},
-    {round:2,  courts:[{court:1,a:0,b:11},{court:2,a:2,b:9},{court:3,a:3,b:8},{court:4,a:4,b:7},{court:5,a:5,b:6},{court:6,a:1,b:10}], bye:[]},
-    {round:3,  courts:[{court:1,a:2,b:0},{court:2,a:3,b:10},{court:3,a:4,b:9},{court:4,a:5,b:8},{court:5,a:6,b:7},{court:6,a:1,b:11}], bye:[]},
-    {round:4,  courts:[{court:1,a:2,b:11},{court:2,a:0,b:4},{court:3,a:5,b:10},{court:4,a:6,b:9},{court:5,a:7,b:8},{court:6,a:1,b:3}], bye:[]},
-    {round:5,  courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:10},{court:5,a:8,b:9},{court:6,a:3,b:11}], bye:[]},
-    {round:6,  courts:[{court:1,a:4,b:11},{court:2,a:2,b:6},{court:3,a:0,b:8},{court:4,a:0,b:1},{court:5,a:9,b:10},{court:6,a:3,b:7}], bye:[]},
-    {round:7,  courts:[{court:1,a:4,b:6},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10},{court:6,a:5,b:11}], bye:[]},
-    {round:8,  courts:[{court:1,a:6,b:11},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:0,b:1},{court:6,a:5,b:7}], bye:[]},
-    {round:9,  courts:[{court:1,a:6,b:8},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:0,b:3},{court:5,a:1,b:2},{court:6,a:7,b:11}], bye:[]},
-    {round:10, courts:[{court:1,a:8,b:11},{court:2,a:6,b:10},{court:3,a:5,b:11},{court:4,a:1,b:4},{court:5,a:2,b:3},{court:6,a:7,b:9}], bye:[]},
-    {round:11, courts:[{court:1,a:8,b:10},{court:2,a:0,b:7},{court:3,a:1,b:6},{court:4,a:2,b:5},{court:5,a:3,b:4},{court:6,a:9,b:11}], bye:[]},
-  ],
-  13: [
-    {round:1,  courts:[{court:1,a:0,b:11},{court:2,a:1,b:10},{court:3,a:2,b:9},{court:4,a:3,b:8},{court:5,a:4,b:7},{court:6,a:5,b:6}], bye:[12]},
-    {round:2,  courts:[{court:1,a:1,b:12},{court:2,a:2,b:11},{court:3,a:3,b:10},{court:4,a:4,b:9},{court:5,a:5,b:8},{court:6,a:6,b:7}], bye:[0]},
-    {round:3,  courts:[{court:1,a:0,b:2},{court:2,a:3,b:12},{court:3,a:4,b:11},{court:4,a:5,b:10},{court:5,a:6,b:9},{court:6,a:7,b:8}], bye:[1]},
-    {round:4,  courts:[{court:1,a:1,b:3},{court:2,a:0,b:4},{court:3,a:5,b:12},{court:4,a:6,b:11},{court:5,a:7,b:10},{court:6,a:8,b:9}], bye:[2]},
-    {round:5,  courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:12},{court:5,a:8,b:11},{court:6,a:9,b:10}], bye:[3]},
-    {round:6,  courts:[{court:1,a:3,b:5},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8},{court:5,a:9,b:12},{court:6,a:10,b:11}], bye:[4]},
-    {round:7,  courts:[{court:1,a:4,b:6},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10},{court:6,a:11,b:12}], bye:[5]},
-    {round:8,  courts:[{court:1,a:5,b:7},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:1,b:11},{court:6,a:0,b:12}], bye:[6]},
-    {round:9,  courts:[{court:1,a:6,b:8},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:3,b:11},{court:5,a:2,b:12},{court:6,a:0,b:1}], bye:[7]},
-    {round:10, courts:[{court:1,a:7,b:9},{court:2,a:6,b:10},{court:3,a:5,b:11},{court:4,a:4,b:12},{court:5,a:1,b:2},{court:6,a:0,b:3}], bye:[8]},
-    {round:11, courts:[{court:1,a:8,b:10},{court:2,a:7,b:11},{court:3,a:6,b:12},{court:4,a:0,b:5},{court:5,a:1,b:4},{court:6,a:2,b:3}], bye:[9]},
-    {round:12, courts:[{court:1,a:9,b:11},{court:2,a:8,b:12},{court:3,a:0,b:7},{court:4,a:1,b:6},{court:5,a:2,b:5},{court:6,a:3,b:4}], bye:[10]},
-    {round:13, courts:[{court:1,a:10,b:12},{court:2,a:0,b:9},{court:3,a:1,b:8},{court:4,a:2,b:7},{court:5,a:3,b:6},{court:6,a:4,b:5}], bye:[11]},
-  ],
-  14: [
-    {round:1,  courts:[{court:1,a:0,b:11},{court:2,a:1,b:10},{court:3,a:2,b:9},{court:4,a:3,b:8},{court:5,a:4,b:7},{court:6,a:5,b:6},{court:7,a:12,b:13}], bye:[]},
-    {round:2,  courts:[{court:1,a:0,b:13},{court:2,a:2,b:11},{court:3,a:3,b:10},{court:4,a:4,b:9},{court:5,a:5,b:8},{court:6,a:6,b:7},{court:7,a:1,b:12}], bye:[]},
-    {round:3,  courts:[{court:1,a:3,b:12},{court:2,a:0,b:3},{court:3,a:4,b:11},{court:4,a:5,b:10},{court:5,a:6,b:9},{court:6,a:7,b:8},{court:7,a:1,b:13}], bye:[]},
-    {round:4,  courts:[{court:1,a:2,b:13},{court:2,a:0,b:4},{court:3,a:5,b:12},{court:4,a:6,b:11},{court:5,a:7,b:10},{court:6,a:8,b:9},{court:7,a:1,b:3}], bye:[]},
-    {round:5,  courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:12},{court:5,a:8,b:11},{court:6,a:9,b:10},{court:7,a:3,b:13}], bye:[]},
-    {round:6,  courts:[{court:1,a:1,b:7},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8},{court:5,a:9,b:12},{court:6,a:10,b:11},{court:7,a:4,b:13}], bye:[]},
-    {round:7,  courts:[{court:1,a:4,b:6},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10},{court:6,a:11,b:12},{court:7,a:5,b:13}], bye:[]},
-    {round:8,  courts:[{court:1,a:6,b:13},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:1,b:11},{court:6,a:0,b:12},{court:7,a:5,b:7}], bye:[]},
-    {round:9,  courts:[{court:1,a:6,b:8},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:3,b:11},{court:5,a:2,b:12},{court:6,a:1,b:13},{court:7,a:0,b:7}], bye:[]},
-    {round:10, courts:[{court:1,a:5,b:12},{court:2,a:6,b:10},{court:3,a:5,b:11},{court:4,a:4,b:12},{court:5,a:3,b:13},{court:6,a:1,b:2},{court:7,a:0,b:5}], bye:[]},
-    {round:11, courts:[{court:1,a:8,b:10},{court:2,a:7,b:11},{court:3,a:6,b:12},{court:4,a:5,b:13},{court:5,a:0,b:2},{court:6,a:1,b:4},{court:7,a:2,b:3}], bye:[]},
-    {round:12, courts:[{court:1,a:9,b:11},{court:2,a:8,b:12},{court:3,a:7,b:13},{court:4,a:0,b:6},{court:5,a:1,b:5},{court:6,a:2,b:4},{court:7,a:3,b:4}], bye:[]},
-    {round:13, courts:[{court:1,a:10,b:12},{court:2,a:9,b:13},{court:3,a:0,b:8},{court:4,a:1,b:7},{court:5,a:2,b:6},{court:6,a:3,b:5},{court:7,a:4,b:6}], bye:[]},
-  ],
-  15: [
-    {round:1,  courts:[{court:1,a:0,b:13},{court:2,a:1,b:12},{court:3,a:2,b:11},{court:4,a:3,b:10},{court:5,a:4,b:9},{court:6,a:5,b:8},{court:7,a:6,b:7}], bye:[14]},
-    {round:2,  courts:[{court:1,a:1,b:14},{court:2,a:2,b:13},{court:3,a:3,b:12},{court:4,a:4,b:11},{court:5,a:5,b:10},{court:6,a:6,b:9},{court:7,a:7,b:8}], bye:[0]},
-    {round:3,  courts:[{court:1,a:0,b:2},{court:2,a:3,b:14},{court:3,a:4,b:13},{court:4,a:5,b:12},{court:5,a:6,b:11},{court:6,a:7,b:10},{court:7,a:8,b:9}], bye:[1]},
-    {round:4,  courts:[{court:1,a:1,b:3},{court:2,a:0,b:4},{court:3,a:5,b:14},{court:4,a:6,b:13},{court:5,a:7,b:12},{court:6,a:8,b:11},{court:7,a:9,b:10}], bye:[2]},
-    {round:5,  courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:14},{court:5,a:8,b:13},{court:6,a:9,b:12},{court:7,a:10,b:11}], bye:[3]},
-    {round:6,  courts:[{court:1,a:3,b:5},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8},{court:5,a:9,b:14},{court:6,a:10,b:13},{court:7,a:11,b:12}], bye:[4]},
-    {round:7,  courts:[{court:1,a:4,b:6},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10},{court:6,a:11,b:14},{court:7,a:12,b:13}], bye:[5]},
-    {round:8,  courts:[{court:1,a:5,b:7},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:1,b:11},{court:6,a:0,b:12},{court:7,a:13,b:14}], bye:[6]},
-    {round:9,  courts:[{court:1,a:6,b:8},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:3,b:11},{court:5,a:2,b:12},{court:6,a:1,b:13},{court:7,a:0,b:14}], bye:[7]},
-    {round:10, courts:[{court:1,a:7,b:9},{court:2,a:6,b:10},{court:3,a:5,b:11},{court:4,a:4,b:12},{court:5,a:3,b:13},{court:6,a:2,b:14},{court:7,a:0,b:1}], bye:[8]},
-    {round:11, courts:[{court:1,a:8,b:10},{court:2,a:7,b:11},{court:3,a:6,b:12},{court:4,a:5,b:13},{court:5,a:4,b:14},{court:6,a:1,b:2},{court:7,a:0,b:3}], bye:[9]},
-    {round:12, courts:[{court:1,a:9,b:11},{court:2,a:8,b:12},{court:3,a:7,b:13},{court:4,a:6,b:14},{court:5,a:0,b:5},{court:6,a:1,b:4},{court:7,a:2,b:3}], bye:[10]},
-    {round:13, courts:[{court:1,a:10,b:12},{court:2,a:9,b:13},{court:3,a:8,b:14},{court:4,a:0,b:7},{court:5,a:1,b:6},{court:6,a:2,b:5},{court:7,a:3,b:4}], bye:[11]},
-    {round:14, courts:[{court:1,a:11,b:13},{court:2,a:10,b:14},{court:3,a:0,b:9},{court:4,a:1,b:8},{court:5,a:2,b:7},{court:6,a:3,b:6},{court:7,a:4,b:5}], bye:[12]},
-    {round:15, courts:[{court:1,a:12,b:14},{court:2,a:0,b:11},{court:3,a:1,b:10},{court:4,a:2,b:9},{court:5,a:3,b:8},{court:6,a:4,b:7},{court:7,a:5,b:6}], bye:[13]},
-  ],
-  16: [
-    {round:1,  courts:[{court:1,a:0,b:13},{court:2,a:1,b:12},{court:3,a:2,b:11},{court:4,a:3,b:10},{court:5,a:4,b:9},{court:6,a:5,b:8},{court:7,a:6,b:7},{court:8,a:14,b:15}], bye:[]},
-    {round:2,  courts:[{court:1,a:0,b:15},{court:2,a:2,b:13},{court:3,a:3,b:12},{court:4,a:4,b:11},{court:5,a:5,b:10},{court:6,a:6,b:9},{court:7,a:7,b:8},{court:8,a:1,b:14}], bye:[]},
-    {round:3,  courts:[{court:1,a:0,b:2},{court:2,a:3,b:14},{court:3,a:4,b:13},{court:4,a:5,b:12},{court:5,a:6,b:11},{court:6,a:7,b:10},{court:7,a:8,b:9},{court:8,a:1,b:15}], bye:[]},
-    {round:4,  courts:[{court:1,a:2,b:15},{court:2,a:0,b:4},{court:3,a:5,b:14},{court:4,a:6,b:13},{court:5,a:7,b:12},{court:6,a:8,b:11},{court:7,a:9,b:10},{court:8,a:1,b:3}], bye:[]},
-    {round:5,  courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:14},{court:5,a:8,b:13},{court:6,a:9,b:12},{court:7,a:10,b:11},{court:8,a:3,b:15}], bye:[]},
-    {round:6,  courts:[{court:1,a:4,b:15},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8},{court:5,a:9,b:14},{court:6,a:10,b:13},{court:7,a:11,b:12},{court:8,a:3,b:5}], bye:[]},
-    {round:7,  courts:[{court:1,a:4,b:6},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10},{court:6,a:11,b:14},{court:7,a:12,b:13},{court:8,a:5,b:15}], bye:[]},
-    {round:8,  courts:[{court:1,a:6,b:15},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:1,b:11},{court:6,a:0,b:12},{court:7,a:13,b:14},{court:8,a:5,b:7}], bye:[]},
-    {round:9,  courts:[{court:1,a:6,b:8},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:3,b:11},{court:5,a:2,b:12},{court:6,a:1,b:13},{court:7,a:0,b:14},{court:8,a:7,b:15}], bye:[]},
-    {round:10, courts:[{court:1,a:8,b:15},{court:2,a:6,b:10},{court:3,a:5,b:11},{court:4,a:4,b:12},{court:5,a:3,b:13},{court:6,a:2,b:14},{court:7,a:0,b:1},{court:8,a:7,b:9}], bye:[]},
-    {round:11, courts:[{court:1,a:8,b:10},{court:2,a:7,b:11},{court:3,a:6,b:12},{court:4,a:5,b:13},{court:5,a:4,b:14},{court:6,a:3,b:15},{court:7,a:0,b:2},{court:8,a:1,b:9}], bye:[]},
-    {round:12, courts:[{court:1,a:10,b:15},{court:2,a:8,b:12},{court:3,a:7,b:13},{court:4,a:6,b:14},{court:5,a:5,b:15},{court:6,a:0,b:3},{court:7,a:1,b:2},{court:8,a:4,b:9}], bye:[]},
-    {round:13, courts:[{court:1,a:10,b:12},{court:2,a:9,b:13},{court:3,a:8,b:14},{court:4,a:7,b:15},{court:5,a:0,b:5},{court:6,a:1,b:4},{court:7,a:2,b:3},{court:8,a:6,b:11}], bye:[]},
-    {round:14, courts:[{court:1,a:12,b:15},{court:2,a:10,b:14},{court:3,a:9,b:15},{court:4,a:0,b:9},{court:5,a:1,b:8},{court:6,a:2,b:7},{court:7,a:3,b:6},{court:8,a:4,b:5}], bye:[]},
-    {round:15, courts:[{court:1,a:12,b:14},{court:2,a:11,b:15},{court:3,a:0,b:10},{court:4,a:1,b:9},{court:5,a:2,b:8},{court:6,a:3,b:7},{court:7,a:4,b:6},{court:8,a:5,b:13}], bye:[]},
-  ],
-  17: [
-    {round:1,  courts:[{court:1,a:1,b:16},{court:2,a:2,b:15},{court:3,a:3,b:14},{court:4,a:4,b:13},{court:5,a:5,b:12},{court:6,a:6,b:11},{court:7,a:7,b:10},{court:8,a:8,b:9}], bye:[0]},
-    {round:2,  courts:[{court:1,a:0,b:2},{court:2,a:3,b:16},{court:3,a:4,b:15},{court:4,a:5,b:14},{court:5,a:6,b:13},{court:6,a:7,b:12},{court:7,a:8,b:11},{court:8,a:9,b:10}], bye:[1]},
-    {round:3,  courts:[{court:1,a:1,b:3},{court:2,a:0,b:4},{court:3,a:5,b:16},{court:4,a:6,b:15},{court:5,a:7,b:14},{court:6,a:8,b:13},{court:7,a:9,b:12},{court:8,a:10,b:11}], bye:[2]},
-    {round:4,  courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:16},{court:5,a:8,b:15},{court:6,a:9,b:14},{court:7,a:10,b:13},{court:8,a:11,b:12}], bye:[3]},
-    {round:5,  courts:[{court:1,a:3,b:5},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8},{court:5,a:9,b:16},{court:6,a:10,b:15},{court:7,a:11,b:14},{court:8,a:12,b:13}], bye:[4]},
-    {round:6,  courts:[{court:1,a:4,b:6},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10},{court:6,a:11,b:16},{court:7,a:12,b:15},{court:8,a:13,b:14}], bye:[5]},
-    {round:7,  courts:[{court:1,a:5,b:7},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:1,b:11},{court:6,a:0,b:12},{court:7,a:13,b:16},{court:8,a:14,b:15}], bye:[6]},
-    {round:8,  courts:[{court:1,a:6,b:8},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:3,b:11},{court:5,a:2,b:12},{court:6,a:1,b:13},{court:7,a:0,b:14},{court:8,a:15,b:16}], bye:[7]},
-    {round:9,  courts:[{court:1,a:7,b:9},{court:2,a:6,b:10},{court:3,a:5,b:11},{court:4,a:4,b:12},{court:5,a:3,b:13},{court:6,a:2,b:14},{court:7,a:1,b:15},{court:8,a:0,b:16}], bye:[8]},
-    {round:10, courts:[{court:1,a:8,b:10},{court:2,a:7,b:11},{court:3,a:6,b:12},{court:4,a:5,b:13},{court:5,a:4,b:14},{court:6,a:3,b:15},{court:7,a:2,b:16},{court:8,a:0,b:1}], bye:[9]},
-    {round:11, courts:[{court:1,a:11,b:9},{court:2,a:8,b:12},{court:3,a:7,b:13},{court:4,a:6,b:14},{court:5,a:5,b:15},{court:6,a:4,b:16},{court:7,a:1,b:2},{court:8,a:0,b:3}], bye:[10]},
-    {round:12, courts:[{court:1,a:10,b:12},{court:2,a:9,b:13},{court:3,a:8,b:14},{court:4,a:7,b:15},{court:5,a:6,b:16},{court:6,a:1,b:4},{court:7,a:2,b:3},{court:8,a:0,b:5}], bye:[11]},
-    {round:13, courts:[{court:1,a:11,b:13},{court:2,a:10,b:14},{court:3,a:9,b:15},{court:4,a:8,b:16},{court:5,a:0,b:6},{court:6,a:1,b:5},{court:7,a:2,b:4},{court:8,a:3,b:4}], bye:[12]},
-    {round:14, courts:[{court:1,a:12,b:14},{court:2,a:11,b:15},{court:3,a:10,b:16},{court:4,a:0,b:9},{court:5,a:1,b:8},{court:6,a:2,b:7},{court:7,a:3,b:6},{court:8,a:4,b:5}], bye:[13]},
-    {round:15, courts:[{court:1,a:13,b:15},{court:2,a:12,b:16},{court:3,a:0,b:11},{court:4,a:1,b:10},{court:5,a:2,b:9},{court:6,a:3,b:8},{court:7,a:4,b:7},{court:8,a:5,b:6}], bye:[14]},
-    {round:16, courts:[{court:1,a:14,b:16},{court:2,a:0,b:13},{court:3,a:1,b:12},{court:4,a:2,b:11},{court:5,a:3,b:10},{court:6,a:4,b:9},{court:7,a:5,b:8},{court:8,a:6,b:7}], bye:[15]},
-    {round:17, courts:[{court:1,a:0,b:15},{court:2,a:1,b:14},{court:3,a:2,b:13},{court:4,a:3,b:12},{court:5,a:4,b:11},{court:6,a:5,b:10},{court:7,a:6,b:9},{court:8,a:7,b:8}], bye:[16]},
-  ],
-  18: [
-    {round:1,  courts:[{court:1,a:1,b:16},{court:2,a:2,b:15},{court:3,a:3,b:14},{court:4,a:4,b:13},{court:5,a:5,b:12},{court:6,a:6,b:11},{court:7,a:7,b:10},{court:8,a:8,b:9},{court:9,a:0,b:17}], bye:[]},
-    {round:2,  courts:[{court:1,a:1,b:17},{court:2,a:3,b:16},{court:3,a:4,b:15},{court:4,a:5,b:14},{court:5,a:6,b:13},{court:6,a:7,b:12},{court:7,a:8,b:11},{court:8,a:9,b:10},{court:9,a:0,b:2}], bye:[]},
-    {round:3,  courts:[{court:1,a:1,b:2},{court:2,a:0,b:4},{court:3,a:5,b:16},{court:4,a:6,b:15},{court:5,a:7,b:14},{court:6,a:8,b:13},{court:7,a:9,b:12},{court:8,a:10,b:11},{court:9,a:2,b:17}], bye:[]},
-    {round:4,  courts:[{court:1,a:3,b:17},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:16},{court:5,a:8,b:15},{court:6,a:9,b:14},{court:7,a:10,b:13},{court:8,a:11,b:12},{court:9,a:2,b:4}], bye:[]},
-    {round:5,  courts:[{court:1,a:3,b:5},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8},{court:5,a:9,b:16},{court:6,a:10,b:15},{court:7,a:11,b:14},{court:8,a:12,b:13},{court:9,a:4,b:17}], bye:[]},
-    {round:6,  courts:[{court:1,a:5,b:17},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10},{court:6,a:11,b:16},{court:7,a:12,b:15},{court:8,a:13,b:14},{court:9,a:4,b:6}], bye:[]},
-    {round:7,  courts:[{court:1,a:5,b:7},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:1,b:11},{court:6,a:0,b:12},{court:7,a:13,b:16},{court:8,a:14,b:15},{court:9,a:6,b:17}], bye:[]},
-    {round:8,  courts:[{court:1,a:7,b:17},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:3,b:11},{court:5,a:2,b:12},{court:6,a:1,b:13},{court:7,a:0,b:14},{court:8,a:15,b:16},{court:9,a:6,b:8}], bye:[]},
-    {round:9,  courts:[{court:1,a:7,b:9},{court:2,a:6,b:10},{court:3,a:5,b:11},{court:4,a:4,b:12},{court:5,a:3,b:13},{court:6,a:2,b:14},{court:7,a:1,b:15},{court:8,a:0,b:16},{court:9,a:8,b:17}], bye:[]},
-    {round:10, courts:[{court:1,a:9,b:17},{court:2,a:7,b:11},{court:3,a:6,b:12},{court:4,a:5,b:13},{court:5,a:4,b:14},{court:6,a:3,b:15},{court:7,a:2,b:16},{court:8,a:0,b:1},{court:9,a:8,b:10}], bye:[]},
-    {round:11, courts:[{court:1,a:9,b:11},{court:2,a:8,b:12},{court:3,a:7,b:13},{court:4,a:6,b:14},{court:5,a:5,b:15},{court:6,a:4,b:16},{court:7,a:3,b:17},{court:8,a:0,b:2},{court:9,a:1,b:10}], bye:[]},
-    {round:12, courts:[{court:1,a:11,b:17},{court:2,a:9,b:13},{court:3,a:8,b:14},{court:4,a:7,b:15},{court:5,a:6,b:16},{court:6,a:5,b:17},{court:7,a:0,b:4},{court:8,a:1,b:3},{court:9,a:2,b:10}], bye:[]},
-    {round:13, courts:[{court:1,a:11,b:13},{court:2,a:10,b:14},{court:3,a:9,b:15},{court:4,a:8,b:16},{court:5,a:7,b:17},{court:6,a:0,b:6},{court:7,a:1,b:5},{court:8,a:2,b:4},{court:9,a:3,b:12}], bye:[]},
-    {round:14, courts:[{court:1,a:13,b:17},{court:2,a:11,b:15},{court:3,a:10,b:16},{court:4,a:9,b:17},{court:5,a:0,b:8},{court:6,a:1,b:7},{court:7,a:2,b:6},{court:8,a:3,b:5},{court:9,a:4,b:12}], bye:[]},
-    {round:15, courts:[{court:1,a:13,b:15},{court:2,a:12,b:16},{court:3,a:11,b:17},{court:4,a:0,b:10},{court:5,a:1,b:9},{court:6,a:2,b:8},{court:7,a:3,b:7},{court:8,a:4,b:6},{court:9,a:5,b:14}], bye:[]},
-    {round:16, courts:[{court:1,a:15,b:17},{court:2,a:13,b:17},{court:3,a:0,b:12},{court:4,a:1,b:11},{court:5,a:2,b:10},{court:6,a:3,b:9},{court:7,a:4,b:8},{court:8,a:5,b:7},{court:9,a:6,b:14}], bye:[]},
-    {round:17, courts:[{court:1,a:0,b:16},{court:2,a:1,b:15},{court:3,a:2,b:14},{court:4,a:3,b:13},{court:5,a:4,b:12},{court:6,a:5,b:11},{court:7,a:6,b:10},{court:8,a:7,b:9},{court:9,a:8,b:17}], bye:[]},
-  ],
-  19: [
-    {round:1,  courts:[{court:1,a:1,b:18},{court:2,a:2,b:17},{court:3,a:3,b:16},{court:4,a:4,b:15},{court:5,a:5,b:14},{court:6,a:6,b:13},{court:7,a:7,b:12},{court:8,a:8,b:11},{court:9,a:9,b:10}], bye:[0]},
-    {round:2,  courts:[{court:1,a:0,b:2},{court:2,a:3,b:18},{court:3,a:4,b:17},{court:4,a:5,b:16},{court:5,a:6,b:15},{court:6,a:7,b:14},{court:7,a:8,b:13},{court:8,a:9,b:12},{court:9,a:10,b:11}], bye:[1]},
-    {round:3,  courts:[{court:1,a:1,b:3},{court:2,a:0,b:4},{court:3,a:5,b:18},{court:4,a:6,b:17},{court:5,a:7,b:16},{court:6,a:8,b:15},{court:7,a:9,b:14},{court:8,a:10,b:13},{court:9,a:11,b:12}], bye:[2]},
-    {round:4,  courts:[{court:1,a:2,b:4},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:18},{court:5,a:8,b:17},{court:6,a:9,b:16},{court:7,a:10,b:15},{court:8,a:11,b:14},{court:9,a:12,b:13}], bye:[3]},
-    {round:5,  courts:[{court:1,a:3,b:5},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8},{court:5,a:9,b:18},{court:6,a:10,b:17},{court:7,a:11,b:16},{court:8,a:12,b:15},{court:9,a:13,b:14}], bye:[4]},
-    {round:6,  courts:[{court:1,a:4,b:6},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10},{court:6,a:11,b:18},{court:7,a:12,b:17},{court:8,a:13,b:16},{court:9,a:14,b:15}], bye:[5]},
-    {round:7,  courts:[{court:1,a:5,b:7},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:1,b:11},{court:6,a:0,b:12},{court:7,a:13,b:18},{court:8,a:14,b:17},{court:9,a:15,b:16}], bye:[6]},
-    {round:8,  courts:[{court:1,a:6,b:8},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:3,b:11},{court:5,a:2,b:12},{court:6,a:1,b:13},{court:7,a:0,b:14},{court:8,a:15,b:18},{court:9,a:16,b:17}], bye:[7]},
-    {round:9,  courts:[{court:1,a:7,b:9},{court:2,a:6,b:10},{court:3,a:5,b:11},{court:4,a:4,b:12},{court:5,a:3,b:13},{court:6,a:2,b:14},{court:7,a:1,b:15},{court:8,a:0,b:16},{court:9,a:17,b:18}], bye:[8]},
-    {round:10, courts:[{court:1,a:8,b:10},{court:2,a:7,b:11},{court:3,a:6,b:12},{court:4,a:5,b:13},{court:5,a:4,b:14},{court:6,a:3,b:15},{court:7,a:2,b:16},{court:8,a:1,b:17},{court:9,a:0,b:18}], bye:[9]},
-    {round:11, courts:[{court:1,a:9,b:11},{court:2,a:8,b:12},{court:3,a:7,b:13},{court:4,a:6,b:14},{court:5,a:5,b:15},{court:6,a:4,b:16},{court:7,a:3,b:17},{court:8,a:2,b:18},{court:9,a:0,b:1}], bye:[10]},
-    {round:12, courts:[{court:1,a:10,b:12},{court:2,a:9,b:13},{court:3,a:8,b:14},{court:4,a:7,b:15},{court:5,a:6,b:16},{court:6,a:5,b:17},{court:7,a:4,b:18},{court:8,a:0,b:3},{court:9,a:1,b:2}], bye:[11]},
-    {round:13, courts:[{court:1,a:11,b:13},{court:2,a:10,b:14},{court:3,a:9,b:15},{court:4,a:8,b:16},{court:5,a:7,b:17},{court:6,a:6,b:18},{court:7,a:0,b:5},{court:8,a:1,b:4},{court:9,a:2,b:3}], bye:[12]},
-    {round:14, courts:[{court:1,a:12,b:14},{court:2,a:11,b:15},{court:3,a:10,b:16},{court:4,a:9,b:17},{court:5,a:8,b:18},{court:6,a:0,b:7},{court:7,a:1,b:6},{court:8,a:2,b:5},{court:9,a:3,b:4}], bye:[13]},
-    {round:15, courts:[{court:1,a:13,b:15},{court:2,a:12,b:16},{court:3,a:11,b:17},{court:4,a:10,b:18},{court:5,a:0,b:9},{court:6,a:1,b:8},{court:7,a:2,b:7},{court:8,a:3,b:6},{court:9,a:4,b:5}], bye:[14]},
-    {round:16, courts:[{court:1,a:14,b:16},{court:2,a:13,b:17},{court:3,a:12,b:18},{court:4,a:0,b:11},{court:5,a:1,b:10},{court:6,a:2,b:9},{court:7,a:3,b:8},{court:8,a:4,b:7},{court:9,a:5,b:6}], bye:[15]},
-    {round:17, courts:[{court:1,a:15,b:17},{court:2,a:14,b:18},{court:3,a:0,b:13},{court:4,a:1,b:12},{court:5,a:2,b:11},{court:6,a:3,b:10},{court:7,a:4,b:9},{court:8,a:5,b:8},{court:9,a:6,b:7}], bye:[16]},
-    {round:18, courts:[{court:1,a:16,b:18},{court:2,a:0,b:15},{court:3,a:1,b:14},{court:4,a:2,b:13},{court:5,a:3,b:12},{court:6,a:4,b:11},{court:7,a:5,b:10},{court:8,a:6,b:9},{court:9,a:7,b:8}], bye:[17]},
-    {round:19, courts:[{court:1,a:0,b:17},{court:2,a:1,b:16},{court:3,a:2,b:15},{court:4,a:3,b:14},{court:5,a:4,b:13},{court:6,a:5,b:12},{court:7,a:6,b:11},{court:8,a:7,b:10},{court:9,a:8,b:9}], bye:[18]},
-  ],
-  20: [
-    {round:1,  courts:[{court:1,a:1,b:18},{court:2,a:2,b:17},{court:3,a:3,b:16},{court:4,a:4,b:15},{court:5,a:5,b:14},{court:6,a:6,b:13},{court:7,a:7,b:12},{court:8,a:8,b:11},{court:9,a:9,b:10},{court:10,a:0,b:19}], bye:[]},
-    {round:2,  courts:[{court:1,a:1,b:19},{court:2,a:3,b:18},{court:3,a:4,b:17},{court:4,a:5,b:16},{court:5,a:6,b:15},{court:6,a:7,b:14},{court:7,a:8,b:13},{court:8,a:9,b:12},{court:9,a:10,b:11},{court:10,a:0,b:2}], bye:[]},
-    {round:3,  courts:[{court:1,a:1,b:2},{court:2,a:0,b:4},{court:3,a:5,b:18},{court:4,a:6,b:17},{court:5,a:7,b:16},{court:6,a:8,b:15},{court:7,a:9,b:14},{court:8,a:10,b:13},{court:9,a:11,b:12},{court:10,a:2,b:19}], bye:[]},
-    {round:4,  courts:[{court:1,a:3,b:19},{court:2,a:1,b:5},{court:3,a:0,b:6},{court:4,a:7,b:18},{court:5,a:8,b:17},{court:6,a:9,b:16},{court:7,a:10,b:15},{court:8,a:11,b:14},{court:9,a:12,b:13},{court:10,a:2,b:4}], bye:[]},
-    {round:5,  courts:[{court:1,a:3,b:5},{court:2,a:2,b:6},{court:3,a:1,b:7},{court:4,a:0,b:8},{court:5,a:9,b:18},{court:6,a:10,b:17},{court:7,a:11,b:16},{court:8,a:12,b:15},{court:9,a:13,b:14},{court:10,a:4,b:19}], bye:[]},
-    {round:6,  courts:[{court:1,a:5,b:19},{court:2,a:3,b:7},{court:3,a:2,b:8},{court:4,a:1,b:9},{court:5,a:0,b:10},{court:6,a:11,b:18},{court:7,a:12,b:17},{court:8,a:13,b:16},{court:9,a:14,b:15},{court:10,a:4,b:6}], bye:[]},
-    {round:7,  courts:[{court:1,a:5,b:7},{court:2,a:4,b:8},{court:3,a:3,b:9},{court:4,a:2,b:10},{court:5,a:1,b:11},{court:6,a:0,b:12},{court:7,a:13,b:18},{court:8,a:14,b:17},{court:9,a:15,b:16},{court:10,a:6,b:19}], bye:[]},
-    {round:8,  courts:[{court:1,a:7,b:19},{court:2,a:5,b:9},{court:3,a:4,b:10},{court:4,a:3,b:11},{court:5,a:2,b:12},{court:6,a:1,b:13},{court:7,a:0,b:14},{court:8,a:15,b:18},{court:9,a:16,b:17},{court:10,a:6,b:8}], bye:[]},
-    {round:9,  courts:[{court:1,a:7,b:9},{court:2,a:6,b:10},{court:3,a:5,b:11},{court:4,a:4,b:12},{court:5,a:3,b:13},{court:6,a:2,b:14},{court:7,a:1,b:15},{court:8,a:0,b:16},{court:9,a:17,b:18},{court:10,a:8,b:19}], bye:[]},
-    {round:10, courts:[{court:1,a:9,b:19},{court:2,a:7,b:11},{court:3,a:6,b:12},{court:4,a:5,b:13},{court:5,a:4,b:14},{court:6,a:3,b:15},{court:7,a:2,b:16},{court:8,a:1,b:17},{court:9,a:0,b:18},{court:10,a:8,b:10}], bye:[]},
-    {round:11, courts:[{court:1,a:9,b:11},{court:2,a:8,b:12},{court:3,a:7,b:13},{court:4,a:6,b:14},{court:5,a:5,b:15},{court:6,a:4,b:16},{court:7,a:3,b:17},{court:8,a:2,b:18},{court:9,a:1,b:19},{court:10,a:0,b:10}], bye:[]},
-    {round:12, courts:[{court:1,a:11,b:19},{court:2,a:9,b:13},{court:3,a:8,b:14},{court:4,a:7,b:15},{court:5,a:6,b:16},{court:6,a:5,b:17},{court:7,a:4,b:18},{court:8,a:3,b:19},{court:9,a:0,b:2},{court:10,a:1,b:10}], bye:[]},
-    {round:13, courts:[{court:1,a:11,b:13},{court:2,a:10,b:14},{court:3,a:9,b:15},{court:4,a:8,b:16},{court:5,a:7,b:17},{court:6,a:6,b:18},{court:7,a:5,b:19},{court:8,a:0,b:4},{court:9,a:1,b:3},{court:10,a:2,b:12}], bye:[]},
-    {round:14, courts:[{court:1,a:13,b:19},{court:2,a:11,b:15},{court:3,a:10,b:16},{court:4,a:9,b:17},{court:5,a:8,b:18},{court:6,a:7,b:19},{court:7,a:0,b:6},{court:8,a:1,b:5},{court:9,a:2,b:4},{court:10,a:3,b:12}], bye:[]},
-    {round:15, courts:[{court:1,a:13,b:15},{court:2,a:12,b:16},{court:3,a:11,b:17},{court:4,a:10,b:18},{court:5,a:9,b:19},{court:6,a:0,b:8},{court:7,a:1,b:7},{court:8,a:2,b:6},{court:9,a:3,b:5},{court:10,a:4,b:14}], bye:[]},
-    {round:16, courts:[{court:1,a:15,b:19},{court:2,a:13,b:17},{court:3,a:12,b:18},{court:4,a:11,b:19},{court:5,a:0,b:10},{court:6,a:1,b:9},{court:7,a:2,b:8},{court:8,a:3,b:7},{court:9,a:4,b:6},{court:10,a:5,b:14}], bye:[]},
-    {round:17, courts:[{court:1,a:15,b:17},{court:2,a:14,b:18},{court:3,a:13,b:19},{court:4,a:0,b:12},{court:5,a:1,b:11},{court:6,a:2,b:10},{court:7,a:3,b:9},{court:8,a:4,b:8},{court:9,a:5,b:7},{court:10,a:6,b:16}], bye:[]},
-    {round:18, courts:[{court:1,a:17,b:19},{court:2,a:15,b:19},{court:3,a:0,b:14},{court:4,a:1,b:13},{court:5,a:2,b:12},{court:6,a:3,b:11},{court:7,a:4,b:10},{court:8,a:5,b:9},{court:9,a:6,b:8},{court:10,a:7,b:16}], bye:[]},
-    {round:19, courts:[{court:1,a:0,b:18},{court:2,a:1,b:17},{court:3,a:2,b:16},{court:4,a:3,b:15},{court:5,a:4,b:14},{court:6,a:5,b:13},{court:7,a:6,b:12},{court:8,a:7,b:11},{court:9,a:8,b:10},{court:10,a:9,b:19}], bye:[]},
-  ],
-};
+// ─── ROUND ROBIN SCHEDULE (método del círculo) ───────────────
+/* §116 (decisión A, 5 nov 2026): antes había una tabla escrita a mano para
+   cada número de parejas (3 a 20). Las de 10 a 20 tenían casillas mal
+   copiadas: una pareja jugaba dos veces en la misma ronda y faltaban
+   partidos. Ahora el horario se CALCULA con el método del círculo: una
+   pareja queda fija y las demás giran una posición en cada ronda. Así cada
+   pareja juega contra todas las demás exactamente una vez y nadie juega dos
+   veces en la misma ronda (comprobado de 3 a 40 parejas). Con un número
+   impar, cada ronda una pareja descansa (BYE).
+   Devuelve lo mismo que daba la tabla: [{round, courts:[{court, a, b}], bye:[]}],
+   con a y b = posición de la pareja (empezando en 0). Los torneos ya
+   creados no cambian: sus partidos ya están guardados. */
+function tRoundRobinSchedule(n) {
+  if (!Number.isInteger(n) || n < 2) return null;
+  const ring = [...Array(n).keys()];
+  if (n % 2) ring.push(null);            // null = descanso
+  const m = ring.length;
+  const rounds = [];
+  for (let r = 0; r < m - 1; r++) {
+    const courts = [];
+    const bye = [];
+    for (let i = 0; i < m / 2; i++) {
+      const a = ring[i], b = ring[m - 1 - i];
+      if (a === null) bye.push(b);
+      else if (b === null) bye.push(a);
+      else courts.push({ court: courts.length + 1, a, b });
+    }
+    rounds.push({ round: r + 1, courts, bye });
+    ring.splice(1, 0, ring.pop());       // giran todas menos la primera
+  }
+  return rounds;
+}
 
 // ─── CATEGORY LABELS ────────────────────────────────────────
 const T_CATEGORY_LABELS = {
@@ -919,7 +712,7 @@ async function renderTournamentList() {
       <div class="t-panel-body" style="padding:14px 16px 16px;">
         <form id="t-create-form" onsubmit="createTournament(event)">
           <!-- Name + Date -->
-          <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:6px;">
+          <div class="t-grid-nombre">
             <div style="display:flex;flex-direction:column;gap:3px;">
               <div class="t-new-field-lbl">Tournament Name <span style="color:#e53935;">*</span></div>
               <input class="t-new-input" type="text" id="t-name" required placeholder="e.g. Spring Doubles Open 2026">
@@ -928,7 +721,12 @@ async function renderTournamentList() {
               <div class="t-new-field-lbl">Date <span style="color:#e53935;">*</span></div>
               <input class="t-new-input" type="date" id="t-date">
             </div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <div class="t-new-field-lbl">Start time</div>
+              <input class="t-new-input" type="time" id="t-start-time" step="900">
+            </div>
           </div>
+          <p class="t-hora-ayuda">Optional. Players can check in from the Player Portal 2 hours before (from 6:00 AM if empty).</p>
           <div class="t-new-divider" style="margin:8px 0;"></div>
           <!-- Categories -->
           <div>
@@ -949,7 +747,7 @@ async function renderTournamentList() {
           <div class="t-new-divider" style="margin:8px 0;"></div>
           <!-- Submit -->
           <div style="display:flex;justify-content:center;">
-            <button type="submit" class="t-new-submit-btn">
+            <button type="submit" class="t-new-submit-btn" data-busy="Saving…">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
               Create Tournament
             </button>
@@ -1464,6 +1262,8 @@ async function tEditTournament(id) {
     id,
     name:   t.name,
     date:   t.date || '',
+    startTime: (t.start_time || '').slice(0, 5),
+    startTimeAntes: (t.start_time || '').slice(0, 5),
     status: t.status,
     cats:   cats.map(c => ({ id: c.id, name: c.name, isNew: false })),
     counts,
@@ -1480,8 +1280,10 @@ function _tCaptureEditInputs() {
   if (!st) return;
   const nameEl = document.getElementById('t-edit-name');
   const dateEl = document.getElementById('t-edit-date');
+  const horaEl = document.getElementById('t-edit-start');
   if (nameEl) st.name = nameEl.value;
   if (dateEl) st.date = dateEl.value;
+  if (horaEl) st.startTime = horaEl.value;
 }
 
 // Redraws just the category list. Used by add/remove, which must not
@@ -1521,7 +1323,7 @@ function _tRenderEditTournament() {
     </button>
     <div style="font-size:11px;font-weight:600;color:#6b7a99;margin-bottom:16px;">Update tournament information and categories.</div>
     ${isActive ? `<div style="padding:8px 12px;background:#fde8d8;border-radius:7px;font-size:12px;font-weight:600;color:#c04a0e;margin-bottom:14px;">⚠️ Tournament is active — categories are locked to protect team data. You can still update the name and date.</div>` : ''}
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:10px;">
+    <div class="t-grid-nombre">
       <div>
         <div class="t-new-field-lbl">Tournament Name</div>
         <input id="t-edit-name" class="t-new-input" type="text" value="${tEsc(st.name)}" required>
@@ -1530,7 +1332,12 @@ function _tRenderEditTournament() {
         <div class="t-new-field-lbl">Date</div>
         <input id="t-edit-date" class="t-new-input" type="date" value="${st.date || ''}">
       </div>
+      <div>
+        <div class="t-new-field-lbl">Start time</div>
+        <input id="t-edit-start" class="t-new-input" type="time" step="900" value="${tEsc(st.startTime || '')}">
+      </div>
     </div>
+    <p class="t-hora-ayuda">Optional. Players can check in from the Player Portal 2 hours before (from 6:00 AM if empty).</p>
     <div class="t-new-divider" style="margin:10px 0;"></div>
     <div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -1549,7 +1356,7 @@ function _tRenderEditTournament() {
     </div>
     <div class="t-new-divider" style="margin:10px 0;"></div>
     <div style="display:flex;justify-content:flex-end;">
-      <button type="button" class="t-new-submit-btn" style="padding:8px 20px;" onclick="tSaveEditTournament()">
+      <button data-busy="Saving…" type="button" class="t-new-submit-btn" style="padding:8px 20px;" onclick="tSaveEditTournament()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Apply Updates
       </button>
@@ -1681,6 +1488,15 @@ async function tSaveEditTournament() {
         : st.cats.map(c => ({ id: c.isNew ? null : c.id, name: c.name })),
     });
     if (error) throw error;
+    /* §121: la hora de inicio (SQL 141) va aparte y sólo si cambió;
+       si falla, lo demás ya quedó. */
+    if ((st.startTime || '') !== (st.startTimeAntes || '')) {
+      try {
+        await tApi(`tournaments?id=eq.${Number(st.id)}`, 'PATCH', { start_time: st.startTime || null });
+      } catch (e) {
+        tToast(`Saved, but the start time was not: ${e.message}`, true);
+      }
+    }
 
     closeTModal();
     window._tEditState = null;
@@ -1805,7 +1621,8 @@ async function createTournament(e) {
       tToast(`A tournament named "${name}" ${date ? 'on this date ' : ''}already exists.`, true);
       return;
     }
-    await tApi('tournaments', 'POST', { name, date, status: 'draft' });
+    const startTime = document.getElementById('t-start-time')?.value || null;
+    await tApi('tournaments', 'POST', { name, date, status: 'draft', ...(startTime ? { start_time: startTime } : {}) });
     const [t] = await tApi(`tournaments?name=eq.${encodeURIComponent(name)}&status=eq.draft&select=*&order=id.desc&limit=1`);
     if (categories.length) {
       // Bulk insert all categories in a single POST
@@ -1903,7 +1720,7 @@ async function deleteTournament(id) {
 
     <!-- CTA -->
     <div style="display:flex;justify-content:flex-end;">
-      <button type="button" class="t-op-btn t-op-btn-danger" onclick="confirmDeleteTournament(${id})" style="width:auto;padding:10px 20px;font-size:12px;">
+      <button data-busy="Deleting…" type="button" class="t-op-btn t-op-btn-danger" onclick="confirmDeleteTournament(${id})" style="width:auto;padding:10px 20px;font-size:12px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
         Delete Tournament
       </button>
@@ -2109,7 +1926,7 @@ function renderTournamentDetail(t, categories) {
     <div class="td-action-bar">
       <span class="td-start-hint" id="td-start-hint" style="display:none;font-size:10px;font-weight:700;color:#b0bbd6;padding:0 6px;"></span>
       ${startBtnHTML}
-      <button onclick="window.app.openTournamentNotifyModal(${t.id})" class="btn btn-teal btn-sm">Notify Players</button>
+      <button type="button" data-action="hubNotifyTournament" data-id="${t.id}" class="btn btn-teal btn-sm">Notify Players</button>
       <button onclick="printTournamentRoster(this)"
         data-tid="${t.id}" data-tname="${tEsc(t.name)}" data-tdate="${tEsc(t.date || '')}"
         data-catids="${categories.map(c => c.id).join(',')}"
@@ -2227,8 +2044,16 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
     const cls = done ? 'done' : current ? 'current' : 'locked';
     return `<div class="td-step-lbl ${cls}">${label}</div>`;
   };
-  const s1done = step1Done, s2done = step2Done, s3done = step3Done;
-  const s1cur  = !s1done, s2cur = s1done && !s2done, s3cur = s2done && !s3done, s4cur = s3done && !step4Done;
+  /* Los pasos en el orden real del torneo (§120, 22 nov): el round robin
+     sólo se genera con el torneo iniciado. Un paso es "el actual" cuando
+     todos los anteriores están hechos. */
+  const pasos = [
+    ['Teams Added', step1Done],
+    ['Tournament Started', tournament.status !== 'draft'],
+    ['Round Robin', step2Done],
+    ['Bracket', step3Done],
+    ['Completed', step4Done],
+  ].map(([label, done], i, todos) => ({ label, done, current: !done && todos.slice(0, i).every(([, d]) => d) }));
   const connCls = (done) => done ? 'td-step-conn done' : 'td-step-conn';
 
   const progressionEl = document.getElementById('td-setup-progression');
@@ -2240,32 +2065,11 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
           Tournament Setup Progress
         </div>
         <div style="display:flex;align-items:flex-start;margin-top:4px;">
-          <!-- Step 1 -->
+          ${pasos.map((p, i) => `${i ? `<div class="${connCls(pasos[i - 1].done)}" style="height:2px;flex:1;margin-top:13px;"></div>` : ''}
           <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;">
-            ${stepIcon(s1done, s1cur, '1')}
-            ${stepLbl(s1done, s1cur, 'Teams Added')}
-          </div>
-          <!-- Connector 1→2 -->
-          <div class="${connCls(s1done)}" style="height:2px;flex:1;margin-top:13px;"></div>
-          <!-- Step 2 -->
-          <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;">
-            ${stepIcon(s2done, s2cur, '2')}
-            ${stepLbl(s2done, s2cur, 'Round Robin')}
-          </div>
-          <!-- Connector 2→3 -->
-          <div class="${connCls(s2done)}" style="height:2px;flex:1;margin-top:13px;"></div>
-          <!-- Step 3 -->
-          <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;">
-            ${stepIcon(s3done, s3cur, '3')}
-            ${stepLbl(s3done, s3cur, 'Bracket Setup')}
-          </div>
-          <!-- Connector 3→4 -->
-          <div class="${connCls(s3done)}" style="height:2px;flex:1;margin-top:13px;"></div>
-          <!-- Step 4 -->
-          <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;">
-            ${stepIcon(step4Done, s4cur, '4')}
-            ${stepLbl(step4Done, s4cur, 'Start Tournament')}
-          </div>
+            ${stepIcon(p.done, p.current, String(i + 1))}
+            ${stepLbl(p.done, p.current, p.label)}
+          </div>`).join('')}
         </div>
       </div>`;
   }
@@ -2321,16 +2125,24 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
       </button>`
     : '';
 
+  /* §121 check-in (SQL 141): mientras el torneo no está terminado, cada
+     jugador es un botón para marcar que llegó (admin-checkin.js). */
+  const conCheckin = tournament.status !== 'completed' && !!window.AdminCheckin;
   const teamsBody = teams.length
-    ? `<div style="display:flex;flex-direction:column;gap:8px;padding:16px 20px;">
+    ? `${conCheckin ? `<div id="ci-mount" class="ci-mount" data-tournament="${Number(tournament.id)}"></div>` : ''}
+      <div id="ci-teams" style="display:flex;flex-direction:column;gap:8px;padding:16px 20px;">
         ${teams.map((team, i) => {
-          const players = [team.player1_id, team.player2_id, team.player3_id, team.player4_id]
-            .filter(Boolean).map(id => { const p = tAllPlayers.find(x => x.id === id); return p ? `${p.first_name} ${p.last_name}` : '?'; });
+          const ids = [team.player1_id, team.player2_id, team.player3_id, team.player4_id].filter(Boolean);
+          const players = ids.map(id => { const p = tAllPlayers.find(x => x.id === id); return p ? `${p.first_name} ${p.last_name}` : '?'; });
+          const chips = conCheckin
+            ? `<div class="ci-jug">${ids.map((id, k) => `<button type="button" class="ci-chip" data-ci-player="${Number(id)}" aria-pressed="false"><span class="ci-c" aria-hidden="true">✓</span>${tEsc(players[k])}</button>`).join('')}
+                 <span class="ci-estado" data-ci-team="${Number(team.id)}" data-ci-players="${ids.map(Number).join(',')}"></span></div>`
+            : '';
           return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#f8f9ff;border:0.5px solid #e0e7f5;border-radius:8px;">
             <div style="width:24px;height:24px;border-radius:50%;background:#174CCC;color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i + 1}</div>
             <div style="flex:1;">
               <div style="font-size:12px;font-weight:800;color:#0d1f4a;">${tEsc(team.name)}</div>
-              ${!singlesMode ? `<div style="font-size:11px;font-weight:600;color:#6b7a99;">${players.join(' & ')}</div>` : ''}
+              ${chips || (!singlesMode ? `<div style="font-size:11px;font-weight:600;color:#6b7a99;">${players.map(tEsc).join(' &amp; ')}</div>` : '')}
             </div>
             ${tournament.status !== 'completed' && !singlesMode ? `<button onclick="editTeam(${team.id}, ${cat.id})" style="width:24px;height:24px;border:none;background:transparent;color:#174CCC;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:5px;" title="Edit">✏️</button>` : ''}
             ${tournament.status === 'draft' ? `<button onclick="deleteTeam(${team.id}, ${cat.id})" data-tname="${tEsc(team.name)}" style="width:22px;height:22px;border:none;background:transparent;color:#e53935;cursor:pointer;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;">×</button>` : ''}
@@ -2383,11 +2195,12 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
     </div>`;
   } else if (rrMatches.length > 0) {
     rrBody = `<div style="padding:12px 20px 16px;">
+      <div class="ac-mount" id="ac-mount-${cat.id}"></div>
       ${rrTotal > 0 ? `<div class="t-progress-bar" style="margin-bottom:12px;"><div class="t-progress-fill" style="width:${rrPct}%;"></div></div>` : ''}
       ${useGroups ? renderGroupedRR(groupViews, tMap, tournament, cat) : `<div class="t-rr-grid">${renderRRRounds(rrMatches, tMap, tournament)}</div>${rrDone > 0 ? tRenderStandings(standings, cat.name) : ''}`}
     </div>`;
   } else {
-    rrBody = `<div style="padding:16px 20px;font-size:12px;font-weight:600;color:#6b7a99;">Generate the schedule to start round robin play.</div>`;
+    rrBody = `<div style="padding:16px 20px;font-size:12px;font-weight:600;color:#6b7a99;"><div class="ac-mount" id="ac-mount-${cat.id}"></div>Generate the schedule to start round robin play.</div>`;
   }
 
   html += `<div style="background:white;border:0.5px solid #e0e7f5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(23,76,204,0.06);margin-bottom:12px;${rrLocked ? 'opacity:0.75;' : ''}">
@@ -2543,7 +2356,7 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
         <div id="bb-preview-${cat.id}" style="margin-bottom:16px;">${qualifiedPreviewHtml}</div>
 
         <div style="display:flex;justify-content:flex-end;">
-          <button onclick="generateBracket(${cat.id}, ${cat.tournament_id})"
+          <button data-busy="Generating…" onclick="generateBracket(${cat.id}, ${cat.tournament_id})"
             style="display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             Generate Finals Bracket
@@ -2587,6 +2400,13 @@ function renderCategory(cat, teams, rrMatches, bracketMatches, tournament, group
   }
 
   el.innerHTML = html;
+
+  // §116 Auto Courts: las canchas de la categoría y el Court board (admin-auto-courts.js).
+  const acMount = document.getElementById(`ac-mount-${cat.id}`);
+  if (acMount && window.AutoCourts) window.AutoCourts.montar(acMount, { cat, tournament, teams, rrMatches });
+  // §121 check-in (admin-checkin.js).
+  const ciMount = document.getElementById('ci-mount');
+  if (ciMount && window.AdminCheckin) window.AdminCheckin.montar(ciMount, { tournament, cat, teams });
 }
 
 
@@ -2850,7 +2670,7 @@ async function showAddTeam(catId) {
       + '</div></div>'
       + '<div class="t-form-actions">'
       + '<button type="button" class="t-btn t-btn-ghost" onclick="closeTModal()">Cancel</button>'
-      + '<button type="button" class="t-btn t-btn-primary" onclick="saveMultiplePlayers(' + catId + ')">Add Players</button>'
+      + '<button data-busy="Saving…" type="button" class="t-btn t-btn-primary" onclick="saveMultiplePlayers(' + catId + ')">Add Players</button>'
       + '</div>';
     openTModal();
     document.getElementById('t-player-search').focus();
@@ -2953,7 +2773,7 @@ async function showAddTeam(catId) {
 
     <!-- Footer -->
     <div style="display:flex;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:0.5px solid #e0e7f5;">
-      <button onclick="ctSaveTeam()"
+      <button data-busy="Saving…" onclick="ctSaveTeam()"
         style="display:inline-flex;align-items:center;gap:7px;padding:11px 28px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
         Create Team
@@ -3340,7 +3160,7 @@ async function editTeam(teamId, catId) {
 
     <!-- Footer -->
     <div style="display:flex;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:0.5px solid #e0e7f5;">
-      <button onclick="etSaveTeam()"
+      <button data-busy="Saving…" onclick="etSaveTeam()"
         style="display:inline-flex;align-items:center;gap:7px;padding:11px 28px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3 0%,#174CCC 100%);color:white;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Update Team
@@ -3848,6 +3668,10 @@ async function generateRR(catId) {
   const formatEl = document.getElementById('t-rr-format');
   const format = formatEl ? formatEl.value : 'play11_win1';
   const teams = await tApi(`tournament_teams?category_id=eq.${catId}&select=*&order=id`);
+  /* §116: si la categoría tiene Auto Courts, los partidos nacen sin cancha
+     (los "Court 1, 2, 3…" del horario no son canchas reales). */
+  const [catRow] = await tApi(`tournament_categories?id=eq.${catId}&select=*`);
+  const autoCourts = Array.isArray(catRow?.auto_courts) && catRow.auto_courts.length > 0;
   const n = teams.length;
 
   // Decide path: single RR (≤8 teams) vs groups (>8 teams)
@@ -3856,7 +3680,7 @@ async function generateRR(catId) {
   if (!useGroups) {
     // ─── SINGLE RR (existing behavior) ─────────────────────
     if (n < 3 || n > 20) { tToast(`Round robin supports 3-20 teams. You have ${n}.`, true); return; }
-    const schedule = RR_SCHEDULES[n];
+    const schedule = tRoundRobinSchedule(n);
     if (!schedule) { tToast(`No schedule found for ${n} teams.`, true); return; }
 
     const rows = [];
@@ -3865,7 +3689,7 @@ async function generateRR(catId) {
         rows.push({
           category_id: catId,
           round: round.round,
-          court: court.court,
+          court: autoCourts ? null : court.court,
           team_a_id: teams[court.a].id,
           team_b_id: teams[court.b].id,
           status: 'pending'
@@ -3931,10 +3755,10 @@ async function generateRR(catId) {
     const allMatchRows = [];
     groupedTeams.forEach((teamList, gIdx) => {
       const groupId = createdGroups[gIdx].id;
-      const schedule = RR_SCHEDULES[teamList.length];
+      const schedule = tRoundRobinSchedule(teamList.length);
       if (!schedule) {
         // Should not happen since min=3, max=8, all covered
-        console.error(`No RR_SCHEDULES entry for ${teamList.length} teams`);
+        console.error(`No round robin schedule for ${teamList.length} teams`);
         return;
       }
       schedule.forEach(round => {
@@ -3943,7 +3767,7 @@ async function generateRR(catId) {
             category_id: catId,
             group_id: groupId,
             round: round.round,
-            court: court.court,
+            court: autoCourts ? null : court.court,
             team_a_id: teamList[court.a].id,
             team_b_id: teamList[court.b].id,
             status: 'pending',
@@ -4278,6 +4102,9 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
   const bestOf = cat.best_of || 1;
   const singlesMatch = bestOf > 1;
   const existingGames = match.games || [];
+  // §116: con Auto Courts la cancha la pone el sistema: se enseña, no se escribe.
+  const autoCourtHTML = (type === 'rr' && window.AutoCourts && window.AutoCourts.esAuto(cat))
+    ? window.AutoCourts.htmlCanchaFija(match) : null;
 
   // ── Format label ─────────────────────────────────────────────────────
   const formatLabel = isFinals
@@ -4289,7 +4116,7 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
   // ── Subtitle: Round X • Court Y • Round Robin / Finals ───────────────
   const subtitleText = isFinals
     ? `${match.round_name} • Finals`
-    : `Round ${match.round} • Court ${match.court} • Round Robin`;
+    : `Round ${match.round} • Court ${match.court || '—'} • Round Robin`;
 
   // ── Player names ──────────────────────────────────────────────────────
   const teamAPlayers = getTeamPlayerNames(teamA) || '';
@@ -4311,10 +4138,10 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
       <div style="font-size:12px;font-weight:600;color:#6b7a99;text-align:center;margin-bottom:16px;padding:8px;background:#f4f6fc;border-radius:8px;">
         ${isFinals ? '🏆 Finals: ' : '🏓 Round Robin: '}${tEsc(formatLabel)} · Best of ${bestOf}
       </div>
-      <div class="t-form-group" style="margin-bottom:16px;">
+      ${autoCourtHTML || `<div class="t-form-group" style="margin-bottom:16px;">
         <label class="t-label">Court number</label>
         <input class="t-input" type="number" min="1" id="t-court-num" value="${match.court || ''}" placeholder="e.g. 5" style="max-width:120px;">
-      </div>
+      </div>`}
       <div class="t-singles-header">
         <span class="t-singles-player-col">${tEsc(teamA?.name || '?')}</span>
         <span></span>
@@ -4329,7 +4156,7 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
       </div>
       <div id="t-score-preview" style="text-align:center;min-height:28px;margin-top:12px;"></div>
       <div style="display:flex;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:0.5px solid #e0e7f5;">
-        <button type="button" onclick="saveMatch('${type}',${matchId},${teamAId},${teamBId},${catId})"
+        <button data-busy="Saving…" type="button" onclick="saveMatch('${type}',${matchId},${teamAId},${teamBId},${catId})"
           style="display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           Save Result
@@ -4360,13 +4187,13 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
     </div>
 
     <!-- Court number -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+    ${autoCourtHTML || `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <span style="font-size:11px;font-weight:700;color:#6b7a99;">Court:</span>
       <input type="number" min="1" id="t-court-num" value="${match.court || ''}"
         style="width:72px;height:36px;text-align:center;border:1px solid #e0e7f5;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;color:#0d1f4a;outline:none;"
         onfocus="this.style.borderColor='#174CCC';this.style.boxShadow='0 0 0 4px rgba(23,76,204,0.08)'"
         onblur="this.style.borderColor='#e0e7f5';this.style.boxShadow='none'">
-    </div>
+    </div>`}
 
     <div style="border-top:0.5px solid #e0e7f5;margin-bottom:16px;"></div>
 
@@ -4428,7 +4255,7 @@ async function openScoreModal(type, matchId, teamAId, teamBId, catId) {
 
     <!-- Footer -->
     <div style="display:flex;justify-content:flex-end;">
-      <button onclick="saveMatch('${type}',${matchId},${teamAId},${teamBId},${catId})"
+      <button data-busy="Saving…" onclick="saveMatch('${type}',${matchId},${teamAId},${teamBId},${catId})"
         style="display:inline-flex;align-items:center;gap:7px;padding:11px 28px;border:none;border-radius:99px;background:linear-gradient(180deg,#2456d3,#174CCC);color:white;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Save Result
@@ -4498,12 +4325,18 @@ function smToggleForfeit(side) {
 
 
 async function saveMatch(type, matchId, teamAId, teamBId, catId) {
+  // ── §116 Auto Courts: la cancha la pone el sistema ───────────────────
+  // (#t-auto-court sólo existe en el modal de una categoría con Auto Courts.)
+  const autoEl = type === 'rr' ? document.getElementById('t-auto-court') : null;
+  const autoCourt = autoEl ? (parseInt(autoEl.dataset.court) || null) : null;
+  const autoState = autoEl ? autoEl.dataset.state : null;   // 'on_court' | 'waiting' | 'done'
+
   // ── Court number ─────────────────────────────────────────────────────
-  const courtVal = document.getElementById('t-court-num')?.value?.trim();
+  const courtVal = autoEl ? String(autoCourt || '') : document.getElementById('t-court-num')?.value?.trim();
   const courtNum = parseInt(courtVal);
   const courtFilled = courtVal && !isNaN(courtNum) && courtNum >= 1;
 
-  if (!courtFilled) {
+  if (!autoEl && !courtFilled) {
     tToast('Please enter a court number.', true);
     document.getElementById('t-court-num')?.focus();
     return;
@@ -4529,7 +4362,7 @@ async function saveMatch(type, matchId, teamAId, teamBId, catId) {
 
     // Subtitle: "Round 2 • Court 2 • Round Robin" or "Finals • Semifinals"
     const subtitleText = type === 'rr'
-      ? `Round ${matchData?.round || '?'} • Court ${courtNum} • Round Robin`
+      ? `Round ${matchData?.round || '?'} • Court ${courtFilled ? courtNum : '—'} • Round Robin`
       : `${matchData?.round_name || 'Finals'}`;
 
     document.getElementById('t-modal-title').textContent = 'Confirm Team Withdrawal';
@@ -4576,8 +4409,8 @@ async function saveMatch(type, matchId, teamAId, teamBId, catId) {
 
       <!-- Footer -->
       <div style="display:flex;justify-content:center;padding-top:10px;border-top:0.5px solid #e0e7f5;margin-top:6px;">
-        <button
-          onclick="tSetModalSubtitle('');processForfeit('${type}', ${matchId}, ${teamAId}, ${teamBId}, ${catId}, ${forfeitTeamId}, ${courtNum})"
+        <button data-busy="Saving…"
+          onclick="tSetModalSubtitle('');processForfeit('${type}', ${matchId}, ${teamAId}, ${teamBId}, ${catId}, ${forfeitTeamId}, ${autoEl ? 'null' : courtNum})"
           style="display:inline-flex;align-items:center;gap:7px;padding:11px 32px;border:none;border-radius:99px;background:#F26024;color:white;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;"
           onmouseover="this.style.background='#db531d'"
           onmouseout="this.style.background='#F26024'">
@@ -4631,19 +4464,47 @@ async function saveMatch(type, matchId, teamAId, teamBId, catId) {
     }
   }
 
+  // §116: con Auto Courts no hay "guardar sólo la cancha", y un partido que
+  // todavía espera no se puede anotar (lo llama el sistema a su cancha).
+  if (autoEl && !scoresProvided) {
+    tToast('Enter both scores to save the result.', true);
+    return;
+  }
+  if (autoEl && autoState === 'waiting') {
+    tToast('This match is not on a court yet — Auto Courts will call it.', true);
+    return;
+  }
+  // §116: el modal pudo quedarse abierto un rato: se mira cómo está AHORA
+  // (si lo movieron de cancha, el aviso dirá la cancha nueva).
+  let courtAviso = autoCourt;
+  if (autoEl && autoState === 'on_court') {
+    const [ahora] = await tApi(`tournament_rr_matches?id=eq.${matchId}&select=status,called_at,court`);
+    if (ahora && ahora.status === 'pending' && !ahora.called_at) {
+      tToast('This match is no longer on a court (a team was marked not here, or the court was taken out). Close and check the Court board.', true);
+      return;
+    }
+    if (ahora && ahora.court) courtAviso = ahora.court;
+  }
+
   try {
     if (scoresProvided) {
       // Save court + scores + mark completed
+      // (§116: con Auto Courts la cancha no se manda — ya la tiene el partido.)
       const table = type === 'rr' ? 'tournament_rr_matches' : 'tournament_bracket_matches';
       await tApi(`${table}?id=eq.${matchId}`, 'PATCH', {
-        court: courtNum,
+        ...(autoEl ? {} : { court: courtNum }),
         score_a: sa, score_b: sb, winner_id: winnerId, status: 'completed',
         ...(gamesToSave ? { games: gamesToSave } : {}),
       });
       if (type === 'bracket') {
         await advanceBracket(matchId, winnerId, teamAId === winnerId ? teamBId : teamAId, catId);
       }
-      tToast('Result saved!');
+      if (autoEl && autoState === 'on_court' && courtAviso) {
+        // "Saved 11–7. Court 20 → next: …" (el sistema ya llamó al siguiente).
+        await window.AutoCourts.avisoSiguiente(catId, courtAviso, sa, sb);
+      } else {
+        tToast('Result saved!');
+      }
     } else {
       // Save court only — keep status unchanged
       const table = type === 'rr' ? 'tournament_rr_matches' : 'tournament_bracket_matches';
@@ -4657,7 +4518,8 @@ async function saveMatch(type, matchId, teamAId, teamBId, catId) {
     const categories = await tApi(`tournament_categories?tournament_id=eq.${tCurrentTournamentId}&select=*&order=id`);
     renderTournamentDetail(t, categories);
   } catch (err) {
-    tToast(`Error: ${err.message}`, true);
+    // §116: "auto_courts_locked" y demás, en palabras.
+    tToast(window.AutoCourts ? window.AutoCourts.mensaje(err.message) : `Error: ${err.message}`, true);
   }
 }
 
@@ -4868,11 +4730,11 @@ function openForfeitModal(type, matchId, teamAId, teamBId, catId, teamAName, tea
         Select which team is forfeiting:
       </p>
       <div style="display:flex;flex-direction:column;gap:10px;">
-        <button type="button" class="t-btn t-btn-danger" style="width:100%;"
+        <button data-busy="Saving…" type="button" class="t-btn t-btn-danger" style="width:100%;"
           onclick="processForfeit('${type}', ${matchId}, ${teamAId}, ${teamBId}, ${catId}, ${teamAId})">
           ${teamAName} forfeits
         </button>
-        <button type="button" class="t-btn t-btn-danger" style="width:100%;"
+        <button data-busy="Saving…" type="button" class="t-btn t-btn-danger" style="width:100%;"
           onclick="processForfeit('${type}', ${matchId}, ${teamAId}, ${teamBId}, ${catId}, ${teamBId})">
           ${teamBName} forfeits
         </button>
@@ -5136,6 +4998,12 @@ async function printTournamentRoster(btn) {
     const SILVER = [192, 192, 192];
     const BRONZE = [205, 127, 50];
     const TEAL   = [36, 188, 150];
+    const FF_RED = [229, 57, 53];
+    /* A match "has its result" when it is completed and both scores are
+       there (a bye or a pending match prints empty boxes). */
+    const hasScore = (m) => m.status === 'completed'
+      && m.score_a !== null && m.score_a !== undefined && m.score_a !== ''
+      && m.score_b !== null && m.score_b !== undefined && m.score_b !== '';
 
     const dateLabel = tournamentDate
       ? new Date(tournamentDate + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' })
@@ -5216,11 +5084,15 @@ async function printTournamentRoster(btn) {
       let y = 30;
 
       // Fetch data for this category
-      const [teams, rrMatches, bracketMatches] = await Promise.all([
+      const [teams, rrMatches, bracketMatches, catRows] = await Promise.all([
         tApi(`tournament_teams?category_id=eq.${cat.id}&select=*&order=id`),
         tApi(`tournament_rr_matches?category_id=eq.${cat.id}&select=*&order=round,court`),
         tApi(`tournament_bracket_matches?category_id=eq.${cat.id}&select=*&order=id`),
+        tApi(`tournament_categories?id=eq.${cat.id}&select=*`).catch(() => []),
       ]);
+      /* §116 (3A): con Auto Courts la cancha se sabe en el momento: el PDF
+         enseña los partidos por ronda, sin cancha, con la nota. */
+      const autoPdf = Array.isArray(catRows?.[0]?.auto_courts) && catRows[0].auto_courts.length > 0;
 
       // Build team map for name lookup
       const teamMap = {};
@@ -5325,6 +5197,39 @@ async function printTournamentRoster(btn) {
 
       const MATCH_H = 9;
 
+      /* ── THE TWO SCORE BOXES (12 de octubre) ──────────────────────
+         Empty boxes to write the score by hand, as before — but once a
+         match has its result, the result is printed in them: team A on
+         the left, team B on the right (games won in a best-of bracket
+         match, as the tournament screen shows). The winner's number in
+         blue and bold; "FF" next to the boxes when it was a forfeit. */
+      const drawScoreBoxes = (m, bx, ry) => {
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.4);
+        doc.setFillColor(...WHITE);
+        doc.rect(bx, ry + 1.5, 6.5, MATCH_H - 3, 'FD');
+        doc.rect(bx + 7.5, ry + 1.5, 6.5, MATCH_H - 3, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6);
+        doc.setTextColor(...MUTED);
+        doc.text('—', bx + 7, ry + MATCH_H / 2 + 1, { align: 'center' });
+        if (!hasScore(m)) return;
+        const score = (value, x, won) => {
+          doc.setFont('helvetica', won ? 'bold' : 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(...(won ? BLUE : DARK));
+          doc.text(String(value), x, ry + MATCH_H / 2 + 1.3, { align: 'center' });
+        };
+        score(m.score_a, bx + 3.25, !!m.winner_id && m.winner_id === m.team_a_id);
+        score(m.score_b, bx + 10.75, !!m.winner_id && m.winner_id === m.team_b_id);
+        if (m.forfeit_team_id) {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(6);
+          doc.setTextColor(...FF_RED);
+          doc.text('FF', bx - 1.5, ry + MATCH_H / 2 + 1, { align: 'right' });
+        }
+      };
+
       // Add a new page — both columns carry on where they stopped: the teams
       // list on the left, the schedule on the right.
       const addSchedulePage = () => {
@@ -5355,7 +5260,7 @@ async function printTournamentRoster(btn) {
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(7);
           doc.setTextColor(...WHITE);
-          doc.text(`Round ${round}`, schedX() + 3, ry + 4.2);
+          doc.text(`Round ${round}${autoPdf ? '  ·  Courts assigned live' : ''}`, schedX() + 3, ry + 4.2);
           ry += 7;
 
           rrMatches.filter(m => m.round === round).forEach(m => {
@@ -5366,7 +5271,7 @@ async function printTournamentRoster(btn) {
             const nameA = tA ? tA.name : 'TBD';
             const nameB = tB ? tB.name : 'TBD';
             const matchLabel = `${nameA}  vs  ${nameB}`;
-            const courtLabel = m.court ? `C${m.court}` : '';
+            const courtLabel = (!autoPdf && m.court) ? `C${m.court}` : '';
 
             if (m.round % 2 === 0) {
               doc.setFillColor(245, 247, 252);
@@ -5385,18 +5290,9 @@ async function printTournamentRoster(btn) {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8 * NAME_SIZE);
             doc.setTextColor(...DARK);
-            doc.text(matchLabel, schedX() + 13, ry + MATCH_H / 2 + 1.5, { maxWidth: schedW() - 30 });
+            doc.text(matchLabel, schedX() + 13, ry + MATCH_H / 2 + 1.5, { maxWidth: schedW() - 30 - (hasScore(m) && m.forfeit_team_id ? 6 : 0) });
 
-            const bx = schedX() + schedW() - 16;
-            doc.setDrawColor(...BORDER);
-            doc.setLineWidth(0.4);
-            doc.setFillColor(...WHITE);
-            doc.rect(bx, ry + 1.5, 6.5, MATCH_H - 3, 'FD');
-            doc.rect(bx + 7.5, ry + 1.5, 6.5, MATCH_H - 3, 'FD');
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(6);
-            doc.setTextColor(...MUTED);
-            doc.text('—', bx + 7, ry + MATCH_H / 2 + 1, { align: 'center' });
+            drawScoreBoxes(m, schedX() + schedW() - 16, ry);
 
             doc.setDrawColor(...BORDER);
             doc.setLineWidth(0.2);
@@ -5437,18 +5333,9 @@ async function printTournamentRoster(btn) {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
             doc.setTextColor(...DARK);
-            doc.text(matchLabel, schedX() + 3, ry + MATCH_H / 2 + 1.5, { maxWidth: schedW() - 20 });
+            doc.text(matchLabel, schedX() + 3, ry + MATCH_H / 2 + 1.5, { maxWidth: schedW() - 20 - (hasScore(m) && m.forfeit_team_id ? 6 : 0) });
 
-            const bx = schedX() + schedW() - 16;
-            doc.setDrawColor(...BORDER);
-            doc.setLineWidth(0.4);
-            doc.setFillColor(...WHITE);
-            doc.rect(bx, ry + 1.5, 6.5, MATCH_H - 3, 'FD');
-            doc.rect(bx + 7.5, ry + 1.5, 6.5, MATCH_H - 3, 'FD');
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(6);
-            doc.setTextColor(...MUTED);
-            doc.text('—', bx + 7, ry + MATCH_H / 2 + 1, { align: 'center' });
+            drawScoreBoxes(m, schedX() + schedW() - 16, ry);
 
             doc.setDrawColor(...BORDER);
             doc.setLineWidth(0.2);
@@ -5486,4 +5373,13 @@ async function printTournamentRoster(btn) {
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = printBtnOrigHTML; }
   }
+}
+
+/* §117: un clic a la vez. Estas funciones se llaman desde onclick="…";
+   mientras una guarda, otro clic en ella no hace nada. */
+if (window.FerociaBoton) {
+  window.FerociaBoton.unaVez(['saveMatch', 'processForfeit', 'ctSaveTeam', 'etSaveTeam', 'confirmDeleteTeam',
+    'confirmDeleteTournament', 'confirmEmergencyClose', 'startTournament', 'tToggleStatus', 'tSaveEditTournament',
+    'generateBracket', 'generateRR', 'saveMultiplePlayers', 'tCheckFinalizeConfirm', 'tCheckFinalizeConfirmHub',
+    'createTournament']);
 }
